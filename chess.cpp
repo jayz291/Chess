@@ -39,8 +39,22 @@ class Game {
         for (int i { 0 }; i < 8; i++) {
             board[6][i].piece_occupying = std::make_unique<Piece> ("pawn", "white", false, 6, i);
         }
-        //board[0][0].piece_occupying = std::make_unique<Piece> ("rook", "black", false, 0, 0);
-        //board[0][1].piece_occupying = std::make_unique<Piece> ("knight", "black", false, 0, 1);
+        board[0][0].piece_occupying = std::make_unique<Piece> ("rook", "black", false, 0, 0);
+        board[0][1].piece_occupying = std::make_unique<Piece> ("knight", "black", false, 0, 1);
+        board[0][2].piece_occupying = std::make_unique<Piece> ("bishop", "black", false, 0, 2);
+        board[0][3].piece_occupying = std::make_unique<Piece> ("queen", "black", false, 0, 3);
+        board[0][4].piece_occupying = std::make_unique<Piece> ("king", "black", false, 0, 4);
+        board[0][5].piece_occupying = std::make_unique<Piece> ("bishop", "black", false, 0, 5);
+        board[0][6].piece_occupying = std::make_unique<Piece> ("knight", "black", false, 0, 6);
+        board[0][7].piece_occupying = std::make_unique<Piece> ("rook", "black", false, 0, 7);
+        board[7][0].piece_occupying = std::make_unique<Piece> ("rook", "white", false, 7, 0);
+        board[7][1].piece_occupying = std::make_unique<Piece> ("knight", "white", false, 7, 1);
+        board[7][2].piece_occupying = std::make_unique<Piece> ("bishop", "white", false, 7, 2);
+        board[7][3].piece_occupying = std::make_unique<Piece> ("queen", "white", false, 7, 3);
+        board[7][4].piece_occupying = std::make_unique<Piece> ("king", "white", false, 7, 4);
+        board[7][5].piece_occupying = std::make_unique<Piece> ("bishop", "white", false, 7, 5);
+        board[7][6].piece_occupying = std::make_unique<Piece> ("knight", "white", false, 7, 6);
+        board[7][7].piece_occupying = std::make_unique<Piece> ("rook", "white", false, 7, 7);
     }
 };
 
@@ -100,10 +114,55 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::unique_ptr<Piece>& pi
     sf::Texture texture;
 
     if (piece->piece_type == "pawn" && piece->colour == "black") {
-        texture.loadFromFile("./src/Chess_pdt45.png");
+        if (!texture.loadFromFile("./src/Chess_pdt45.png")) {
+            return;
+        }
     } else if (piece->piece_type == "pawn" && piece->colour == "white") {
-        texture.loadFromFile("./src/Chess_plt45.png");
+        if (!texture.loadFromFile("./src/Chess_plt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "knight" && piece->colour == "black") {
+        if (!texture.loadFromFile("./src/Chess_ndt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "knight" && piece->colour == "white") {
+        if (!texture.loadFromFile("./src/Chess_nlt45.png")) {
+            return;
+        }
+    }  else if (piece->piece_type == "bishop" && piece->colour == "black") {
+        if (!texture.loadFromFile("./src/Chess_bdt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "bishop" && piece->colour == "white") {
+        if (!texture.loadFromFile("./src/Chess_blt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "rook" && piece->colour == "black") {
+        if (!texture.loadFromFile("./src/Chess_rdt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "rook" && piece->colour == "white") {
+        if (!texture.loadFromFile("./src/Chess_rlt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "queen" && piece->colour == "black") {
+        if (!texture.loadFromFile("./src/Chess_qdt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "queen" && piece->colour == "white") {
+        if (!texture.loadFromFile("./src/Chess_qlt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "king" && piece->colour == "black") {
+        if (!texture.loadFromFile("./src/Chess_kdt45.png")) {
+            return;
+        }
+    } else if (piece->piece_type == "king" && piece->colour == "white") {
+        if (!texture.loadFromFile("./src/Chess_klt45.png")) {
+            return;
+        }
     }
+
     sf::Sprite sprite(texture);
     sprite.setScale({0.1f, 0.1f});
     float x_offset { static_cast<float>(135 + piece->col * (760 / 8)) };
