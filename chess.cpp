@@ -2,6 +2,7 @@
 #include <array>
 #include <vector>
 #include <memory>
+#include <cmath>
 #include <SFML/Graphics.hpp>
 
 struct Piece {
@@ -15,6 +16,12 @@ struct Piece {
 struct Cell {
     std::string colour {};
     std::unique_ptr<Piece> piece_occupying { nullptr };
+    bool selected { false };
+};
+
+struct Coords {
+    int row { -1 };
+    int col { -1 };
 };
 
 
@@ -23,6 +30,7 @@ class Game {
     public:
         //std::vector<Piece> pieces{32}; 
         std::array<std::array<Cell, 8>, 8> board {};
+        Coords selected {};
     Game() {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -60,6 +68,7 @@ class Game {
 
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::unique_ptr<Piece>& piece);
+void select_square(int x, int y, Game& game);
 
 int main() {
     Game game {};
@@ -72,6 +81,10 @@ int main() {
             if (event->is<sf::Event::Closed>()) {
                 window.close();
             }
+            if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
+                select_square(mouse_press->position.x, mouse_press->position.y, game);
+            }
+
         }
         window.clear(sf::Color::Red);
         draw_board(game, window);
@@ -94,6 +107,10 @@ void draw_board(Game& game, sf::RenderWindow& window) {
                 cell.setFillColor(sf::Color(165, 42, 42));
             } else {
                 cell.setFillColor(sf::Color::Yellow);
+            }
+            if (game.board[i][j].selected) {
+                cell.setOutlineThickness(-3.0f);
+                cell.setOutlineColor(sf::Color::Black);
             }
             window.draw(cell);
         }
@@ -171,6 +188,27 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::unique_ptr<Piece>& pi
     sprite.setPosition({x_offset, y_offset});
     window.draw(sprite);
 
+}
+
+void select_square(int x, int y, Game& game) {
+    int row = floor(((x - 135.f) / (760 / 8)) + 0.1473);
+    int col = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
+    if (row < 0) {
+        row = 0;
+    } else if (col < 0) {
+        col = 0;
+    }
+    if (!game.board[row][col].selected) {
+        if (game.selected.row > -1) {
+            game.board[game.selected.row][game.selected.col].selected = false;
+        }
+        game.board[row][col].selected = true;
+        game.selected.row = row;
+        game.selected.col = col;
+    } else {
+        game.board[row][col].selected = false;
+        game.selected.row = game.selected.col = -1;
+    }
 }
 
 
