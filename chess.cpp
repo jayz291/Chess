@@ -102,18 +102,21 @@ void draw_board(Game& game, sf::RenderWindow& window) {
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
             sf::RectangleShape cell({760 / 8, 760 / 8});
-            x_offset = 120 + i * (760 / 8);
-            y_offset = 20 + j * (760 / 8);
-            cell.setPosition({x_offset, y_offset});
+            x_offset = 120 + j * (760 / 8);
+            y_offset = 20 + i * (760 / 8);
+            
             if (game.board[i][j].colour == "brown") {
                 cell.setFillColor(sf::Color(165, 42, 42));
             } else {
                 cell.setFillColor(sf::Color::Yellow);
             }
             if (game.board[i][j].selected) {
+                //std::cout << i << " " << j << '\n';
+                //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
             }
+            cell.setPosition({x_offset, y_offset});
             window.draw(cell);
         }
     }
@@ -203,12 +206,9 @@ void select_square(int x, int y, Game& game) {
     }
     if (game.selected.row > -1 && game.selected.col > -1) {
         std::cout << game.selected.row << ' ' << game.selected.col << '\n';
-        if (game.board[row][col].piece_occupying) {
-            game.board[game.selected.row][game.selected.col].selected = false;
-            game.selected.row = game.selected.col = -1;
-            return;
-        } else if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr) {
 
+        if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr) {
+            game.board[row][col].piece_occupying = nullptr;
             game.board[row][col].piece_occupying = std::move(game.board[game.selected.row][game.selected.col].piece_occupying);
             if (game.board[row][col].piece_occupying == nullptr) {
                 std::cout << "failed\n";
@@ -216,12 +216,16 @@ void select_square(int x, int y, Game& game) {
             }
             game.board[row][col].piece_occupying->row = row;
             game.board[row][col].piece_occupying->col = col;
-            game.board[game.selected.col][game.selected.row].selected = false;
+            game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;
             return;
+        } else {
+
+            game.board[game.selected.row][game.selected.col].selected = false;
+            game.selected.row = game.selected.col = -1;           
         }
     } else {
-        game.board[col][row].selected = true;
+        game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
     }
