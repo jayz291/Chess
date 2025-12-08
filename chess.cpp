@@ -26,8 +26,6 @@ struct Coords {
     int col { -1 };
 };
 
-
-
 class Game {
     public:
         //std::vector<Piece> pieces{32}; 
@@ -72,6 +70,9 @@ class Game {
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::unique_ptr<Piece>& piece);
 void select_square(int x, int y, Game& game);
+
+int validate_move(Game& game, int& row, int& col);
+int validate_move_pawn(Game& game, int& row, int& col);
 
 int main() {
     Game game {};
@@ -208,10 +209,7 @@ void select_square(int x, int y, Game& game) {
     if (game.selected.row > -1 && game.selected.col > -1) {
         //std::cout << game.selected.row << ' ' << game.selected.col << '\n';
         //std::cout << row << ' ' << col << '\n';
-
-        if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr 
-            && (game.selected.row != row || game.selected.col != col) && 
-            (!game.board[row][col].piece_occupying || game.board[row][col].piece_occupying->colour != game.turn)) {
+        if (validate_move(game, row, col) == 0) {
 
             game.board[row][col].piece_occupying = nullptr;
             game.board[row][col].piece_occupying = std::move(game.board[game.selected.row][game.selected.col].piece_occupying);
@@ -238,6 +236,56 @@ void select_square(int x, int y, Game& game) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
+    }
+}
+
+int validate_move(Game& game, int& row, int& col) {
+    if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr 
+        && (game.selected.row != row || game.selected.col != col) && 
+        (!game.board[row][col].piece_occupying || game.board[row][col].piece_occupying->colour != game.turn)) {
+        
+        
+        std::string piece = game.board[game.selected.row][game.selected.col].piece_occupying->piece_type;
+        if (piece == "pawn") {
+            return validate_move_pawn(game, row, col);
+        } else {
+            return 0;
+        }
+    } else {
+        return -1;
+    }
+}
+
+int validate_move_pawn(Game& game, int& row, int& col) {
+    int row_change { row - game.selected.row };
+    int col_change { col - game.selected.col };
+    std::cout << "Row change: " << row_change << '\n';
+    if (game.turn == "white") {
+        if (row_change == -2 
+        && game.selected.row == 6 && !col_change 
+        && !game.board[game.selected.row - 1][game.selected.col].piece_occupying 
+        && !game.board[row][col].piece_occupying) {
+            return 0;
+        } else if (row_change == -1 && !col_change &&
+            !game.board[game.selected.row - 1][game.selected.col].piece_occupying) {
+            return 0;
+        } else if (std::abs(col_change) == 1 && row_change == -1 && game.board[row][col].piece_occupying) {
+            return 0;
+        }
+        return -1;
+    } else {
+        if (row_change == 2 
+        && game.selected.row == 1 && !col_change 
+        && !game.board[game.selected.row + 1][game.selected.col].piece_occupying 
+        && !game.board[row][col].piece_occupying) {
+            return 0;
+        } else if (row_change == 1 && !col_change &&
+            !game.board[game.selected.row + 1][game.selected.col].piece_occupying) {
+            return 0;
+        } else if (std::abs(col_change) == 1 && row_change == 1 && game.board[row][col].piece_occupying) {
+            return 0;
+        }
+        return -1;
     }
 }
 
