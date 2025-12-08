@@ -75,6 +75,7 @@ void select_square(int x, int y, Game& game);
 int validate_move(Game& game, int& row, int& col);
 int validate_move_pawn(Game& game, int& row, int& col);
 int validate_move_knight(Game& game, int& row, int& col);
+int validate_move_bishop(Game& game, int& row, int& col);
 
 int main() {
     Game game {};
@@ -257,6 +258,8 @@ int validate_move(Game& game, int& row, int& col) {
             return validate_move_pawn(game, row, col);
         } else if (piece == "knight") {
             return validate_move_knight(game, row, col);
+        } else if (piece == "bishop") {
+            return validate_move_bishop(game, row, col);
         } else {
             return 0;
         }
@@ -321,6 +324,42 @@ int validate_move_knight(Game& game, int& row, int& col) {
     } else {
         return -1;
     }
+}
+
+int validate_move_bishop(Game& game, int& row, int& col) {
+    int bishop_row { game.selected.row };
+    int bishop_col { game.selected.col };
+    int row_change { row - bishop_row };
+    int col_change { col - bishop_col };
+    if (std::abs(row_change) == std::abs(col_change)) {
+        if (row_change > 0 && col_change > 0) {
+            for (int i { 1 }; i < std::abs(row_change); i++) {
+                if (game.board[bishop_row + i][bishop_col + i].piece_occupying) {
+                    return -1;
+                }
+            }
+        } else if (row_change < 0 && col_change > 0) {
+            for (int i { 1 }; i < std::abs(row_change); i++) {
+                if (game.board[bishop_row - i][bishop_col + i].piece_occupying) {
+                    return -1;
+                }
+            }           
+        } else if (row_change > 0 && col_change < 0) {
+            for (int i { 1 }; i < std::abs(row_change); i++) {
+                if (game.board[bishop_row + i][bishop_col - i].piece_occupying) {
+                    return -1;
+                }
+            }           
+        } else if (row_change < 0 && col_change < 0) {
+            for (int i { 1 }; i < std::abs(row_change); i++) {
+                if (game.board[bishop_row - i][bishop_col - i].piece_occupying) {
+                    return -1;
+                }
+            }              
+        }
+        return 0;
+    }
+    return -1;
 }
 
 
