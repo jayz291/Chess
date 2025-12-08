@@ -206,9 +206,13 @@ void select_square(int x, int y, Game& game) {
         col = 0;
     }
     if (game.selected.row > -1 && game.selected.col > -1) {
-        std::cout << game.selected.row << ' ' << game.selected.col << '\n';
+        //std::cout << game.selected.row << ' ' << game.selected.col << '\n';
+        //std::cout << row << ' ' << col << '\n';
 
-        if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr) {
+        if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr 
+            && (game.selected.row != row || game.selected.col != col) && 
+            (!game.board[row][col].piece_occupying || game.board[row][col].piece_occupying->colour != game.turn)) {
+
             game.board[row][col].piece_occupying = nullptr;
             game.board[row][col].piece_occupying = std::move(game.board[game.selected.row][game.selected.col].piece_occupying);
             if (game.board[row][col].piece_occupying == nullptr) {
