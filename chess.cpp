@@ -33,6 +33,7 @@ class Game {
         //std::vector<Piece> pieces{32}; 
         std::array<std::array<Cell, 8>, 8> board {};
         Coords selected {};
+        std::string turn { "white" };
     Game() {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -216,6 +217,11 @@ void select_square(int x, int y, Game& game) {
             }
             game.board[row][col].piece_occupying->row = row;
             game.board[row][col].piece_occupying->col = col;
+            if (game.turn == "white") {
+                game.turn = "black";
+            } else {
+                game.turn = "white";
+            }
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;
             return;
@@ -224,7 +230,7 @@ void select_square(int x, int y, Game& game) {
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;           
         }
-    } else {
+    } else if (!game.board[row][col].piece_occupying || game.board[row][col].piece_occupying->colour == game.turn) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
