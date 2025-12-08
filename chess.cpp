@@ -77,6 +77,7 @@ int validate_move_pawn(Game& game, int& row, int& col);
 int validate_move_knight(Game& game, int& row, int& col);
 int validate_move_bishop(Game& game, int& row, int& col);
 int validate_move_rook(Game& game, int& row, int& col);
+int validate_move_queen(Game& game, int& row, int& col);
 
 int main() {
     Game game {};
@@ -263,6 +264,8 @@ int validate_move(Game& game, int& row, int& col) {
             return validate_move_bishop(game, row, col);
         } else if (piece == "rook") {
             return validate_move_rook(game, row, col);
+        } else if (piece == "queen") {
+            return validate_move_queen(game, row, col);
         } else {
             return 0;
         }
@@ -402,6 +405,16 @@ int validate_move_rook(Game& game, int& row, int& col) {
         return 0;
     }
     return -1;
+}
+
+int validate_move_queen(Game& game, int& row, int& col) {
+    int rook_move = validate_move_rook(game, row, col);
+    int bishop_move = validate_move_bishop(game, row, col);
+    if (rook_move == 0 || bishop_move == 0) {
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
 
