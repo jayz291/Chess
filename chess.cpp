@@ -76,6 +76,7 @@ int validate_move(Game& game, int& row, int& col);
 int validate_move_pawn(Game& game, int& row, int& col);
 int validate_move_knight(Game& game, int& row, int& col);
 int validate_move_bishop(Game& game, int& row, int& col);
+int validate_move_rook(Game& game, int& row, int& col);
 
 int main() {
     Game game {};
@@ -260,6 +261,8 @@ int validate_move(Game& game, int& row, int& col) {
             return validate_move_knight(game, row, col);
         } else if (piece == "bishop") {
             return validate_move_bishop(game, row, col);
+        } else if (piece == "rook") {
+            return validate_move_rook(game, row, col);
         } else {
             return 0;
         }
@@ -356,6 +359,45 @@ int validate_move_bishop(Game& game, int& row, int& col) {
                     return -1;
                 }
             }              
+        }
+        return 0;
+    }
+    return -1;
+}
+
+int validate_move_rook(Game& game, int& row, int& col) {
+    int rook_row { game.selected.row };
+    int rook_col { game.selected.col };
+    int row_change { row - rook_row };
+    int col_change { col - rook_col };
+    if (row_change == 0) {
+        if (col_change > 0) {
+            for (int i { 1 }; i < std::abs(col_change); i++) {
+                if (game.board[rook_row][rook_col + i].piece_occupying) {
+                    return -1;
+                }
+            } 
+        } else if (col_change < 0) {
+            for (int i { 1 }; i < std::abs(col_change); i++) {
+                if (game.board[rook_row][rook_col - i].piece_occupying) {
+                    return -1;
+                }
+            }         
+        }
+        return 0;
+    } else if (col_change == 0) {
+        if (row_change > 0) {
+            for (int i { 1 }; i < std::abs(row_change); i++) {
+                if (game.board[rook_row + i][rook_col].piece_occupying) {
+                    return -1;
+                }
+            } 
+        } else if (row_change < 0) {
+            for (int i { 1 }; i < std::abs(row_change); i++) {
+                if (game.board[rook_row - i][rook_col].piece_occupying) {
+                    return -1;
+                }
+            }         
         }
         return 0;
     }
