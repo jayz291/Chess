@@ -5,6 +5,7 @@
 #include <cmath>
 #include <SFML/Graphics.hpp>
 #include <utility>
+#include <algorithm>
 
 
 struct Piece {
@@ -257,37 +258,50 @@ int validate_move(Game& game, int& row, int& col) {
 }
 
 int validate_move_pawn(Game& game, int& row, int& col) {
-    int row_change { row - game.selected.row };
-    int col_change { col - game.selected.col };
-    std::cout << "Row change: " << row_change << '\n';
+    std::vector<std::pair<int, int>> no_capture_moves {};
+    std::vector<std::pair<int, int>> capture_moves {};
+    std::pair<int, int> move { row, col };
+    std::vector<std::pair<int, int>>::iterator it {};
+    int pawn_row { game.selected.row };
+    int pawn_col { game.selected.col };
+
     if (game.turn == "white") {
-        if (row_change == -2 
-        && game.selected.row == 6 && !col_change 
-        && !game.board[game.selected.row - 1][game.selected.col].piece_occupying 
-        && !game.board[row][col].piece_occupying) {
-            return 0;
-        } else if (row_change == -1 && !col_change &&
-            !game.board[game.selected.row - 1][game.selected.col].piece_occupying) {
-            return 0;
-        } else if (std::abs(col_change) == 1 && row_change == -1 && game.board[row][col].piece_occupying) {
-            return 0;
+        if (pawn_row == 6 && !game.board[pawn_row - 1][pawn_col].piece_occupying) {
+            no_capture_moves = { { pawn_row - 1, pawn_col }, { pawn_row - 2, pawn_col } };
+        } else {
+            no_capture_moves = { { pawn_row - 1, pawn_col } };
         }
-        return -1;
+        capture_moves = { { pawn_row - 1, pawn_col - 1 }, { pawn_row - 1, pawn_col + 1 } };
+
     } else {
-        if (row_change == 2 
-        && game.selected.row == 1 && !col_change 
-        && !game.board[game.selected.row + 1][game.selected.col].piece_occupying 
-        && !game.board[row][col].piece_occupying) {
-            return 0;
-        } else if (row_change == 1 && !col_change &&
-            !game.board[game.selected.row + 1][game.selected.col].piece_occupying) {
-            return 0;
-        } else if (std::abs(col_change) == 1 && row_change == 1 && game.board[row][col].piece_occupying) {
-            return 0;
+        if (pawn_row == 1 && !game.board[pawn_row + 1][pawn_col].piece_occupying) {
+            no_capture_moves = { { pawn_row + 1, pawn_col }, { pawn_row + 2, pawn_col } };
+        } else {
+            no_capture_moves = { { pawn_row + 1, pawn_col } };
         }
-        return -1;
+        capture_moves = { { pawn_row + 1, pawn_col - 1 }, { pawn_row + 1, pawn_col + 1 } };
     }
+    if (game.board[row][col].piece_occupying) {
+        it = std::find(capture_moves.begin(), capture_moves.end(), move);
+        if (it != capture_moves.end()) {
+            return 0;
+        } else {
+            return -1;
+        }
+    } else {
+        it = std::find(no_capture_moves.begin(), no_capture_moves.end(), move);
+        if (it != no_capture_moves.end()) {
+            return 0;
+        } else {
+            return -1;
+        }
+    }
+    
 }
+
+/*int validate_move_knight(Game& game, int& row, int& col) {
+
+}*/
 
 
 
