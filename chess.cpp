@@ -74,6 +74,7 @@ void select_square(int x, int y, Game& game);
 
 int validate_move(Game& game, int& row, int& col);
 int validate_move_pawn(Game& game, int& row, int& col);
+int validate_move_knight(Game& game, int& row, int& col);
 
 int main() {
     Game game {};
@@ -207,6 +208,11 @@ void select_square(int x, int y, Game& game) {
     } else if (col < 0) {
         col = 0;
     }
+    if (row > 7) {
+        row = 7;
+    } else if (col > 7) {
+        col = 7;
+    }
     if (game.selected.row > -1 && game.selected.col > -1) {
         //std::cout << game.selected.row << ' ' << game.selected.col << '\n';
         //std::cout << row << ' ' << col << '\n';
@@ -249,6 +255,8 @@ int validate_move(Game& game, int& row, int& col) {
         std::string piece = game.board[game.selected.row][game.selected.col].piece_occupying->piece_type;
         if (piece == "pawn") {
             return validate_move_pawn(game, row, col);
+        } else if (piece == "knight") {
+            return validate_move_knight(game, row, col);
         } else {
             return 0;
         }
@@ -299,9 +307,21 @@ int validate_move_pawn(Game& game, int& row, int& col) {
     
 }
 
-/*int validate_move_knight(Game& game, int& row, int& col) {
-
-}*/
+int validate_move_knight(Game& game, int& row, int& col) {
+    std::pair<int, int> move { row, col };
+    
+    int knight_row { game.selected.row };
+    int knight_col { game.selected.col };
+    std::vector<std::pair<int, int>> moves { { knight_row + 1, knight_col + 2 }, { knight_row + 2, knight_col + 1}, 
+    { knight_row - 1, knight_col - 2 }, { knight_row - 2, knight_col - 1 }, { knight_row + 1, knight_col - 2 }, 
+    { knight_row - 1, knight_col + 2 }, { knight_row - 2, knight_col + 1 }, { knight_row + 2, knight_col - 1 } };
+    auto it = std::find(moves.begin(), moves.end(), move);
+    if (it != moves.end()) {
+        return 0;
+    } else {
+        return -1;
+    }
+}
 
 
 
