@@ -4,6 +4,8 @@
 #include <memory>
 #include <cmath>
 #include <SFML/Graphics.hpp>
+#include <utility>
+
 
 struct Piece {
     std::string piece_type {};
@@ -191,25 +193,41 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::unique_ptr<Piece>& pi
 }
 
 void select_square(int x, int y, Game& game) {
-    int row = floor(((x - 135.f) / (760 / 8)) + 0.1473);
-    int col = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
+    int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
+    int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
+    std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
     if (row < 0) {
         row = 0;
     } else if (col < 0) {
         col = 0;
     }
-    if (!game.board[row][col].selected) {
-        if (game.selected.row > -1) {
+    if (game.selected.row > -1 && game.selected.col > -1) {
+        std::cout << game.selected.row << ' ' << game.selected.col << '\n';
+        if (game.board[row][col].piece_occupying) {
             game.board[game.selected.row][game.selected.col].selected = false;
+            game.selected.row = game.selected.col = -1;
+            return;
+        } else if (game.board[game.selected.row][game.selected.col].piece_occupying != nullptr) {
+
+            game.board[row][col].piece_occupying = std::move(game.board[game.selected.row][game.selected.col].piece_occupying);
+            if (game.board[row][col].piece_occupying == nullptr) {
+                std::cout << "failed\n";
+                return;
+            }
+            game.board[row][col].piece_occupying->row = row;
+            game.board[row][col].piece_occupying->col = col;
+            game.board[game.selected.col][game.selected.row].selected = false;
+            game.selected.row = game.selected.col = -1;
+            return;
         }
-        game.board[row][col].selected = true;
+    } else {
+        game.board[col][row].selected = true;
         game.selected.row = row;
         game.selected.col = col;
-    } else {
-        game.board[row][col].selected = false;
-        game.selected.row = game.selected.col = -1;
     }
 }
+
+
 
 
 
