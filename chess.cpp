@@ -33,6 +33,10 @@ class Game {
         std::array<std::array<Cell, 8>, 8> board {};
         Coords selected {};
         std::string turn { "white" };
+        bool white_in_check { false };
+        bool black_in_check { false };
+        Coords black_king_position { 0, 4 };
+        Coords white_king_position { 7, 4 };
     Game() {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -71,16 +75,17 @@ class Game {
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
 void select_square(int x, int y, Game& game);
-void move_piece(Game& game, int prev_row, int prev_col, int new_row, int new_col);
+void move_piece(std::array<std::array<Cell, 8>, 8>& board, int prev_row, int prev_col, int new_row, int new_col);
 
-int validate_move(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col, std::string& turn);
+int validate_move(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, 
+    int& new_row, int& new_col, std::string& turn, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col, std::string& turn);
 int validate_move_knight(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col);
 int validate_move_bishop(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col);
 int validate_move_rook(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col);
 int validate_move_queen(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col);
 int validate_move_king(Game &game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col, std::string& turn);
-int check_checks(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int& new_row, int& new_col);
+int check_checks(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int& prev_row, int& prev_col, int& new_row, int& new_col, std::string& turn);
 int test_castling(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int prev_row, int prev_col, 
     int new_row, int new_col, std::string& turn);
 
@@ -226,21 +231,30 @@ void select_square(int x, int y, Game& game) {
         //std::cout << row << ' ' << col << '\n';
         int result = validate_move(game, game.board, game.selected.row, game.selected.col, row, col, game.turn);
         if (result >= 0) {
-            move_piece(game, game.selected.row, game.selected.col, row, col);
+            move_piece(game.board, game.selected.row, game.selected.col, row, col);
 
             if (result == 1 && game.turn == "white") { 
-                move_piece(game, 7, 7, 7, 5);
+                move_piece(game.board, 7, 7, 7, 5);
             } else if (result == 2 && game.turn == "white") {
-                move_piece(game, 7, 0, 7, 3);
+                move_piece(game.board, 7, 0, 7, 3);
             } else if (result == 1 && game.turn == "black") {
-                move_piece(game, 0, 7, 0, 5);
+                move_piece(game.board, 0, 7, 0, 5);
             } else if (result == 2 && game.turn == "black") {
-                move_piece(game, 0, 0, 0, 3);
+                move_piece(game.board, 0, 0, 0, 3);
             }
             if (game.turn == "white") {
                 game.turn = "black";
             } else {
                 game.turn = "white";
+            }
+            if (game.board[row][col].piece_occupying->piece_type == "king") {
+                if (game.turn == "white") {
+                    game.white_king_position.row = row;
+                    game.white_king_position.col = col;
+                } else {
+                    game.black_king_position.row = row;
+                    game.black_king_position.col = col;
+                }
             }
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;
@@ -257,40 +271,60 @@ void select_square(int x, int y, Game& game) {
     }
 }
 
-void move_piece(Game& game, int prev_row, int prev_col, int new_row, int new_col) {
-    game.board[new_row][new_col].piece_occupying = nullptr;
-    game.board[new_row][new_col].piece_occupying = std::move(game.board[prev_row][prev_col].piece_occupying);
-    if (game.board[new_row][new_col].piece_occupying == nullptr) {
+void move_piece(std::array<std::array<Cell, 8>, 8>& board, int prev_row, int prev_col, int new_row, int new_col) {
+    board[new_row][new_col].piece_occupying = nullptr;
+    board[new_row][new_col].piece_occupying = std::move(board[prev_row][prev_col].piece_occupying);
+    if (board[new_row][new_col].piece_occupying == nullptr) {
         std::cout << "failed\n";
         return;
     }
-    game.board[new_row][new_col].piece_occupying->row = new_row;
-    game.board[new_row][new_col].piece_occupying->col = new_col;
-    if (!game.board[new_row][new_col].piece_occupying->moved) {
-        game.board[new_row][new_col].piece_occupying->moved = true;
+    board[new_row][new_col].piece_occupying->row = new_row;
+    board[new_row][new_col].piece_occupying->col = new_col;
+
+    if (!board[new_row][new_col].piece_occupying->moved) {
+        board[new_row][new_col].piece_occupying->moved = true;
     }
 }
 
 int validate_move(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, 
-    int& new_row, int& new_col, std::string& turn) {
+    int& new_row, int& new_col, std::string& turn, bool only_checking_checks) {
+    int result { 0 };
     if (board[prev_row][prev_col].piece_occupying != nullptr 
         && (prev_row != new_row || prev_col != new_col) && 
         (!board[new_row][new_col].piece_occupying || board[new_row][new_col].piece_occupying->colour != turn)) {
         
-        
+
         std::string piece = board[prev_row][prev_col].piece_occupying->piece_type;
         if (piece == "pawn") {
-            return validate_move_pawn(game, board, prev_row, prev_col, new_row, new_col, turn);
+            result = validate_move_pawn(game, board, prev_row, prev_col, new_row, new_col, turn);
         } else if (piece == "knight") {
-            return validate_move_knight(game, board, prev_row, prev_col, new_row, new_col);
+            result = validate_move_knight(game, board, prev_row, prev_col, new_row, new_col);
         } else if (piece == "bishop") {
-            return validate_move_bishop(game, board, prev_row, prev_col, new_row, new_col);
+            result = validate_move_bishop(game, board, prev_row, prev_col, new_row, new_col);
         } else if (piece == "rook") {
-            return validate_move_rook(game, board, prev_row, prev_col, new_row, new_col);
+            result = validate_move_rook(game, board, prev_row, prev_col, new_row, new_col);
         } else if (piece == "queen") {
-            return validate_move_queen(game, board, prev_row, prev_col, new_row, new_col);
+            result = validate_move_queen(game, board, prev_row, prev_col, new_row, new_col);
         } else if (piece == "king") {
-            return validate_move_king(game, board, prev_row, prev_col, new_row, new_col, turn);
+            result = validate_move_king(game, board, prev_row, prev_col, new_row, new_col, turn);
+        } else {
+            return 0;
+        }
+        if (result >= 0 && !only_checking_checks) {
+            std::array<std::array<Cell, 8>, 8> copy {};
+            for (int i { 0 }; i < 8; i++) {
+                for (int j { 0 }; j < 8; j++) {
+                    copy[i][j].piece_occupying = board[i][j].piece_occupying;
+                }
+            }
+            int new_result = check_checks(game, copy, prev_row, prev_col, new_row, new_col, game.turn);
+            std::cout << new_result << '\n';
+            if (new_result == 0) {
+                return result;
+            }
+            return -1;
+        } else if (result != 0) {
+            return -1;
         } else {
             return 0;
         }
@@ -358,6 +392,9 @@ int validate_move_knight(Game& game, std::array<std::array<Cell, 8>, 8>& board, 
 int validate_move_bishop(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col) {
     int row_change { new_row - prev_row };
     int col_change { new_col - prev_col };
+    std::cout << "prev row: " << prev_row << " prev_col: " << prev_col << '\n';
+    std::cout << "new row: " << new_row << " new col: " << new_col << '\n';
+    std::cout << "row change: " << row_change << " column change: " << col_change << '\n';
     if (std::abs(row_change) == std::abs(col_change)) {
         if (row_change > 0 && col_change > 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
@@ -430,6 +467,7 @@ int validate_move_rook(Game& game, std::array<std::array<Cell, 8>, 8>& board, in
 int validate_move_queen(Game& game, std::array<std::array<Cell, 8>, 8>& board, int& prev_row, int& prev_col, int& new_row, int& new_col) {
     int rook_move = validate_move_rook(game, board, prev_row, prev_col, new_row, new_col);
     int bishop_move = validate_move_bishop(game, board, prev_row, prev_col, new_row, new_col);
+    std::cout << "rook: " << rook_move << " bishop: " << bishop_move << '\n';
     if (rook_move == 0 || bishop_move == 0) {
         return 0;
     } else {
@@ -465,10 +503,10 @@ int validate_move_king(Game &game, std::array<std::array<Cell, 8>, 8>& board, in
             }
         }
         
-        if (check_checks(game, copy, new_row, new_col) == 0) {
+        /*if (check_checks(game, copy, new_row, new_col) == 0) {
             return 0;
-        } 
-        return -1;
+        }*/
+        return 0;
     } else {
         std::cout << "testing..\n";
         return test_castling(game, copy, prev_row, prev_col, new_row, new_col, turn);
@@ -476,18 +514,34 @@ int validate_move_king(Game &game, std::array<std::array<Cell, 8>, 8>& board, in
     return -1;
 }
 
-int check_checks(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int& new_row, int& new_col) {
+int check_checks(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int& prev_row, int& prev_col, 
+    int& new_row, int& new_col, std::string& turn) {
     int test {};
-
+    Coords white_king_position {};
+    Coords black_king_position {};
+    std::cout << "checking checks\n";
     copy[new_row][new_col].piece_occupying = nullptr;
-    copy[new_row][new_col].piece_occupying = std::move(copy[game.selected.row][game.selected.col].piece_occupying);
-    if (game.turn == "white") {
+    copy[new_row][new_col].piece_occupying = std::move(copy[prev_row][prev_col].piece_occupying);
+    if (turn == "white") {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
-                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "black") {
-                    std::string turn {"black"};
-                    test = validate_move(game, copy, i, j, new_row, new_col, turn);
+                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "white" &&
+                    copy[i][j].piece_occupying->piece_type == "king") {
+                    white_king_position.row = i;
+                    white_king_position.col = j;
+                    break;
+                }
+            }
+        }   
+        for (int i { 0 }; i < 8; i++) {
+            for (int j { 0 }; j < 8; j++) {
+                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "black" &&
+                    copy[i][j].piece_occupying->piece_type != "king") {
+                    std::string other_turn {"black"};
+                    test = validate_move(game, copy, i, j, white_king_position.row, 
+                        white_king_position.col, other_turn, true);
                     if (test == 0) {
+                        std::cout << "prev: " << i << ' ' << j << " new: " << new_row << ' ' << new_col << '\n';
                         return 1;
                     }
                 }
@@ -497,10 +551,23 @@ int check_checks(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int& new_
     } else {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
-                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "white") {
-                    std::string turn {"white"};
-                    test = validate_move(game, copy, i, j, new_row, new_col, turn);
+                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "black" &&
+                    copy[i][j].piece_occupying->piece_type == "king") {
+                    black_king_position.row = i;
+                    black_king_position.col = j;
+                    break;
+                }
+            }
+        }   
+        for (int i { 0 }; i < 8; i++) {
+            for (int j { 0 }; j < 8; j++) {
+                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "white" && 
+                    copy[i][j].piece_occupying->piece_type != "king") {
+                    std::string other_turn {"white"};
+                    test = validate_move(game, copy, i, j, black_king_position.row, 
+                        black_king_position.col, other_turn, true);
                     if (test == 0) {
+                        std::cout << "prev: " << i << ' ' << j << " new: " << new_row << ' ' << new_col << '\n';
                         return 1;
                     }
                 }
@@ -521,7 +588,8 @@ int test_castling(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int prev
                 for (int i { 5 }; i < 7; i++) {
                     if (copy[7][i].piece_occupying) {
                         return -1;
-                    } else if (check_checks(game, copy, new_row, i) == 1) {
+                    } else if (check_checks(game, copy, prev_row, prev_col, new_row, i, turn) == 1) {
+                        std::cout << "castlefail\n";
                         return -1;
                     }
                 }
@@ -532,7 +600,7 @@ int test_castling(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int prev
                 for (int i { 3 }; i > 1; i--) {
                     if (copy[7][i].piece_occupying) {
                         return -1;
-                    } else if (check_checks(game, copy, new_row, i) == 1) {
+                    } else if (check_checks(game, copy, prev_row, prev_col, new_row, i, turn) == 1) {
                         return -1;
                     }
                 }
@@ -548,7 +616,7 @@ int test_castling(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int prev
                 for (int i { 5 }; i < 7; i++) {
                     if (copy[0][i].piece_occupying) {
                         return -1;
-                    } else if (check_checks(game, copy, new_row, i) == 1) {
+                    } else if (check_checks(game, copy, prev_row, prev_col, new_row, i, turn) == 1) {
                         return -1;
                     }
                 }
@@ -559,7 +627,7 @@ int test_castling(Game &game, std::array<std::array<Cell, 8>, 8>& copy, int prev
                 for (int i { 3 }; i > 1; i--) {
                     if (copy[0][i].piece_occupying) {
                         return -1;
-                    } else if (check_checks(game, copy, new_row, i) == 1) {
+                    } else if (check_checks(game, copy, prev_row, prev_col, new_row, i, turn) == 1) {
                         return -1;
                     }
                 }
