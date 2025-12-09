@@ -90,6 +90,8 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 void select_square(int x, int y, Game& game);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col);
 int determine_possible_moves(Game& game);
+void draw_end_screen(Game& game, sf::RenderWindow& window);
+void end_game(Game& game);
 
 int validate_move(Game& game, Chessboard& board, Move& move, std::string& turn, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move, std::string& turn);
@@ -99,6 +101,7 @@ int validate_move_rook(Game& game, Chessboard& board, Move& move);
 int validate_move_queen(Game& game, Chessboard& board, Move& move);
 int validate_move_king(Game &game, Chessboard& board, Move& move, std::string& turn);
 int check_checks(Game &game, Chessboard& copy, Move& move, std::string& turn);
+void evaluate_king_checks(Game& game);
 int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
     int new_row, int new_col, std::string& turn);
 
@@ -106,7 +109,7 @@ int main() {
     Game game {};
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
     sf::RectangleShape board({760, 760});
-   
+    bool end_screen_clicked { false };
     while (window.isOpen()) {
         
         while (const std::optional event = window.pollEvent()) {
@@ -114,7 +117,11 @@ int main() {
                 window.close();
             }
             if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
-                select_square(mouse_press->position.x, mouse_press->position.y, game);
+                if (!game.game_over) {
+                    select_square(mouse_press->position.x, mouse_press->position.y, game);
+                } else if (game.game_over) {
+                    end_screen_clicked = true;
+                }
             }
                
             if (const auto* resized = event->getIf<sf::Event::Resized>()) {
@@ -124,6 +131,11 @@ int main() {
         }
         window.clear(sf::Color::Red);
         draw_board(game, window);
+        
+        if (game.game_over && !end_screen_clicked) {
+            draw_end_screen(game, window);
+        }
+
         window.display();
 
     }
@@ -162,38 +174,39 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             }
         }
     }
-    if (game.game_over) {
-        sf::RectangleShape end_screen({500, 300});
-        sf::Font font;
-        if (!font.openFromFile("./src/HeadingNowTrial-14Regular.ttf")) {
-            return;
-        }
-        sf::Text text(font);
-        text.setFillColor(sf::Color::Red);
-        text.setCharacterSize(100);
-        ;
-        if (game.checkmate) {
-            text.setPosition({420, 240});
-            if (game.winner == "white") {
-                text.setString("White won");
-            } else {
-                text.setString("Black won");
-            }
-        } else if (game.stalemate) {
-            text.setPosition({380, 240});
-            text.setString("It is a draw by stalemate");
-        } else {
-            text.setString("Default");
-        }
 
-        float x_offset = 250;
-        float y_offset = 250;
-        end_screen.setPosition({x_offset, y_offset});
-        end_screen.setFillColor(sf::Color::Black);
-        window.draw(end_screen);
-        window.draw(text);
+}
+
+void draw_end_screen(Game& game, sf::RenderWindow& window) {
+    sf::RectangleShape end_screen({500, 300});
+    sf::Font font;
+    if (!font.openFromFile("./src/HeadingNowTrial-14Regular.ttf")) {
+        return;
+    }
+    sf::Text text(font);
+    text.setFillColor(sf::Color::Red);
+    text.setCharacterSize(100);
+    ;
+    if (game.checkmate) {
+        text.setPosition({420, 240});
+        if (game.winner == "white") {
+            text.setString("White won");
+        } else {
+            text.setString("Black won");
+        }
+    } else if (game.stalemate) {
+        text.setPosition({380, 240});
+        text.setString("It is a draw by stalemate");
+    } else {
+        text.setString("Default");
     }
 
+    float x_offset = 250;
+    float y_offset = 250;
+    end_screen.setPosition({x_offset, y_offset});
+    end_screen.setFillColor(sf::Color::Black);
+    window.draw(end_screen);
+    window.draw(text);
 }
 
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece) {
@@ -312,42 +325,9 @@ void select_square(int x, int y, Game& game) {
                     game.black_king_position.col = col;
                 }
             }
-            Move move { 0, 0, 0, 0 };
-            if (game.turn == "white") {
-                std::string next = "black";
-                int new_result = check_checks(game, game.board, move, game.turn);
-                if (new_result == 1) {
-                    game.white_in_check = true;
-                } else {
-                    game.white_in_check = false;
-                }
-            } else {
-                std::string next = "white";
-                int new_result = check_checks(game, game.board, move, game.turn);
-                if (new_result == 1) {
-                    game.black_in_check = true;
-                } else {
-                    game.black_in_check = false;
-                }
-            }
+            evaluate_king_checks(game);
             if (determine_possible_moves(game) == -1) {
-                std::cout << "It is over\n";
-                game.game_over = true;
-                if (game.turn == "black") {
-                    if (game.black_in_check) {
-                        game.checkmate = true;
-                        game.winner = "white";
-                    } else {
-                        game.stalemate = true;
-                    }
-                } else {
-                    if (game.white_in_check) {
-                        game.checkmate = true;
-                        game.winner = "black";
-                    } else {
-                        game.stalemate = true;
-                    }
-                }
+                end_game(game);
             }
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;
@@ -361,6 +341,47 @@ void select_square(int x, int y, Game& game) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
+    }
+}
+
+void evaluate_king_checks(Game& game) {
+    Move move { 0, 0, 0, 0 };
+    if (game.turn == "white") {
+        std::string next = "black";
+        int new_result = check_checks(game, game.board, move, game.turn);
+        if (new_result == 1) {
+            game.white_in_check = true;
+        } else {
+            game.white_in_check = false;
+        }
+    } else {
+        std::string next = "white";
+        int new_result = check_checks(game, game.board, move, game.turn);
+        if (new_result == 1) {
+            game.black_in_check = true;
+        } else {
+            game.black_in_check = false;
+        }
+    }
+}
+
+void end_game(Game& game) {
+    std::cout << "It is over\n";
+    game.game_over = true;
+    if (game.turn == "black") {
+        if (game.black_in_check) {
+            game.checkmate = true;
+            game.winner = "white";
+        } else {
+            game.stalemate = true;
+        }
+    } else {
+        if (game.white_in_check) {
+            game.checkmate = true;
+            game.winner = "black";
+        } else {
+            game.stalemate = true;
+        }
     }
 }
 
@@ -792,7 +813,7 @@ int determine_possible_moves(Game& game) {
                         }
                     }                   
                 } else if (game.board[i][j].piece_occupying->piece_type == "knight") {
-                    std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 2 }, { i + 2, j + 1}, 
+                    std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 2 }, { i + 2, j + 1 }, 
                     { i - 1, j - 2 }, { i - 2, j - 1 }, { i + 1, j - 2 }, 
                     { i - 1, j + 2 }, { i - 2, j + 1 }, { i + 2, j - 1 } };
                     for (auto pair: possible_moves) {
