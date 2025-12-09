@@ -114,6 +114,11 @@ int main() {
             if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
                 select_square(mouse_press->position.x, mouse_press->position.y, game);
             }
+               
+            if (const auto* resized = event->getIf<sf::Event::Resized>()) {
+                sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
+                window.setView(sf::View(visibleArea));
+            }
 
 
         }
@@ -432,9 +437,6 @@ int validate_move_pawn(Game& game, std::array<std::array<Cell, 8>, 8>& board, Mo
     int new_col { move.new_col };
     std::pair<int, int> new_move { new_row, new_col };
     std::vector<std::pair<int, int>>::iterator it {};
-    if (new_row > 7 || new_col > 7 || new_row < 0 || new_col < 0) {
-        return -1;
-    }
 
     if (turn == "white") {
         if (prev_row == 6 && !board[prev_row - 1][prev_col].piece_occupying) {
@@ -477,9 +479,6 @@ int validate_move_knight(Game& game, std::array<std::array<Cell, 8>, 8>& board, 
     int new_row { move.new_row };
     int new_col { move.new_col };
     std::pair<int, int> new_move { new_row, new_col };
-    if (new_row > 7 || new_col > 7 || new_row < 0 || new_col < 0) {
-        return -1;
-    }
     std::vector<std::pair<int, int>> moves { { prev_row + 1, prev_col + 2 }, { prev_row + 2, prev_col + 1}, 
     { prev_row - 1, prev_col - 2 }, { prev_row - 2, prev_col - 1 }, { prev_row + 1, prev_col - 2 }, 
     { prev_row - 1, prev_col + 2 }, { prev_row - 2, prev_col + 1 }, { prev_row + 2, prev_col - 1 } };
@@ -498,9 +497,7 @@ int validate_move_bishop(Game& game, std::array<std::array<Cell, 8>, 8>& board, 
     int new_col { move.new_col };
     int row_change { new_row - prev_row };
     int col_change { new_col - prev_col };
-    if (new_row > 7 || new_col > 7 || new_row < 0 || new_col < 0) {
-        return -1;
-    }
+
     std::cout << "prev row: " << prev_row << " prev_col: " << prev_col << '\n';
     std::cout << "new row: " << new_row << " new col: " << new_col << '\n';
     std::cout << "row change: " << row_change << " column change: " << col_change << '\n';
@@ -542,9 +539,7 @@ int validate_move_rook(Game& game, std::array<std::array<Cell, 8>, 8>& board, Mo
     int new_col { move.new_col };
     int row_change { new_row - prev_row };
     int col_change { new_col - prev_col };
-    if (new_row > 7 || new_col > 7 || new_row < 0 || new_col < 0) {
-        return -1;
-    }
+
     if (row_change == 0) {
         if (col_change > 0) {
             for (int i { 1 }; i < std::abs(col_change); i++) {
@@ -595,9 +590,7 @@ int validate_move_queen(Game& game, std::array<std::array<Cell, 8>, 8>& board, M
 
 int validate_move_king(Game &game, std::array<std::array<Cell, 8>, 8>& board, Move& move, std::string& turn) {
     std::cout << "Checking king move\n";
-    if (move.new_row > 7 || move.new_col > 7 || move.new_row < 0 || move.new_col < 0) {
-        return -1;
-    }
+
     int prev_row { move.prev_row };
     int prev_col { move.prev_col };
     int new_row { move.new_row };
@@ -784,13 +777,12 @@ int determine_possible_moves(Game& game) {
         for (int j { 0 }; j < 8; j++) {
             if (game.board[i][j].piece_occupying && game.board[i][j].piece_occupying->colour == game.turn) {
                 std::cout << "turn: " << game.turn << '\n';
-                std::string current_turn { game.turn };
                 if (game.board[i][j].piece_occupying->piece_type == "pawn" && game.turn == "white") {
                     std::vector<std::pair<int, int>> possible_moves { { i - 1, j }, 
                     { i - 2, j }, { i - 1, j + 1 }, { i - 1, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second };
-                        result = validate_move(game, game.board, move, current_turn);
+                        result = validate_move(game, game.board, move, game.turn);
                         if (result == 0) {
                             return 0;
                         }
@@ -800,7 +792,7 @@ int determine_possible_moves(Game& game) {
                     { i + 2, j }, { i + 1, j + 1 }, { i + 1, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second };
-                        result = validate_move(game, game.board, move, current_turn);
+                        result = validate_move(game, game.board, move, game.turn);
                         if (result == 0) {
                             return 0;
                         }
@@ -811,7 +803,7 @@ int determine_possible_moves(Game& game) {
                     { i - 1, j + 2 }, { i - 2, j + 1 }, { i + 2, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second };
-                        result = validate_move(game, game.board, move, current_turn);
+                        result = validate_move(game, game.board, move, game.turn);
                         if (result == 0) {
                             return 0;
                         }
@@ -824,7 +816,7 @@ int determine_possible_moves(Game& game) {
                         Move move4 { i, j, i - k, j - k };
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
-                            result = validate_move(game, game.board, move, current_turn);
+                            result = validate_move(game, game.board, move, game.turn);
                             if (result == 0) {
                                 return 0;
                             }
@@ -838,7 +830,7 @@ int determine_possible_moves(Game& game) {
                         Move move4 { i, j, i, j - k };
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
-                            result = validate_move(game, game.board, move, current_turn);
+                            result = validate_move(game, game.board, move, game.turn);
                             if (result == 0) {
                                 return 0;
                             }
@@ -856,7 +848,7 @@ int determine_possible_moves(Game& game) {
                         Move move8 { i, j, i, j - k };  
                         std::vector<Move> moves { move1, move2, move3, move4, move5, move6, move7, move8 };
                         for (Move move: moves) {
-                            result = validate_move(game, game.board, move, current_turn);
+                            result = validate_move(game, game.board, move, game.turn);
                             if (result == 0) {
                                 return 0;
                             }
@@ -868,7 +860,7 @@ int determine_possible_moves(Game& game) {
                     { i - 1, j }, { i, j - 1 }, { i - 1, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second };
-                        result = validate_move(game, game.board, move, current_turn);
+                        result = validate_move(game, game.board, move, game.turn);
                         if (result == 0) {
                             return 0;
                         }
