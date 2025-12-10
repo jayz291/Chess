@@ -106,13 +106,12 @@ int validate_move_knight(Game& game, Chessboard& board, Move& move);
 int validate_move_bishop(Game& game, Chessboard& board, Move& move);
 int validate_move_rook(Game& game, Chessboard& board, Move& move);
 int validate_move_queen(Game& game, Chessboard& board, Move& move);
-int validate_move_king(Game &game, Chessboard& board, Move& move);
-int check_checks(Game &game, Chessboard& copy, Move& move);
+int validate_move_king(Game& game, Chessboard& board, Move& move);
+int check_checks(Game& game, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
-int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
-    int new_row, int new_col, std::string& turn);
+int test_castling(Game& game, Chessboard& copy, Move& move);
 void handle_pawn_promotion(Game& game, int& row, int& col);
-int validate_en_passant(Game &game, Chessboard& board, Move& move);
+int validate_en_passant(Game& game, Chessboard& board, Move& move);
 
 int main() {
     Game game {};
@@ -397,16 +396,7 @@ void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, i
     
     int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
     int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
-    if (row < 0) {
-        row = 0;
-    } else if (col < 0) {
-        col = 0;
-    }
-    if (row > 7) {
-        row = 7;
-    } else if (col > 7) {
-        col = 7;
-    }
+
     if (row == 4 && col == 2) {
         game.piece_selected = "rook";
     } else if (row == 4 && col == 3) {
@@ -423,7 +413,6 @@ void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, i
 }
 
 void handle_pawn_promotion(Game& game, int& row, int& col) {
-
     game.board[row][col].piece_occupying->piece_type = game.piece_selected;
     game.piece_selected = "None";
     game.promoting_pawn = false;
@@ -582,7 +571,7 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
     
 }
 
-int validate_en_passant(Game &game, Chessboard& board, Move& move) {
+int validate_en_passant(Game& game, Chessboard& board, Move& move) {
     std::cout << "here\n";
     int col_position {}, required_prev_row {}, required_new_row {};
     col_position = ((move.new_col - move.prev_col == 1) ? move.prev_col + 1 : move.prev_col - 1);
@@ -736,7 +725,7 @@ int validate_move_king(Game &game, Chessboard& board, Move& move) {
             }
         }
         //std::cout << "testing..\n";
-        return test_castling(game, copy, move.prev_row, move.prev_col, move.new_row, move.new_col, move.turn);
+        return test_castling(game, copy, move);
     }
     return -1;
 }
@@ -781,80 +770,44 @@ int check_checks(Game &game, Chessboard& copy, Move& move) {
     
 }
 
-int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
-    int new_row, int new_col, std::string& turn) {
-   
-    if (turn == "white" && prev_row == 7 && prev_col == 4 && !game.white_in_check) {
-        if (!copy[7][4].piece_occupying->moved) {
-            if (new_row == 7 && new_col == 6 && copy[7][7].piece_occupying && 
-                copy[7][7].piece_occupying->piece_type == "rook" && 
-                !copy[7][7].piece_occupying->moved) {
-                
-                for (int i { 5 }; i < 7; i++) {
-                    if (copy[7][i].piece_occupying) {
+int test_castling(Game &game, Chessboard& copy, Move& move) {
+    int castle_row = ((move.turn == "white") ? 7 : 0);
+    bool in_check = ((move.turn == "white") ? game.white_in_check : game.black_in_check);
+    if (move.prev_row == castle_row && move.prev_col == 4 && !in_check && 
+        !copy[castle_row][4].piece_occupying->moved) {
+        if (move.new_row == castle_row && move.new_col == 6 && copy[castle_row][7].piece_occupying && 
+            copy[castle_row][7].piece_occupying->piece_type == "rook" && 
+            !copy[castle_row][7].piece_occupying->moved) {
+            for (int i { 5 }; i < 7; i++) {
+                if (copy[castle_row][i].piece_occupying) {
+                    return -1;
+                } else {
+                    Move trial_move { move.prev_row, move.prev_col, move.new_row, i, move.turn, "king" };
+                    if (check_checks(game, copy, trial_move) == 1) {
+                        //std::cout << "castlefail\n";
                         return -1;
-                    } else {
-                        Move move { prev_row, prev_col, new_row, i, turn, "king" };
-                        if (check_checks(game, copy, move) == 1) {
-                            //std::cout << "castlefail\n";
-                            return -1;
-                        }
                     }
                 }
-                return 1;
-            } else if (new_row == 7 && new_col == 2 && copy[7][0].piece_occupying && 
-                copy[7][0].piece_occupying->piece_type == "rook" &&
-                !copy[7][0].piece_occupying->moved) {
-                for (int i { 3 }; i > 1; i--) {
-                    if (copy[7][i].piece_occupying) {
-                        return -1;
-                    } else {
-                        Move move { prev_row, prev_col, new_row, i, turn, "king" };
-                        if (check_checks(game, copy, move) == 1) {
-                            return -1;
-                        }
-                    }
-                }
-                return 2;
             }
+            return 1;
+        } else if (move.new_row == castle_row && move.new_col == 2 && copy[castle_row][0].piece_occupying && 
+            copy[castle_row][0].piece_occupying->piece_type == "rook" &&
+            !copy[castle_row][0].piece_occupying->moved) {
+            for (int i { 3 }; i > 1; i--) {
+                if (copy[castle_row][i].piece_occupying) {
+                    return -1;
+                } else {
+                    Move trial_move { move.prev_row, move.prev_col, move.new_row, i, move.turn, "king" };
+                    if (check_checks(game, copy, trial_move) == 1) {
+                        return -1;
+                    }
+                }
+            }
+            return 2;
         }
         return -1;
-    } else if (turn == "black" && prev_row == 0 && prev_col == 4 && !game.black_in_check) {
-        if (!copy[0][4].piece_occupying->moved) {
-            if (new_row == 0 && new_col == 6 && copy[0][7].piece_occupying && 
-                copy[0][7].piece_occupying->piece_type == "rook" && 
-                !copy[0][7].piece_occupying->moved) {
-                for (int i { 5 }; i < 7; i++) {
-                    if (copy[0][i].piece_occupying) {
-                        return -1;
-                    } else {
-                        Move move { prev_row, prev_col, new_row, i,  };
-                        if (check_checks(game, copy, move) == 1) {
-                            return -1;
-                        }
-                    }
-                }
-                return 1;
-            } else if (new_row == 0 && new_col == 2 && copy[0][0].piece_occupying && 
-                copy[0][0].piece_occupying->piece_type == "rook" &&
-                !copy[0][0].piece_occupying->moved) {
-                for (int i { 3 }; i > 1; i--) {
-                    if (copy[0][i].piece_occupying) {
-                        return -1;
-                    } else {
-                        Move move { prev_row, prev_col, new_row, i };
-                        if ((check_checks(game, copy, move) == 1)) {
-                            return -1;
-                        }
-                    }
-                }
-                return 2;
-            }
-        }
-        return -1;
-    } else {
-        return -1;
-    }
+    } 
+    return -1;
 }
 
 int determine_possible_moves(Game& game) {
