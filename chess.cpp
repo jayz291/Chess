@@ -594,19 +594,11 @@ int validate_en_passant(Game& game, Chessboard& board, Move& move) {
 }
 
 int validate_move_knight(Game& game, Chessboard& board, Move& move) {
-
-    std::pair<int, int> new_move { move.new_row, move.new_col };
-    std::vector<std::pair<int, int>> moves { { move.prev_row + 1, move.prev_col + 2 }, 
-    { move.prev_row + 2, move.prev_col + 1}, { move.prev_row - 1, move.prev_col - 2 }, 
-    { move.prev_row - 2, move.prev_col - 1 }, { move.prev_row + 1, move.prev_col - 2 }, 
-    { move.prev_row - 1, move.prev_col + 2 }, { move.prev_row - 2, move.prev_col + 1 }, 
-    { move.prev_row + 2, move.prev_col - 1 } };
-    auto it = std::find(moves.begin(), moves.end(), new_move);
-    if (it != moves.end()) {
+    if ((std::abs(move.new_row - move.prev_row) == 2 && std::abs(move.new_col - move.prev_col) == 1) || 
+        (std::abs(move.new_row - move.prev_row) == 1 && std::abs(move.new_col - move.prev_col) == 2)) {
         return 0;
-    } else {
-        return -1;
     }
+    return -1;
 }
 
 int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
@@ -616,31 +608,14 @@ int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
     //std::cout << "prev row: " << prev_row << " prev_col: " << prev_col << '\n';
     //std::cout << "new row: " << new_row << " new col: " << new_col << '\n';
     //std::cout << "row change: " << row_change << " column change: " << col_change << '\n';
+
     if (std::abs(row_change) == std::abs(col_change)) {
-        if (row_change > 0 && col_change > 0) {
-            for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[move.prev_row + i][move.prev_col + i].piece_occupying) {
-                    return -1;
-                }
+        int row_direction = ((row_change > 0) ? 1 : -1);
+        int col_direction = ((col_change > 0) ? 1 : -1);   
+        for (int i { 1 }; i < std::abs(row_change); i++) {
+            if (board[move.prev_row + row_direction * i][move.prev_col + col_direction * i].piece_occupying) {
+                return -1;
             }
-        } else if (row_change < 0 && col_change > 0) {
-            for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[move.prev_row - i][move.prev_col + i].piece_occupying) {
-                    return -1;
-                }
-            }           
-        } else if (row_change > 0 && col_change < 0) {
-            for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[move.prev_row + i][move.prev_col - i].piece_occupying) {
-                    return -1;
-                }
-            }           
-        } else if (row_change < 0 && col_change < 0) {
-            for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[move.prev_row - i][move.prev_col - i].piece_occupying) {
-                    return -1;
-                }
-            }              
         }
         return 0;
     }
@@ -652,34 +627,20 @@ int validate_move_rook(Game& game, Chessboard& board, Move& move) {
     int col_change { move.new_col - move.prev_col };
 
     if (row_change == 0) {
-        if (col_change > 0) {
-            for (int i { 1 }; i < std::abs(col_change); i++) {
-                if (board[move.prev_row][move.prev_col + i].piece_occupying) {
-                    return -1;
-                }
-            } 
-        } else if (col_change < 0) {
-            for (int i { 1 }; i < std::abs(col_change); i++) {
-                if (board[move.prev_row][move.prev_col - i].piece_occupying) {
-                    return -1;
-                }
-            }         
-        }
+        int col_direction = ((col_change > 0) ? 1 : -1); 
+        for (int i { 1 }; i < std::abs(col_change); i++) {
+            if (board[move.prev_row][move.prev_col + col_direction * i].piece_occupying) {
+                return -1;
+            }
+        } 
         return 0;
     } else if (col_change == 0) {
-        if (row_change > 0) {
-            for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[move.prev_row + i][move.prev_col].piece_occupying) {
-                    return -1;
-                }
-            } 
-        } else if (row_change < 0) {
-            for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[move.prev_row - i][move.prev_col].piece_occupying) {
-                    return -1;
-                }
-            }         
-        }
+        int row_direction = ((row_change > 0) ? 1 : -1);
+        for (int i { 1 }; i < std::abs(row_change); i++) {
+            if (board[move.prev_row + row_direction * i][move.prev_col].piece_occupying) {
+                return -1;
+            }
+        } 
         return 0;
     }
     return -1;
@@ -811,7 +772,6 @@ int test_castling(Game &game, Chessboard& copy, Move& move) {
 }
 
 int determine_possible_moves(Game& game) {
-    int result {};
 
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
@@ -822,8 +782,7 @@ int determine_possible_moves(Game& game) {
                     { i - 2, j }, { i - 1, j + 1 }, { i - 1, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece };
-                        result = validate_move(game, game.board, move);
-                        if (result == 0) {
+                        if (validate_move(game, game.board, move) == 0) {
                             return 0;
                         }
                     }
@@ -832,8 +791,7 @@ int determine_possible_moves(Game& game) {
                     { i + 2, j }, { i + 1, j + 1 }, { i + 1, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece};
-                        result = validate_move(game, game.board, move);
-                        if (result == 0) {
+                        if (validate_move(game, game.board, move) == 0) {
                             return 0;
                         }
                     }                   
@@ -843,8 +801,7 @@ int determine_possible_moves(Game& game) {
                     { i - 1, j + 2 }, { i - 2, j + 1 }, { i + 2, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece };
-                        result = validate_move(game, game.board, move);
-                        if (result == 0) {
+                        if (validate_move(game, game.board, move) == 0) {
                             return 0;
                         }
                     }  
@@ -856,8 +813,7 @@ int determine_possible_moves(Game& game) {
                         Move move4 { i, j, i - k, j - k, game.turn, piece };
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
-                            result = validate_move(game, game.board, move);
-                            if (result == 0) {
+                            if (validate_move(game, game.board, move) == 0) {
                                 return 0;
                             }
                         }
@@ -870,8 +826,7 @@ int determine_possible_moves(Game& game) {
                         Move move4 { i, j, i, j - k, game.turn, piece };
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
-                            result = validate_move(game, game.board, move);
-                            if (result == 0) {
+                            if (validate_move(game, game.board, move) == 0) {
                                 return 0;
                             }
                         }
@@ -888,8 +843,7 @@ int determine_possible_moves(Game& game) {
                         Move move8 { i, j, i, j - k, game.turn, piece };  
                         std::vector<Move> moves { move1, move2, move3, move4, move5, move6, move7, move8 };
                         for (Move move: moves) {
-                            result = validate_move(game, game.board, move);
-                            if (result == 0) {
+                            if (validate_move(game, game.board, move) == 0) {
                                 return 0;
                             }
                         }                 
@@ -900,8 +854,7 @@ int determine_possible_moves(Game& game) {
                     { i - 1, j }, { i, j - 1 }, { i - 1, j - 1 } };
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece };
-                        result = validate_move(game, game.board, move);
-                        if (result == 0) {
+                        if (validate_move(game, game.board, move) == 0) {
                             return 0;
                         }
                     }
