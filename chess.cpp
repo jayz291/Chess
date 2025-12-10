@@ -195,14 +195,14 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
     text.setCharacterSize(100);
     ;
     if (game.checkmate) {
-        text.setPosition({420, 240});
+        text.setPosition({420, 240}); //420
         if (game.winner == "white") {
             text.setString("White won");
         } else {
             text.setString("Black won");
         }
     } else if (game.stalemate) {
-        text.setPosition({380, 240});
+        text.setPosition({320, 240});
         text.setString("It is a draw by stalemate");
     } else {
         text.setString("Default");
@@ -374,7 +374,7 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;           
         }
-    } else if (!game.board[row][col].piece_occupying || game.board[row][col].piece_occupying->colour == game.turn) {
+    } else if (game.board[row][col].piece_occupying && game.board[row][col].piece_occupying->colour == game.turn) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
