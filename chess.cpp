@@ -51,10 +51,12 @@ class Game {
         bool game_over { false };
         bool checkmate { false };
         bool stalemate { false };
+        bool repetition { false };
         std::string winner {};
         bool promoting_pawn { false };
         std::string piece_selected { "None" };
         std::vector<Move> move_record {};
+        std::vector<std::string> board_record {};
     Game() {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -99,6 +101,8 @@ int determine_possible_moves(Game& game);
 void draw_end_screen(Game& game, sf::RenderWindow& window);
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
 void end_game(Game& game);
+void record_board(Game& game);
+int determine_repetition(Game& game);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
@@ -207,8 +211,9 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
     } else if (game.stalemate) {
         text.setPosition({320, 240});
         text.setString("It is a draw by stalemate");
-    } else {
-        text.setString("Default");
+    } else if (game.repetition) {
+        text.setPosition({280, 240});
+        text.setString("Draw by threefold repetition");
     }
 
     float x_offset = 250;
@@ -328,16 +333,22 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
 
             if (result == 1 && game.turn == "white") { 
                 move_piece(game.board, 7, 7, 7, 5);
+                game.board_record.clear();
             } else if (result == 2 && game.turn == "white") {
                 move_piece(game.board, 7, 0, 7, 3);
+                game.board_record.clear();
             } else if (result == 1 && game.turn == "black") {
                 move_piece(game.board, 0, 7, 0, 5);
+                game.board_record.clear();
             } else if (result == 2 && game.turn == "black") {
                 move_piece(game.board, 0, 0, 0, 3);
+                game.board_record.clear();
             } else if (result == 3 && game.turn == "white") {
                 game.board[row + 1][col].piece_occupying = nullptr;
+                game.board_record.clear();
             } else if (result == 3 && game.turn == "black") {
                 game.board[row - 1][col].piece_occupying = nullptr;
+                game.board_record.clear();
             }
             game.move_record.push_back(move);
 
@@ -358,6 +369,7 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
                 while (game.promoting_pawn) {
                     select_pawn_promotion(game, window, row, col);
                 }
+                game.board_record.clear();
             }
             if (game.turn == "white") {
                 game.turn = "black";
@@ -365,9 +377,12 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
                 game.turn = "white";
             }
             evaluate_king_checks(game);
-            if (determine_possible_moves(game) == -1) {
+            record_board(game);
+            int repetition = determine_repetition(game);
+            if (determine_possible_moves(game) == -1 || repetition == -1) {
                 end_game(game);
             }
+
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;
             return;
@@ -380,6 +395,21 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
         game.selected.row = row;
         game.selected.col = col;
     }
+}
+
+int determine_repetition(Game& game) {
+    int occurrences { 1 };
+    int latest_move { static_cast<int>(game.board_record.size() - 1)};
+    for (int i { latest_move - 1 }; i >= 0; i--) {
+        if (game.board_record[i] == game.board_record[latest_move]) {
+            occurrences++;
+        }
+        if (occurrences == 3) {
+            game.repetition = true;
+            return -1;
+        }
+    }
+    return 0;
 }
 
 void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col) {
@@ -442,6 +472,9 @@ void evaluate_king_checks(Game& game) {
 void end_game(Game& game) {
     //std::cout << "It is over\n";
     game.game_over = true;
+    if (game.repetition) {
+        return;
+    }
     if (game.turn == "black") {
         if (game.black_in_check) {
             game.checkmate = true;
@@ -772,7 +805,7 @@ int test_castling(Game &game, Chessboard& copy, Move& move) {
 }
 
 int determine_possible_moves(Game& game) {
-
+    std::string board_positions {};
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
             if (game.board[i][j].piece_occupying && game.board[i][j].piece_occupying->colour == game.turn) {
@@ -863,6 +896,72 @@ int determine_possible_moves(Game& game) {
         }
     }
     return -1;
+}
+
+void record_board(Game& game) {
+    std::string board_positions {};
+    bool black_en_passant { false };
+    bool white_en_passant { false };
+    bool black_castling { false };
+    bool white_castling { false };
+    for (int i { 0 }; i < 8; i++) {
+        for (int j { 0 }; j < 8; j++) {
+            if (game.board[i][j].piece_occupying) {
+                board_positions += '[';
+                board_positions += std::to_string(i);
+                board_positions += std::to_string(j);
+                board_positions += game.board[i][j].piece_occupying->piece_type[0];
+                board_positions += game.board[i][j].piece_occupying->colour[0];
+                board_positions += ']';
+            }
+            if (game.board[i][j].piece_occupying && game.board[i][j].piece_occupying->piece_type == "pawn") {
+                if (i == 3 && !white_en_passant) {
+                    Move move1 { i, j, i - 1, j + 1, "white", "pawn" };
+                    Move move2 { i, j, i - 1, j - 1, "white", "pawn" };
+                    if (validate_move(game, game.board, move1) == 3 || validate_move(game, game.board, move2) == 3) {
+                        white_en_passant = true;
+                    }
+                }
+                if (i == 4 && !black_en_passant) {
+                    Move move1 { i, j, i + 1, j + 1, "black", "pawn" };
+                    Move move2 { i, j, i + 1, j - 1, "black", "pawn" };
+                    if (validate_move(game, game.board, move1) == 3 || validate_move(game, game.board, move2) == 3) {
+                        black_en_passant = true;
+                    }                   
+                }
+            }
+            if (game.board[i][j].piece_occupying && game.board[i][j].piece_occupying->piece_type == "king") {
+                if (i == 7 && j == 4 && !white_castling) {
+                    Move move1 { i, j, 7, 6, "white", "king" };
+                    Move move2 { i, j, 7, 2, "white", "king" };
+                    if (validate_move(game, game.board, move1) == 1 || validate_move(game, game.board, move2) == 2) {
+                        white_castling = true;
+                    }
+                }
+                if (i == 0 && j == 4 && !black_castling) {
+                    Move move1 { i, j, 0, 6, "black", "king" };
+                    Move move2 { i, j, 0, 2, "black", "king" };
+                    if (validate_move(game, game.board, move1) == 1 || validate_move(game, game.board, move2) == 2) {
+                        black_castling = true;
+                    }                
+                }
+            }
+        }
+    }
+    if (white_castling) {
+        board_positions += "[wc=t]";
+    }
+    if (black_castling) {
+        board_positions += "[bc=t]";
+    }
+    if (white_en_passant) {
+        board_positions += "[wep=t]";
+    }
+    if (black_en_passant) {
+        board_positions += "[bep=t]";
+    }
+    //std::cout << board_positions << '\n';
+    game.board_record.push_back(board_positions);
 }
 
 
