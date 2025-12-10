@@ -50,6 +50,8 @@ class Game {
         bool checkmate { false };
         bool stalemate { false };
         std::string winner {};
+        bool promoting_pawn { false };
+        std::string piece_selected { "None" };
     Game() {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -87,10 +89,12 @@ class Game {
 
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
-void select_square(int x, int y, Game& game);
+void select_square(int x, int y, Game& game, sf::RenderWindow& window);
+void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col);
 int determine_possible_moves(Game& game);
 void draw_end_screen(Game& game, sf::RenderWindow& window);
+void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
 void end_game(Game& game);
 
 int validate_move(Game& game, Chessboard& board, Move& move, std::string& turn, bool only_checking_checks = false);
@@ -104,6 +108,7 @@ int check_checks(Game &game, Chessboard& copy, Move& move, std::string& turn);
 void evaluate_king_checks(Game& game);
 int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
     int new_row, int new_col, std::string& turn);
+void handle_pawn_promotion(Game& game, int& row, int& col);
 
 int main() {
     Game game {};
@@ -118,10 +123,10 @@ int main() {
             }
             if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
                 if (!game.game_over) {
-                    select_square(mouse_press->position.x, mouse_press->position.y, game);
+                    select_square(mouse_press->position.x, mouse_press->position.y, game, window);
                 } else if (game.game_over) {
                     end_screen_clicked = true;
-                }
+                } 
             }
                
             if (const auto* resized = event->getIf<sf::Event::Resized>()) {
@@ -134,6 +139,8 @@ int main() {
         
         if (game.game_over && !end_screen_clicked) {
             draw_end_screen(game, window);
+        } else if (game.promoting_pawn && !game.game_over) {
+            draw_pawn_promotion_screen(game, window);
         }
 
         window.display();
@@ -209,6 +216,25 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
     window.draw(text);
 }
 
+void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
+    sf::RectangleShape pawn_promotion_screen({500, 300});
+    float x_offset = 250;
+    float y_offset = 250;
+    pawn_promotion_screen.setPosition({x_offset, y_offset});
+    pawn_promotion_screen.setFillColor(sf::Color::Blue);
+    window.draw(pawn_promotion_screen);
+    std::shared_ptr<Piece> piece1 = std::make_shared<Piece> ("rook", game.turn, false, 4, 2);
+    std::shared_ptr<Piece> piece2 = std::make_shared<Piece> ("knight", game.turn, false, 4, 3);
+    std::shared_ptr<Piece> piece3 = std::make_shared<Piece> ("bishop", game.turn, false, 4, 4);
+    std::shared_ptr<Piece> piece4 = std::make_shared<Piece> ("queen", game.turn, false, 4, 5);
+    
+    std::vector<std::shared_ptr<Piece>> promotion_pieces { piece1, piece2, piece3, piece4 };
+    for (auto piece: promotion_pieces) {
+        draw_piece(game, window, piece);
+    }
+    window.display();
+}
+
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece) {
     //std::string piece_type = piece->piece_type;
     sf::Texture texture;
@@ -279,7 +305,7 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 
 }
 
-void select_square(int x, int y, Game& game) {
+void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
     int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
     int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
     std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
@@ -311,11 +337,7 @@ void select_square(int x, int y, Game& game) {
             } else if (result == 2 && game.turn == "black") {
                 move_piece(game.board, 0, 0, 0, 3);
             }
-            if (game.turn == "white") {
-                game.turn = "black";
-            } else {
-                game.turn = "white";
-            }
+
             if (game.board[row][col].piece_occupying->piece_type == "king") {
                 if (game.turn == "white") {
                     game.white_king_position.row = row;
@@ -324,6 +346,21 @@ void select_square(int x, int y, Game& game) {
                     game.black_king_position.row = row;
                     game.black_king_position.col = col;
                 }
+            }
+            if ((game.turn == "black" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 7) || 
+                (game.turn == "white" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 0)) {
+                game.promoting_pawn = true;
+                std::cout << "pawn promotion";
+                draw_pawn_promotion_screen(game, window);
+                while (game.promoting_pawn) {
+                    
+                    select_pawn_promotion(game, window, row, col);
+                }
+            }
+            if (game.turn == "white") {
+                game.turn = "black";
+            } else {
+                game.turn = "white";
             }
             evaluate_king_checks(game);
             if (determine_possible_moves(game) == -1) {
@@ -342,6 +379,53 @@ void select_square(int x, int y, Game& game) {
         game.selected.row = row;
         game.selected.col = col;
     }
+}
+
+void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col) {
+    int x, y;
+    const std::optional event = window.pollEvent();
+   
+    if (event) {
+        const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>();
+        if (mouse_press) {
+            x = mouse_press->position.x;
+            y = mouse_press->position.y;
+        }
+    }
+    
+    
+    int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
+    int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
+    if (row < 0) {
+        row = 0;
+    } else if (col < 0) {
+        col = 0;
+    }
+    if (row > 7) {
+        row = 7;
+    } else if (col > 7) {
+        col = 7;
+    }
+    if (row == 4 && col == 2) {
+        game.piece_selected = "rook";
+    } else if (row == 4 && col == 3) {
+        game.piece_selected = "knight";
+    } else if (row == 4 && col == 4) {
+        game.piece_selected = "bishop";
+    } else if (row == 4 && col == 5) {
+        game.piece_selected = "queen";
+    }
+    if (game.piece_selected != "None") {
+        handle_pawn_promotion(game, pawn_row, pawn_col);
+        return;
+    }
+}
+
+void handle_pawn_promotion(Game& game, int& row, int& col) {
+
+    game.board[row][col].piece_occupying->piece_type = game.piece_selected;
+    game.piece_selected = "None";
+    game.promoting_pawn = false;
 }
 
 void evaluate_king_checks(Game& game) {
