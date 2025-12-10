@@ -107,7 +107,7 @@ int validate_move_bishop(Game& game, Chessboard& board, Move& move);
 int validate_move_rook(Game& game, Chessboard& board, Move& move);
 int validate_move_queen(Game& game, Chessboard& board, Move& move);
 int validate_move_king(Game &game, Chessboard& board, Move& move);
-int check_checks(Game &game, Chessboard& copy, Move& move, std::string& turn);
+int check_checks(Game &game, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
 int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
     int new_row, int new_col, std::string& turn);
@@ -373,7 +373,6 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
             game.selected.row = game.selected.col = -1;
             return;
         } else {
-
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;           
         }
@@ -395,7 +394,6 @@ void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, i
             y = mouse_press->position.y;
         }
     }
-    
     
     int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
     int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
@@ -432,10 +430,10 @@ void handle_pawn_promotion(Game& game, int& row, int& col) {
 }
 
 void evaluate_king_checks(Game& game) {
-    Move move { 0, 0, 0, 0 };
+    Move move { 0, 0, 0, 0, game.turn, "None" };
     if (game.turn == "white") {
         std::string next = "black";
-        int new_result = check_checks(game, game.board, move, game.turn);
+        int new_result = check_checks(game, game.board, move);
         if (new_result == 1) {
             game.white_in_check = true;
         } else {
@@ -443,7 +441,7 @@ void evaluate_king_checks(Game& game) {
         }
     } else {
         std::string next = "white";
-        int new_result = check_checks(game, game.board, move, game.turn);
+        int new_result = check_checks(game, game.board, move);
         if (new_result == 1) {
             game.black_in_check = true;
         } else {
@@ -519,7 +517,7 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
                     copy[i][j].piece_occupying = board[i][j].piece_occupying;
                 }
             }
-            int new_result = check_checks(game, copy, move, game.turn);
+            int new_result = check_checks(game, copy, move);
             //std::cout << new_result << '\n';
             if (new_result == 0) {
                 return result;
@@ -538,39 +536,35 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
 int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
     std::vector<std::pair<int, int>> no_capture_moves {};
     std::vector<std::pair<int, int>> capture_moves {};
-    int prev_row { move.prev_row };
-    int prev_col { move.prev_col };
-    int new_row { move.new_row };
-    int new_col { move.new_col };
-    std::pair<int, int> new_move { new_row, new_col };
+    std::pair<int, int> new_move { move.new_row, move.new_col };
     std::vector<std::pair<int, int>>::iterator it {};
 
-    if (move.turn == "white" && prev_row == 3 && new_row - prev_row == -1 && std::abs(new_col - prev_col) == 1 &&
-        !board[new_row][new_col].piece_occupying) {
+    if (move.turn == "white" && move.prev_row == 3 && move.new_row - move.prev_row == -1 && 
+        std::abs(move.new_col - move.prev_col) == 1 && !board[move.new_row][move.new_col].piece_occupying) {
         return validate_en_passant(game, board, move);
-    } else if (move.turn == "black" && prev_row == 4 && new_row - prev_row == 1 && std::abs(new_col - prev_col) == 1 &&
-        !board[new_row][new_col].piece_occupying) {
+    } else if (move.turn == "black" && move.prev_row == 4 && move.new_row - move.prev_row == 1 && 
+        std::abs(move.new_col - move.prev_col) == 1 && !board[move.new_row][move.new_col].piece_occupying) {
         return validate_en_passant(game, board, move);  
     }
 
     if (move.turn == "white") {
-        if (prev_row == 6 && !board[prev_row - 1][prev_col].piece_occupying) {
-            no_capture_moves = { { prev_row - 1, prev_col }, { prev_row - 2, prev_col } };
+        if (move.prev_row == 6 && !board[move.prev_row - 1][move.prev_col].piece_occupying) {
+            no_capture_moves = { { move.prev_row - 1, move.prev_col }, { move.prev_row - 2, move.prev_col } };
         } else {
-            no_capture_moves = { { prev_row - 1, prev_col } };
+            no_capture_moves = { { move.prev_row - 1, move.prev_col } };
         }
-        capture_moves = { { prev_row - 1, prev_col - 1 }, { prev_row - 1, prev_col + 1 } };
+        capture_moves = { { move.prev_row - 1, move.prev_col - 1 }, { move.prev_row - 1, move.prev_col + 1 } };
 
     } else {
-        if (prev_row == 1 && !board[prev_row + 1][prev_col].piece_occupying) {
-            no_capture_moves = { { prev_row + 1, prev_col }, { prev_row + 2, prev_col } };
+        if (move.prev_row == 1 && !board[move.prev_row + 1][move.prev_col].piece_occupying) {
+            no_capture_moves = { { move.prev_row + 1, move.prev_col }, { move.prev_row + 2, move.prev_col } };
         } else {
-            no_capture_moves = { { prev_row + 1, prev_col } };
+            no_capture_moves = { { move.prev_row + 1, move.prev_col } };
         }
-        capture_moves = { { prev_row + 1, prev_col - 1 }, { prev_row + 1, prev_col + 1 } };
+        capture_moves = { { move.prev_row + 1, move.prev_col - 1 }, { move.prev_row + 1, move.prev_col + 1 } };
     }
 
-    if (board[new_row][new_col].piece_occupying) {
+    if (board[move.new_row][move.new_col].piece_occupying) {
         it = std::find(capture_moves.begin(), capture_moves.end(), new_move);
         if (it != capture_moves.end()) {
             return 0;
@@ -590,70 +584,34 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
 
 int validate_en_passant(Game &game, Chessboard& board, Move& move) {
     std::cout << "here\n";
-    if (move.turn == "white") {
-        if (move.new_col - move.prev_col == 1) {
-            if (board[move.prev_row][move.prev_col + 1].piece_occupying && 
-                board[move.prev_row][move.prev_col + 1].piece_occupying->piece_type == "pawn") {
-                //std::cout << "here2\n";
-                Move prev_move = game.move_record[game.move_record.size() - 1];
-                //std::cout << "prev" << prev_move.prev_row << ' ' << prev_move.prev_col << 
-                //" Curr" << prev_move.new_row << prev_move.new_col << '\n';
-                if (prev_move.piece == "pawn" && prev_move.prev_row == 1 && prev_move.new_row == 3 &&
-                    prev_move.new_col == move.prev_col + 1) {
-                    return 3;
-                }
-                return -1;
-            }
-            return -1;
-        } else if (move.new_col - move.prev_col == -1) {
-            if (board[move.prev_row][move.prev_col - 1].piece_occupying && 
-                board[move.prev_row][move.prev_col - 1].piece_occupying->piece_type == "pawn") {
-                Move prev_move = game.move_record[game.move_record.size() - 1];
-                if (prev_move.piece == "pawn" && prev_move.prev_row == 1 && prev_move.new_row == 3 && 
-                    prev_move.new_col == move.prev_col - 1) {
-                    return 3;
-                }
-                return -1;
-            }
-            return -1;          
+    int col_position {}, required_prev_row {}, required_new_row {};
+    col_position = ((move.new_col - move.prev_col == 1) ? move.prev_col + 1 : move.prev_col - 1);
+    required_prev_row = ((move.turn == "white") ? 1 : 6);
+    required_new_row = ((move.turn == "white") ? 3 : 4);
+   
+    if (board[move.prev_row][col_position].piece_occupying && 
+        board[move.prev_row][col_position].piece_occupying->piece_type == "pawn") {
+        //std::cout << "here2\n";
+        Move prev_move = game.move_record[game.move_record.size() - 1];
+        //std::cout << "prev" << prev_move.prev_row << ' ' << prev_move.prev_col << 
+        //" Curr" << prev_move.new_row << prev_move.new_col << '\n';
+        if (prev_move.piece == "pawn" && prev_move.prev_row == required_prev_row && 
+            prev_move.new_row == required_new_row && prev_move.new_col == col_position) {
+            return 3;
         }
-    } else {
-        if (move.new_col - move.prev_col == 1) {
-            if (board[move.prev_row][move.prev_col + 1].piece_occupying && 
-                board[move.prev_row][move.prev_col + 1].piece_occupying->piece_type == "pawn") {
-                Move prev_move = game.move_record[game.move_record.size() - 1];
-                if (prev_move.piece == "pawn" && prev_move.prev_row == 6 && prev_move.new_row == 4 &&
-                    prev_move.new_col == move.prev_col + 1) {
-                    return 3;
-                }
-                return -1;
-            }
-            return -1;
-        } else if (move.new_col - move.prev_col == -1) {
-            if (board[move.prev_row][move.prev_col - 1].piece_occupying && 
-                board[move.prev_row][move.prev_col - 1].piece_occupying->piece_type == "pawn") {
-                Move prev_move = game.move_record[game.move_record.size() - 1];
-                if (prev_move.piece == "pawn" && prev_move.prev_row == 6 && prev_move.new_row == 4 && 
-                    prev_move.new_col == move.prev_col - 1) {
-                    return 3;
-                }
-                return -1;
-            }
-            return -1;          
-        }   
+        return -1;
     }
     return -1;
 }
 
 int validate_move_knight(Game& game, Chessboard& board, Move& move) {
-    int prev_row { move.prev_row };
-    int prev_col { move.prev_col };
-    int new_row { move.new_row };
-    int new_col { move.new_col };
-    std::pair<int, int> new_move { new_row, new_col };
-    std::vector<std::pair<int, int>> moves { { prev_row + 1, prev_col + 2 }, { prev_row + 2, prev_col + 1}, 
-    { prev_row - 1, prev_col - 2 }, { prev_row - 2, prev_col - 1 }, { prev_row + 1, prev_col - 2 }, 
-    { prev_row - 1, prev_col + 2 }, { prev_row - 2, prev_col + 1 }, { prev_row + 2, prev_col - 1 } };
+
+    std::pair<int, int> new_move { move.new_row, move.new_col };
+    std::vector<std::pair<int, int>> moves { { move.prev_row + 1, move.prev_col + 2 }, 
+    { move.prev_row + 2, move.prev_col + 1}, { move.prev_row - 1, move.prev_col - 2 }, 
+    { move.prev_row - 2, move.prev_col - 1 }, { move.prev_row + 1, move.prev_col - 2 }, 
+    { move.prev_row - 1, move.prev_col + 2 }, { move.prev_row - 2, move.prev_col + 1 }, 
+    { move.prev_row + 2, move.prev_col - 1 } };
     auto it = std::find(moves.begin(), moves.end(), new_move);
     if (it != moves.end()) {
         return 0;
@@ -663,12 +621,8 @@ int validate_move_knight(Game& game, Chessboard& board, Move& move) {
 }
 
 int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
-    int prev_row { move.prev_row };
-    int prev_col { move.prev_col };
-    int new_row { move.new_row };
-    int new_col { move.new_col };
-    int row_change { new_row - prev_row };
-    int col_change { new_col - prev_col };
+    int row_change { move.new_row - move.prev_row };
+    int col_change { move.new_col - move.prev_col };
 
     //std::cout << "prev row: " << prev_row << " prev_col: " << prev_col << '\n';
     //std::cout << "new row: " << new_row << " new col: " << new_col << '\n';
@@ -676,25 +630,25 @@ int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
     if (std::abs(row_change) == std::abs(col_change)) {
         if (row_change > 0 && col_change > 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[prev_row + i][prev_col + i].piece_occupying) {
+                if (board[move.prev_row + i][move.prev_col + i].piece_occupying) {
                     return -1;
                 }
             }
         } else if (row_change < 0 && col_change > 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[prev_row - i][prev_col + i].piece_occupying) {
+                if (board[move.prev_row - i][move.prev_col + i].piece_occupying) {
                     return -1;
                 }
             }           
         } else if (row_change > 0 && col_change < 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[prev_row + i][prev_col - i].piece_occupying) {
+                if (board[move.prev_row + i][move.prev_col - i].piece_occupying) {
                     return -1;
                 }
             }           
         } else if (row_change < 0 && col_change < 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[prev_row - i][prev_col - i].piece_occupying) {
+                if (board[move.prev_row - i][move.prev_col - i].piece_occupying) {
                     return -1;
                 }
             }              
@@ -705,23 +659,19 @@ int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
 }
 
 int validate_move_rook(Game& game, Chessboard& board, Move& move) {
-    int prev_row { move.prev_row };
-    int prev_col { move.prev_col };
-    int new_row { move.new_row };
-    int new_col { move.new_col };
-    int row_change { new_row - prev_row };
-    int col_change { new_col - prev_col };
+    int row_change { move.new_row - move.prev_row };
+    int col_change { move.new_col - move.prev_col };
 
     if (row_change == 0) {
         if (col_change > 0) {
             for (int i { 1 }; i < std::abs(col_change); i++) {
-                if (board[prev_row][prev_col + i].piece_occupying) {
+                if (board[move.prev_row][move.prev_col + i].piece_occupying) {
                     return -1;
                 }
             } 
         } else if (col_change < 0) {
             for (int i { 1 }; i < std::abs(col_change); i++) {
-                if (board[prev_row][prev_col - i].piece_occupying) {
+                if (board[move.prev_row][move.prev_col - i].piece_occupying) {
                     return -1;
                 }
             }         
@@ -730,13 +680,13 @@ int validate_move_rook(Game& game, Chessboard& board, Move& move) {
     } else if (col_change == 0) {
         if (row_change > 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[prev_row + i][prev_col].piece_occupying) {
+                if (board[move.prev_row + i][move.prev_col].piece_occupying) {
                     return -1;
                 }
             } 
         } else if (row_change < 0) {
             for (int i { 1 }; i < std::abs(row_change); i++) {
-                if (board[prev_row - i][prev_col].piece_occupying) {
+                if (board[move.prev_row - i][move.prev_col].piece_occupying) {
                     return -1;
                 }
             }         
@@ -760,15 +710,11 @@ int validate_move_queen(Game& game, Chessboard& board, Move& move) {
 int validate_move_king(Game &game, Chessboard& board, Move& move) {
     //std::cout << "Checking king move\n";
 
-    int prev_row { move.prev_row };
-    int prev_col { move.prev_col };
-    int new_row { move.new_row };
-    int new_col { move.new_col };
-    int row_change { new_row - prev_row };
-    int col_change { new_col - prev_col };
-    std::vector<std::pair<int, int>> moves { { new_row + 1, new_col }, { new_row - 1, new_col }, 
-    { new_row + 1, new_col + 1 }, { new_row - 1, new_col - 1 }, 
-    { new_row - 1, new_col + 1 }, { new_row + 1, new_col - 1 } };
+    int row_change { move.new_row - move.prev_row };
+    int col_change { move.new_col - move.prev_col };
+    std::vector<std::pair<int, int>> moves { { move.new_row + 1, move.new_col }, { move.new_row - 1, move.new_col }, 
+    { move.new_row + 1, move.new_col + 1 }, { move.new_row - 1, move.new_col - 1 }, 
+    { move.new_row - 1, move.new_col + 1 }, { move.new_row + 1, move.new_col - 1 } };
 
     //std::cout << "Distance: " << sqrt(pow(row_change, 2) + pow(col_change, 2)) << '\n';
     if (sqrt(pow(row_change, 2) + pow(col_change, 2)) <= sqrt(2)) {
@@ -790,84 +736,54 @@ int validate_move_king(Game &game, Chessboard& board, Move& move) {
             }
         }
         //std::cout << "testing..\n";
-        return test_castling(game, copy, prev_row, prev_col, new_row, new_col, move.turn);
+        return test_castling(game, copy, move.prev_row, move.prev_col, move.new_row, move.new_col, move.turn);
     }
     return -1;
 }
 
-int check_checks(Game &game, Chessboard& copy, Move& move, std::string& turn) {
+int check_checks(Game &game, Chessboard& copy, Move& move) {
     int test {};
-    Coords white_king_position {};
-    Coords black_king_position {};
+    Coords king_position {};
+
     //std::cout << "checking checks\n";
-    int prev_row { move.prev_row };
-    int prev_col { move.prev_col };
-    int new_row { move.new_row };
-    int new_col { move.new_col };
-    if (prev_row != new_row || prev_col != new_col) {
-        copy[new_row][new_col].piece_occupying = nullptr;
-        copy[new_row][new_col].piece_occupying = std::move(copy[prev_row][prev_col].piece_occupying);
+    if (move.prev_row != move.new_row || move.prev_col != move.new_col) {
+        copy[move.new_row][move.new_col].piece_occupying = nullptr;
+        copy[move.new_row][move.new_col].piece_occupying = std::move(copy[move.prev_row][move.prev_col].piece_occupying);
     }
-    if (turn == "white") {
-        for (int i { 0 }; i < 8; i++) {
-            for (int j { 0 }; j < 8; j++) {
-                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "white" &&
-                    copy[i][j].piece_occupying->piece_type == "king") {
-                    white_king_position.row = i;
-                    white_king_position.col = j;
-                    break;
-                }
+    std::string opposing_colour = ((move.turn == "white") ? "black" : "white");
+   
+    for (int i { 0 }; i < 8; i++) {
+        for (int j { 0 }; j < 8; j++) {
+            if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == move.turn &&
+                copy[i][j].piece_occupying->piece_type == "king") {
+                king_position.row = i;
+                king_position.col = j;
+                break;
             }
-        }   
-        for (int i { 0 }; i < 8; i++) {
-            for (int j { 0 }; j < 8; j++) {
-                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "black" &&
-                    copy[i][j].piece_occupying->piece_type != "king") {
-                    //std::string other_turn {"black"};
-                    Move test_move { i, j, white_king_position.row, white_king_position.col, 
-                        "black", copy[i][j].piece_occupying->piece_type };
-                    test = validate_move(game, copy, test_move, true);
-                    if (test == 0) {
-                        //std::cout << "prev: " << i << ' ' << j << " new: " << new_row << ' ' << new_col << '\n';
-                        return 1;
-                    }
+        }
+    }   
+    for (int i { 0 }; i < 8; i++) {
+        for (int j { 0 }; j < 8; j++) {
+            if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == opposing_colour &&
+                copy[i][j].piece_occupying->piece_type != "king") {
+          
+                Move test_move { i, j, king_position.row, king_position.col, 
+                    opposing_colour, copy[i][j].piece_occupying->piece_type };
+                test = validate_move(game, copy, test_move, true);
+                if (test == 0) {
+                    //std::cout << "prev: " << i << ' ' << j << " new: " << new_row << ' ' << new_col << '\n';
+                    return 1;
                 }
             }
         }
-        return 0;
-    } else {
-        for (int i { 0 }; i < 8; i++) {
-            for (int j { 0 }; j < 8; j++) {
-                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "black" &&
-                    copy[i][j].piece_occupying->piece_type == "king") {
-                    black_king_position.row = i;
-                    black_king_position.col = j;
-                    break;
-                }
-            }
-        }   
-        for (int i { 0 }; i < 8; i++) {
-            for (int j { 0 }; j < 8; j++) {
-                if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == "white" && 
-                    copy[i][j].piece_occupying->piece_type != "king") {
-                    //std::string other_turn {"white"};
-                    Move test_move { i, j, black_king_position.row, black_king_position.col, 
-                        "white", copy[i][j].piece_occupying->piece_type };
-                    test = validate_move(game, copy, test_move, true);
-                    if (test == 0) {
-                        //std::cout << "prev: " << i << ' ' << j << " new: " << new_row << ' ' << new_col << '\n';
-                        return 1;
-                    }
-                }
-            }
-        }
-        return 0;       
     }
+    return 0;
+    
 }
 
 int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
     int new_row, int new_col, std::string& turn) {
-    std::string king { "king "};
+   
     if (turn == "white" && prev_row == 7 && prev_col == 4 && !game.white_in_check) {
         if (!copy[7][4].piece_occupying->moved) {
             if (new_row == 7 && new_col == 6 && copy[7][7].piece_occupying && 
@@ -878,8 +794,8 @@ int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col,
                     if (copy[7][i].piece_occupying) {
                         return -1;
                     } else {
-                        Move move { prev_row, prev_col, new_row, i, turn, king };
-                        if (check_checks(game, copy, move, turn) == 1) {
+                        Move move { prev_row, prev_col, new_row, i, turn, "king" };
+                        if (check_checks(game, copy, move) == 1) {
                             //std::cout << "castlefail\n";
                             return -1;
                         }
@@ -893,8 +809,8 @@ int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col,
                     if (copy[7][i].piece_occupying) {
                         return -1;
                     } else {
-                        Move move { prev_row, prev_col, new_row, i, turn, king };
-                        if (check_checks(game, copy, move, turn) == 1) {
+                        Move move { prev_row, prev_col, new_row, i, turn, "king" };
+                        if (check_checks(game, copy, move) == 1) {
                             return -1;
                         }
                     }
@@ -913,7 +829,7 @@ int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col,
                         return -1;
                     } else {
                         Move move { prev_row, prev_col, new_row, i,  };
-                        if (check_checks(game, copy, move, turn) == 1) {
+                        if (check_checks(game, copy, move) == 1) {
                             return -1;
                         }
                     }
@@ -927,7 +843,7 @@ int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col,
                         return -1;
                     } else {
                         Move move { prev_row, prev_col, new_row, i };
-                        if ((check_checks(game, copy, move, turn) == 1)) {
+                        if ((check_checks(game, copy, move) == 1)) {
                             return -1;
                         }
                     }
