@@ -54,6 +54,7 @@ class Game {
         std::string winner {};
         bool promoting_pawn { false };
         std::string piece_selected { "None" };
+        std::vector<Move> move_record {};
     Game() {
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -111,6 +112,7 @@ void evaluate_king_checks(Game& game);
 int test_castling(Game &game, Chessboard& copy, int prev_row, int prev_col, 
     int new_row, int new_col, std::string& turn);
 void handle_pawn_promotion(Game& game, int& row, int& col);
+int validate_en_passant(Game &game, Chessboard& board, Move& move);
 
 int main() {
     Game game {};
@@ -333,7 +335,12 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
                 move_piece(game.board, 0, 7, 0, 5);
             } else if (result == 2 && game.turn == "black") {
                 move_piece(game.board, 0, 0, 0, 3);
+            } else if (result == 3 && game.turn == "white") {
+                game.board[row + 1][col].piece_occupying = nullptr;
+            } else if (result == 3 && game.turn == "black") {
+                game.board[row - 1][col].piece_occupying = nullptr;
             }
+            game.move_record.push_back(move);
 
             if (game.board[row][col].piece_occupying->piece_type == "king") {
                 if (game.turn == "white") {
@@ -538,6 +545,14 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
     std::pair<int, int> new_move { new_row, new_col };
     std::vector<std::pair<int, int>>::iterator it {};
 
+    if (move.turn == "white" && prev_row == 3 && new_row - prev_row == -1 && std::abs(new_col - prev_col) == 1 &&
+        !board[new_row][new_col].piece_occupying) {
+        return validate_en_passant(game, board, move);
+    } else if (move.turn == "black" && prev_row == 4 && new_row - prev_row == 1 && std::abs(new_col - prev_col) == 1 &&
+        !board[new_row][new_col].piece_occupying) {
+        return validate_en_passant(game, board, move);  
+    }
+
     if (move.turn == "white") {
         if (prev_row == 6 && !board[prev_row - 1][prev_col].piece_occupying) {
             no_capture_moves = { { prev_row - 1, prev_col }, { prev_row - 2, prev_col } };
@@ -571,6 +586,63 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
         }
     }
     
+}
+
+int validate_en_passant(Game &game, Chessboard& board, Move& move) {
+    std::cout << "here\n";
+    if (move.turn == "white") {
+        if (move.new_col - move.prev_col == 1) {
+            if (board[move.prev_row][move.prev_col + 1].piece_occupying && 
+                board[move.prev_row][move.prev_col + 1].piece_occupying->piece_type == "pawn") {
+                //std::cout << "here2\n";
+                Move prev_move = game.move_record[game.move_record.size() - 1];
+                //std::cout << "prev" << prev_move.prev_row << ' ' << prev_move.prev_col << 
+                //" Curr" << prev_move.new_row << prev_move.new_col << '\n';
+                if (prev_move.piece == "pawn" && prev_move.prev_row == 1 && prev_move.new_row == 3 &&
+                    prev_move.new_col == move.prev_col + 1) {
+                    return 3;
+                }
+                return -1;
+            }
+            return -1;
+        } else if (move.new_col - move.prev_col == -1) {
+            if (board[move.prev_row][move.prev_col - 1].piece_occupying && 
+                board[move.prev_row][move.prev_col - 1].piece_occupying->piece_type == "pawn") {
+                Move prev_move = game.move_record[game.move_record.size() - 1];
+                if (prev_move.piece == "pawn" && prev_move.prev_row == 1 && prev_move.new_row == 3 && 
+                    prev_move.new_col == move.prev_col - 1) {
+                    return 3;
+                }
+                return -1;
+            }
+            return -1;          
+        }
+    } else {
+        if (move.new_col - move.prev_col == 1) {
+            if (board[move.prev_row][move.prev_col + 1].piece_occupying && 
+                board[move.prev_row][move.prev_col + 1].piece_occupying->piece_type == "pawn") {
+                Move prev_move = game.move_record[game.move_record.size() - 1];
+                if (prev_move.piece == "pawn" && prev_move.prev_row == 6 && prev_move.new_row == 4 &&
+                    prev_move.new_col == move.prev_col + 1) {
+                    return 3;
+                }
+                return -1;
+            }
+            return -1;
+        } else if (move.new_col - move.prev_col == -1) {
+            if (board[move.prev_row][move.prev_col - 1].piece_occupying && 
+                board[move.prev_row][move.prev_col - 1].piece_occupying->piece_type == "pawn") {
+                Move prev_move = game.move_record[game.move_record.size() - 1];
+                if (prev_move.piece == "pawn" && prev_move.prev_row == 6 && prev_move.new_row == 4 && 
+                    prev_move.new_col == move.prev_col - 1) {
+                    return 3;
+                }
+                return -1;
+            }
+            return -1;          
+        }   
+    }
+    return -1;
 }
 
 int validate_move_knight(Game& game, Chessboard& board, Move& move) {
