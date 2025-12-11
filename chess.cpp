@@ -97,6 +97,7 @@ class Game {
     }
 };
 
+void run_game_loop();
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
 void select_square(int x, int y, Game& game, sf::RenderWindow& window);
@@ -125,6 +126,10 @@ int validate_en_passant(Game& game, Chessboard& board, Move& move);
 void record_piece_points(Game& game, std::string piece_type, std::string piece_colour);
 
 int main() {
+    run_game_loop();
+}
+
+void run_game_loop() {
     Game game {};
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
     sf::RectangleShape board({760, 760});
@@ -148,7 +153,7 @@ int main() {
                 window.setView(sf::View(visibleArea));
             }
         }
-        window.clear(sf::Color::Red);
+        window.clear(sf::Color::Blue);
         draw_board(game, window);
         
         if (game.game_over && !end_screen_clicked) {
@@ -160,7 +165,6 @@ int main() {
         window.display();
 
     }
-
 }
 
 void draw_board(Game& game, sf::RenderWindow& window) {
@@ -201,32 +205,32 @@ void draw_board(Game& game, sf::RenderWindow& window) {
 void draw_end_screen(Game& game, sf::RenderWindow& window) {
     sf::RectangleShape end_screen({500, 300});
     sf::Font font;
-    if (!font.openFromFile("./src/HeadingNowTrial-14Regular.ttf")) {
+    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
         return;
     }
     sf::Text text(font);
     text.setFillColor(sf::Color::Red);
-    text.setCharacterSize(100);
-    ;
+    text.setCharacterSize(40);
+    
     if (game.checkmate) {
-        text.setPosition({420, 240}); 
+        text.setPosition({280, 280}); 
         if (game.winner == "white") {
-            text.setString("White won");
+            text.setString("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {
-            text.setString("Black won");
+            text.setString("CHECKMATE\nBLACK WON!\n-----------------------------\nClick anywhere to \ncontinue");
         }
     } else if (game.stalemate) {
-        text.setPosition({320, 240});
-        text.setString("It is a draw by stalemate");
+        text.setPosition({280, 280});
+        text.setString("Draw by stalemate\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.repetition) {
-        text.setPosition({280, 240});
-        text.setString("Draw by threefold repetition");
+        text.setPosition({280, 280});
+        text.setString("Draw by threefold \nrepetition\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.insufficient_material) {
-        text.setPosition({280, 240});
-        text.setString("Draw by insufficient material");
+        text.setPosition({280, 280});
+        text.setString("Draw by insufficient \nmaterial\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.plys_to_100 == 100) {
-        text.setPosition({280, 240});
-        text.setString("Draw by the fifty-move rule");
+        text.setPosition({280, 280});
+        text.setString("Draw by the 50-move rule\n-----------------------------\nClick anywhere to \ncontinue");
     }
 
     float x_offset = 250;
@@ -715,7 +719,8 @@ int validate_move_king(Game &game, Chessboard& board, Move& move) {
     int col_change { move.new_col - move.prev_col };
     std::vector<std::pair<int, int>> moves { { move.new_row + 1, move.new_col }, { move.new_row - 1, move.new_col }, 
     { move.new_row + 1, move.new_col + 1 }, { move.new_row - 1, move.new_col - 1 }, 
-    { move.new_row - 1, move.new_col + 1 }, { move.new_row + 1, move.new_col - 1 } };
+    { move.new_row - 1, move.new_col + 1 }, { move.new_row + 1, move.new_col - 1 }, 
+    { move.new_row, move.new_col - 1 }, { move.new_row, move.new_col + 1 } };
 
     //std::cout << "Distance: " << sqrt(pow(row_change, 2) + pow(col_change, 2)) << '\n';
     if (sqrt(pow(row_change, 2) + pow(col_change, 2)) <= sqrt(2)) {
