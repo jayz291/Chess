@@ -7,7 +7,6 @@
 #include <utility>
 #include <algorithm>
 
-
 struct Piece {
     std::string piece_type {};
     std::string colour {};
@@ -43,63 +42,81 @@ class Game {
         //std::vector<Piece> pieces{32}; 
         Chessboard board {};
         Coords selected {};
-        std::string turn { "white" };
-        bool white_in_check { false };
-        bool black_in_check { false };
-        Coords black_king_position { 0, 4 };
-        Coords white_king_position { 7, 4 };
-        bool game_over { false };
-        bool checkmate { false };
-        bool stalemate { false };
-        bool repetition { false };
-        bool insufficient_material { false };
-        std::string winner {};
-        bool promoting_pawn { false };
+        std::string turn {};
+        bool white_in_check {};
+        bool black_in_check {};
+        Coords black_king_position {};
+        Coords white_king_position {};
+        bool game_over {};
+        bool checkmate {};
+        bool stalemate {};
+        bool repetition {};
+        bool insufficient_material {};
+        std::string winner { "None" };
+        bool promoting_pawn {};
         std::string piece_selected { "None" };
         std::vector<Move> move_record {};
         std::vector<std::string> board_record {};
-        int plys_to_100 { 0 };
+        int plys_to_100 {};
         int value_white_pieces {};
         int value_black_pieces {};
-        bool pawns_on_board { true };
-    Game() {
-        for (int i { 0 }; i < 8; i++) {
-            for (int j { 0 }; j < 8; j++) {
-                if ((i + j) % 2 == 0) {
-                    board[i][j].colour = "yellow";
-                } else {
-                    board[i][j].colour = "brown";
+        bool pawns_on_board {};
+        Game() {
+            initialise();
+        }
+        void initialise() {
+            move_record.clear();
+            board_record.clear();
+            pawns_on_board = true;
+            value_white_pieces = value_black_pieces = 0;
+            plys_to_100 = 0;
+            winner = piece_selected = "None";
+            white_in_check = black_in_check = game_over = false;
+            turn = "white";
+            checkmate = stalemate = repetition = insufficient_material = promoting_pawn = false;
+            selected.col = selected.row = -1;
+            black_king_position.row = 0;
+            white_king_position.row = 7;
+            black_king_position.col = white_king_position.col = 4;
+            for (int i { 0 }; i < 8; i++) {
+                for (int j { 0 }; j < 8; j++) {
+                board[i][j].piece_occupying = nullptr;
+                    if ((i + j) % 2 == 0) {
+                        board[i][j].colour = "yellow";
+                    } else {
+                        board[i][j].colour = "brown";
+                    }
                 }
             }
+            for (int i { 0 }; i < 8; i++) {
+                board[1][i].piece_occupying = std::make_shared<Piece> ("pawn", "black", false, 1, i);
+            }
+            for (int i { 0 }; i < 8; i++) {
+                board[6][i].piece_occupying = std::make_shared<Piece> ("pawn", "white", false, 6, i);
+            }
+            board[0][0].piece_occupying = std::make_shared<Piece> ("rook", "black", false, 0, 0);
+            board[0][1].piece_occupying = std::make_shared<Piece> ("knight", "black", false, 0, 1);
+            board[0][2].piece_occupying = std::make_shared<Piece> ("bishop", "black", false, 0, 2);
+            board[0][3].piece_occupying = std::make_shared<Piece> ("queen", "black", false, 0, 3);
+            board[0][4].piece_occupying = std::make_shared<Piece> ("king", "black", false, 0, 4);
+            board[0][5].piece_occupying = std::make_shared<Piece> ("bishop", "black", false, 0, 5);
+            board[0][6].piece_occupying = std::make_shared<Piece> ("knight", "black", false, 0, 6);
+            board[0][7].piece_occupying = std::make_shared<Piece> ("rook", "black", false, 0, 7);
+            board[7][0].piece_occupying = std::make_shared<Piece> ("rook", "white", false, 7, 0);
+            board[7][1].piece_occupying = std::make_shared<Piece> ("knight", "white", false, 7, 1);
+            board[7][2].piece_occupying = std::make_shared<Piece> ("bishop", "white", false, 7, 2);
+            board[7][3].piece_occupying = std::make_shared<Piece> ("queen", "white", false, 7, 3);
+            board[7][4].piece_occupying = std::make_shared<Piece> ("king", "white", false, 7, 4);
+            board[7][5].piece_occupying = std::make_shared<Piece> ("bishop", "white", false, 7, 5);
+            board[7][6].piece_occupying = std::make_shared<Piece> ("knight", "white", false, 7, 6);
+            board[7][7].piece_occupying = std::make_shared<Piece> ("rook", "white", false, 7, 7);
         }
-        for (int i { 0 }; i < 8; i++) {
-            board[1][i].piece_occupying = std::make_shared<Piece> ("pawn", "black", false, 1, i);
-        }
-        for (int i { 0 }; i < 8; i++) {
-            board[6][i].piece_occupying = std::make_shared<Piece> ("pawn", "white", false, 6, i);
-        }
-        board[0][0].piece_occupying = std::make_shared<Piece> ("rook", "black", false, 0, 0);
-        board[0][1].piece_occupying = std::make_shared<Piece> ("knight", "black", false, 0, 1);
-        board[0][2].piece_occupying = std::make_shared<Piece> ("bishop", "black", false, 0, 2);
-        board[0][3].piece_occupying = std::make_shared<Piece> ("queen", "black", false, 0, 3);
-        board[0][4].piece_occupying = std::make_shared<Piece> ("king", "black", false, 0, 4);
-        board[0][5].piece_occupying = std::make_shared<Piece> ("bishop", "black", false, 0, 5);
-        board[0][6].piece_occupying = std::make_shared<Piece> ("knight", "black", false, 0, 6);
-        board[0][7].piece_occupying = std::make_shared<Piece> ("rook", "black", false, 0, 7);
-        board[7][0].piece_occupying = std::make_shared<Piece> ("rook", "white", false, 7, 0);
-        board[7][1].piece_occupying = std::make_shared<Piece> ("knight", "white", false, 7, 1);
-        board[7][2].piece_occupying = std::make_shared<Piece> ("bishop", "white", false, 7, 2);
-        board[7][3].piece_occupying = std::make_shared<Piece> ("queen", "white", false, 7, 3);
-        board[7][4].piece_occupying = std::make_shared<Piece> ("king", "white", false, 7, 4);
-        board[7][5].piece_occupying = std::make_shared<Piece> ("bishop", "white", false, 7, 5);
-        board[7][6].piece_occupying = std::make_shared<Piece> ("knight", "white", false, 7, 6);
-        board[7][7].piece_occupying = std::make_shared<Piece> ("rook", "white", false, 7, 7);
-    }
 };
 
 void run_game_loop();
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
+void draw_reset_button(Game& game, sf::RenderWindow& window, bool& end_screen_clicked);
 void select_square(int x, int y, Game& game, sf::RenderWindow& window);
 void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col);
@@ -141,6 +158,7 @@ void run_game_loop() {
                 window.close();
             }
             if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
+                //std::cout << "clicked\n";
                 if (!game.game_over) {
                     select_square(mouse_press->position.x, mouse_press->position.y, game, window);
                 } else if (game.game_over) {
@@ -161,10 +179,49 @@ void run_game_loop() {
         } else if (game.promoting_pawn && !game.game_over) {
             draw_pawn_promotion_screen(game, window);
         }
+        if (end_screen_clicked) {
+            draw_reset_button(game, window, end_screen_clicked);
+        }
 
         window.display();
 
     }
+}
+
+void draw_reset_button(Game& game, sf::RenderWindow& window, bool& end_screen_clicked) {
+    float x, y;
+    const std::optional event2 = window.pollEvent();
+    
+    if (event2) {
+        const auto* mouse_press = event2->getIf<sf::Event::MouseButtonPressed>();
+        if (mouse_press) {
+            x = mouse_press->position.x;
+            y = mouse_press->position.y;
+        }
+    }
+
+    sf::RectangleShape reset_button({44, 35});
+    
+    reset_button.setFillColor(sf::Color::White);
+    reset_button.setPosition({10, 10});
+    sf::FloatRect button_bounds = reset_button.getGlobalBounds();
+    if (button_bounds.contains({x, y})) {
+        game.initialise();
+        end_screen_clicked = false;
+        return;
+    }
+    
+    sf::Font font;
+    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+        return;
+    }
+    sf::Text text(font);
+    text.setFillColor(sf::Color::Red);
+    text.setCharacterSize(15);
+    text.setPosition({13, 13});
+    text.setString("Reset");
+    window.draw(reset_button);
+    window.draw(text);
 }
 
 void draw_board(Game& game, sf::RenderWindow& window) {
@@ -199,7 +256,6 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             }
         }
     }
-
 }
 
 void draw_end_screen(Game& game, sf::RenderWindow& window) {
