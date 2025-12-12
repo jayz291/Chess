@@ -119,6 +119,7 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 void draw_reset_button(Game& game, sf::RenderWindow& window, bool& end_screen_clicked);
 void select_square(int x, int y, Game& game, sf::RenderWindow& window);
 void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col);
+void process_move(Game& game, int result, Move& move);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col);
 int determine_possible_moves(Game& game);
 void draw_end_screen(Game& game, sf::RenderWindow& window);
@@ -127,6 +128,7 @@ void end_game(Game& game);
 void record_board(Game& game);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
+void is_game_over(Game& game);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
@@ -176,7 +178,8 @@ void run_game_loop() {
         
         if (game.game_over && !end_screen_clicked) {
             draw_end_screen(game, window);
-        } else if (game.promoting_pawn && !game.game_over) {
+        } 
+        if (game.promoting_pawn && !game.game_over) {
             draw_pawn_promotion_screen(game, window);
         }
         if (end_screen_clicked) {
@@ -407,39 +410,9 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
             } else {
                 game.plys_to_100++;
             }
-            move_piece(game.board, game.selected.row, game.selected.col, row, col);
-
-            if (result == 1 && game.turn == "white") { 
-                move_piece(game.board, 7, 7, 7, 5);
-                game.board_record.clear();
-            } else if (result == 2 && game.turn == "white") {
-                move_piece(game.board, 7, 0, 7, 3);
-                game.board_record.clear();
-            } else if (result == 1 && game.turn == "black") {
-                move_piece(game.board, 0, 7, 0, 5);
-                game.board_record.clear();
-            } else if (result == 2 && game.turn == "black") {
-                move_piece(game.board, 0, 0, 0, 3);
-                game.board_record.clear();
-            } else if (result == 3 && game.turn == "white") {
-                game.board[row + 1][col].piece_occupying = nullptr;
-                game.board_record.clear();
-            } else if (result == 3 && game.turn == "black") {
-                game.board[row - 1][col].piece_occupying = nullptr;
-                game.board_record.clear();
-            }
-            game.move_record.push_back(move);
+            process_move(game, result, move);
 
             //std::cout << "plys to 100: " << game.plys_to_100 << '\n';
-            if (game.board[row][col].piece_occupying->piece_type == "king") {
-                if (game.turn == "white") {
-                    game.white_king_position.row = row;
-                    game.white_king_position.col = col;
-                } else {
-                    game.black_king_position.row = row;
-                    game.black_king_position.col = col;
-                }
-            }
             if ((game.turn == "black" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 7) || 
                 (game.turn == "white" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 0)) {
                 game.promoting_pawn = true;
@@ -455,15 +428,7 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
             } else {
                 game.turn = "white";
             }
-            evaluate_king_checks(game);
-            record_board(game);
-            int repetition = determine_repetition(game);
-            int insufficient_material = determine_insufficient_material(game);
-            if (determine_possible_moves(game) == -1 || repetition == -1 || insufficient_material == -1 || 
-                game.plys_to_100 == 100) {
-                end_game(game);
-            }
-
+            is_game_over(game);
             game.board[game.selected.row][game.selected.col].selected = false;
             game.selected.row = game.selected.col = -1;
             return;
@@ -475,6 +440,51 @@ void select_square(int x, int y, Game& game, sf::RenderWindow& window) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
+    }
+}
+
+void process_move(Game& game, int result, Move& move) {
+    move_piece(game.board, game.selected.row, game.selected.col, move.new_row, move.new_col);
+
+    if (result == 1 && game.turn == "white") { 
+        move_piece(game.board, 7, 7, 7, 5);
+        game.board_record.clear();
+    } else if (result == 2 && game.turn == "white") {
+        move_piece(game.board, 7, 0, 7, 3);
+        game.board_record.clear();
+    } else if (result == 1 && game.turn == "black") {
+        move_piece(game.board, 0, 7, 0, 5);
+        game.board_record.clear();
+    } else if (result == 2 && game.turn == "black") {
+        move_piece(game.board, 0, 0, 0, 3);
+        game.board_record.clear();
+    } else if (result == 3 && game.turn == "white") {
+        game.board[move.new_row + 1][move.new_col].piece_occupying = nullptr;
+        game.board_record.clear();
+    } else if (result == 3 && game.turn == "black") {
+        game.board[move.new_row - 1][move.new_col].piece_occupying = nullptr;
+        game.board_record.clear();
+    }
+    game.move_record.push_back(move);
+    if (game.board[move.new_row][move.new_col].piece_occupying->piece_type == "king") {
+        if (game.turn == "white") {
+            game.white_king_position.row = move.new_row;
+            game.white_king_position.col = move.new_col;
+        } else {
+            game.black_king_position.row = move.new_row;
+            game.black_king_position.col = move.new_col;
+        }
+    }
+}
+
+void is_game_over(Game& game) {
+    evaluate_king_checks(game);
+    record_board(game);
+    int repetition = determine_repetition(game);
+    int insufficient_material = determine_insufficient_material(game);
+    if (determine_possible_moves(game) == -1 || repetition == -1 || insufficient_material == -1 || 
+        game.plys_to_100 == 100) {
+        end_game(game);
     }
 }
 
