@@ -130,26 +130,30 @@ class Game {
 };
 
 void run_game_loop();
+void render(Game& game, sf::RenderWindow& window);
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
 void draw_reset_button(Game& game, sf::RenderWindow& window);
 void draw_undo_button(Game& game, sf::RenderWindow& window);
+void draw_end_screen(Game& game, sf::RenderWindow& window);
+void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
 int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, int result, Move& move);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo = false);
 int determine_possible_moves(Game& game);
-void draw_end_screen(Game& game, sf::RenderWindow& window);
-void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
-void end_game(Game& game);
-void record_board(Game& game);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
+void end_game(Game& game);
+void record_board(Game& game);
 void is_game_over(Game& game);
-void render(Game& game, sf::RenderWindow& window);
-void handle_input(Game& game, sf::RenderWindow& window);
-void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos);
 void undo_move(Game& game);
+
+void handle_input(Game& game, sf::RenderWindow& window);
+void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);
+void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
@@ -164,9 +168,7 @@ int test_castling(Game& game, Chessboard& copy, Move& move);
 void handle_pawn_promotion(Game& game);
 int validate_en_passant(Game& game, Chessboard& board, Move& move);
 void record_piece_points(Game& game, std::string piece_type, std::string piece_colour);
-void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);
-void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
-void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos);
+
 
 int main() {
     run_game_loop();
@@ -212,7 +214,7 @@ void render(Game& game, sf::RenderWindow& window) {
     window.clear(sf::Color::Blue);
     sf::RectangleShape board({760, 760});
     draw_board(game, window);
-    if (game.state != Gamestate::Gameover) {
+    if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting) {
         draw_undo_button(game, window);
     }
     if (game.state == Gamestate::Gameover) {
@@ -278,44 +280,27 @@ void undo_move(Game& game) {
         return;
     }
     Move prev_move = game.move_record[game.move_record.size() - 1];
+    std::string turn = (((game.move_record.size() - 1) % 2 == 0) ? "black" : "white"); 
 
     move_piece(game.board, prev_move.new_row, prev_move.new_col, prev_move.prev_row,
     prev_move.prev_col, true);
-    if (prev_move.special_move != "en passant") {
-        if (prev_move.piece_taken != "None" && ((game.move_record.size() - 1) % 2 == 0)) {
-            game.board[prev_move.new_row][prev_move.new_col].piece_occupying = 
-                std::make_shared<Piece> (prev_move.piece_taken, "black", prev_move.piece_captured_moves, 
-                    prev_move.new_row, prev_move.new_col);
-        } else if (prev_move.piece_taken != "None" && ((game.move_record.size() - 1) % 2 == 1)) {
-            game.board[prev_move.new_row][prev_move.new_col].piece_occupying = 
-                std::make_shared<Piece> (prev_move.piece_taken, "white", prev_move.piece_captured_moves, 
-                    prev_move.new_row, prev_move.new_col);
-        }
+    if (prev_move.special_move != "en passant" && prev_move.piece_taken != "None") {
+        game.board[prev_move.new_row][prev_move.new_col].piece_occupying = 
+            std::make_shared<Piece> (prev_move.piece_taken, turn, prev_move.piece_captured_moves, 
+                prev_move.new_row, prev_move.new_col);
     }
+    int captured_row = ((turn == "black") ? prev_move.new_row + 1 : prev_move.new_row - 1);
     if (prev_move.special_move == "en passant") {
-        if ((game.move_record.size() - 1) % 2 == 0) {
-            game.board[prev_move.new_row + 1][prev_move.new_col].piece_occupying =
-            std::make_shared<Piece> (prev_move.piece_taken, "black", prev_move.piece_captured_moves, 
-                prev_move.new_row + 1, prev_move.new_col);
-        } else if ((game.move_record.size() - 1) % 2 == 1) {
-            game.board[prev_move.new_row - 1][prev_move.new_col].piece_occupying =
-            std::make_shared<Piece> (prev_move.piece_taken, "white", prev_move.piece_captured_moves, 
-                prev_move.new_row - 1, prev_move.new_col);           
-        }
+        game.board[captured_row][prev_move.new_col].piece_occupying =
+        std::make_shared<Piece> (prev_move.piece_taken, turn, prev_move.piece_captured_moves, 
+            captured_row, prev_move.new_col);
     }
+    int castling_row = ((turn == "black") ? 7 : 0);
     if (prev_move.special_move == "castling") {
-        if ((game.move_record.size() - 1) % 2 == 1) {
-            if (prev_move.new_col - prev_move.prev_col == 2) {
-                move_piece(game.board, 0, 5, 0, 7, true);
-            } else {
-                move_piece(game.board, 0, 3, 0, 0, true);
-            }
+        if (prev_move.new_col - prev_move.prev_col == 2) {
+            move_piece(game.board, castling_row, 5, castling_row, 7, true);
         } else {
-            if (prev_move.new_col - prev_move.prev_col == 2) {
-                move_piece(game.board, 7, 5, 7, 7, true);
-            } else {
-                move_piece(game.board, 7, 3, 7, 0, true);
-            }          
+            move_piece(game.board, castling_row, 3, castling_row, 0, true);
         }
     }
     if (prev_move.special_move == "promotion") {
@@ -326,14 +311,15 @@ void undo_move(Game& game) {
             game.plys_to_100--;
         }
     }
-    std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
+    //std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
  
     if (game.board_record.size() > 0) {
         game.board_record.pop_back();
     }
     game.move_record.pop_back();
     game.turn = ((game.turn == "white") ? "black" : "white");
-    std::cout << "undo done\n";
+    evaluate_king_checks(game);
+    //std::cout << "undo done\n";
 }
 
 void draw_reset_button(Game& game, sf::RenderWindow& window) {
@@ -587,33 +573,25 @@ void process_move(Game& game, int result, Move& move) {
     
     move_piece(game.board, move.prev_row, move.prev_col, move.new_row, move.new_col);
 
-    if (result == 1 && game.turn == "white") { 
-        move_piece(game.board, 7, 7, 7, 5);
+    if (result > 0 && result < 3) {
+        if (result == 1 && game.turn == "white") { 
+            move_piece(game.board, 7, 7, 7, 5);
+        } else if (result == 2 && game.turn == "white") {
+            move_piece(game.board, 7, 0, 7, 3);
+        } else if (result == 1 && game.turn == "black") {
+            move_piece(game.board, 0, 7, 0, 5);
+        } else if (result == 2 && game.turn == "black") {
+            move_piece(game.board, 0, 0, 0, 3);
+        }
         game.board_record.clear();
         move.special_move = "castling";
-    } else if (result == 2 && game.turn == "white") {
-        move_piece(game.board, 7, 0, 7, 3);
-        game.board_record.clear();
-        move.special_move = "castling";
-    } else if (result == 1 && game.turn == "black") {
-        move_piece(game.board, 0, 7, 0, 5);
-        game.board_record.clear();
-        move.special_move = "castling";
-    } else if (result == 2 && game.turn == "black") {
-        move_piece(game.board, 0, 0, 0, 3);
-        game.board_record.clear();
-        move.special_move = "castling";
-    } else if (result == 3 && game.turn == "white") {
+    } else if (result == 3) {
+        int captured_row = ((game.turn == "white") ? move.new_row + 1 : move.new_row - 1);
         move.special_move = "en passant";
         move.piece_taken = "pawn";
-        game.board[move.new_row + 1][move.new_col].piece_occupying = nullptr;
+        game.board[captured_row][move.new_col].piece_occupying = nullptr;
         game.board_record.clear();
-    } else if (result == 3 && game.turn == "black") {
-        move.special_move = "en passant";
-        move.piece_taken = "pawn";
-        game.board[move.new_row - 1][move.new_col].piece_occupying = nullptr;
-        game.board_record.clear();
-    }
+    } 
     game.move_record.push_back(move);
 
     if (game.board[move.new_row][move.new_col].piece_occupying->piece_type == "king") {
@@ -625,7 +603,6 @@ void process_move(Game& game, int result, Move& move) {
             game.black_king_position.col = move.new_col;
         }
     }
-
 }
 
 void is_game_over(Game& game) {
