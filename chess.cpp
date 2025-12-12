@@ -7,6 +7,8 @@
 #include <utility>
 #include <algorithm>
 
+constexpr int SQUARE_SIZE = 95;
+
 struct Piece {
     std::string piece_type {};
     std::string colour {};
@@ -37,9 +39,17 @@ struct Move {
 
 using Chessboard = std::array<std::array<Cell, 8>, 8>;
 
+enum class Gamestate {
+    Playing,
+    Promoting_pawn,
+    Gameover,
+    Resetting
+};
+
 class Game {
     public:
         //std::vector<Piece> pieces{32}; 
+        Gamestate state {};
         Chessboard board {};
         Coords selected {};
         std::string turn {};
@@ -66,6 +76,7 @@ class Game {
             initialise();
         }
         void initialise() {
+            state = Gamestate::Playing;
             current_move = {};
             move_record.clear();
             board_record.clear();
@@ -118,9 +129,9 @@ class Game {
 void run_game_loop();
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
-void draw_reset_button(Game& game, sf::RenderWindow& window, bool& end_screen_clicked);
-int select_square(int x, int y, Game& game, sf::RenderWindow& window);
-void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col);
+void draw_reset_button(Game& game, sf::RenderWindow& window);
+int select_square(int x, int y, Game& game);
+bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, int result, Move& move);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col);
 int determine_possible_moves(Game& game);
@@ -131,20 +142,25 @@ void record_board(Game& game);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
 void is_game_over(Game& game);
+void render(Game& game, sf::RenderWindow& window);
+void handle_input(Game& game, sf::RenderWindow& window);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
-int validate_move_knight(Game& game, Chessboard& board, Move& move);
-int validate_move_bishop(Game& game, Chessboard& board, Move& move);
-int validate_move_rook(Game& game, Chessboard& board, Move& move);
-int validate_move_queen(Game& game, Chessboard& board, Move& move);
+int validate_move_knight(Chessboard& board, Move& move);
+int validate_move_bishop(Chessboard& board, Move& move);
+int validate_move_rook(Chessboard& board, Move& move);
+int validate_move_queen(Chessboard& board, Move& move);
 int validate_move_king(Game& game, Chessboard& board, Move& move);
 int check_checks(Game& game, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
 int test_castling(Game& game, Chessboard& copy, Move& move);
-void handle_pawn_promotion(Game& game, int& row, int& col);
+void handle_pawn_promotion(Game& game);
 int validate_en_passant(Game& game, Chessboard& board, Move& move);
 void record_piece_points(Game& game, std::string piece_type, std::string piece_colour);
+void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);
+void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos);
 
 int main() {
     run_game_loop();
@@ -153,83 +169,100 @@ int main() {
 void run_game_loop() {
     Game game {};
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
-    sf::RectangleShape board({760, 760});
-    bool end_screen_clicked { false };
+    
     while (window.isOpen()) {
-        
-        while (const std::optional event = window.pollEvent()) {
-            if (event->is<sf::Event::Closed>()) {
-                window.close();
-            }
-            if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
-                //std::cout << "clicked\n";
-                if (!game.game_over) {
-                    int result = select_square(mouse_press->position.x, mouse_press->position.y, game, window);
-            
-                    if (result >= 0) {
-                        std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
-                        ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';
-                        process_move(game, result, game.current_move);  
-                    }
-
-                    if (game.promoting_pawn) {
-                        draw_pawn_promotion_screen(game, window);
-                        while (game.promoting_pawn) {
-                            select_pawn_promotion(game, window, game.current_move.new_row, game.current_move.new_col);
-                        }
-                        game.board_record.clear();
-                    }
-                    if (result >= 0) {
-                        game.turn = ((game.turn == "white") ? "black" : "white");
-                        is_game_over(game);
-                    }
-                } else if (game.game_over) {
-                    end_screen_clicked = true;
-                } 
-            }
-               
-            if (const auto* resized = event->getIf<sf::Event::Resized>()) {
-                sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
-                window.setView(sf::View(visibleArea));
-            }
-        }
-        window.clear(sf::Color::Blue);
-        draw_board(game, window);
-        
-        if (game.game_over && !end_screen_clicked) {
-            draw_end_screen(game, window);
-        } 
-        if (end_screen_clicked) {
-            draw_reset_button(game, window, end_screen_clicked);
-        }
-
-        window.display();
-
+        handle_input(game, window);
+        render(game, window);
     }
 }
 
-void draw_reset_button(Game& game, sf::RenderWindow& window, bool& end_screen_clicked) {
-    float x, y;
-    const std::optional event2 = window.pollEvent();
-    
-    if (event2) {
-        const auto* mouse_press = event2->getIf<sf::Event::MouseButtonPressed>();
-        if (mouse_press) {
-            x = mouse_press->position.x;
-            y = mouse_press->position.y;
+void handle_input(Game& game, sf::RenderWindow& window) {
+    while (const std::optional event = window.pollEvent()) {
+        if (event->is<sf::Event::Closed>()) {
+            window.close();
+        }
+        if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
+            //std::cout << "clicked\n";
+            if (game.state == Gamestate::Playing) {
+                handle_clicks_playing(game, window, mouse_press->position);
+            } else if (game.state == Gamestate::Promoting_pawn) {
+                handle_clicks_promoting(game, mouse_press->position);
+            } else if (game.state == Gamestate::Gameover) {
+                game.state = Gamestate::Resetting;
+            } else if (game.state == Gamestate::Resetting) {
+                handle_clicks_resetting(game, mouse_press->position);
+            }
+        }
+            
+        if (const auto* resized = event->getIf<sf::Event::Resized>()) {
+            sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
+            window.setView(sf::View(visibleArea));
         }
     }
+}
+
+void render(Game& game, sf::RenderWindow& window) {
+    window.clear(sf::Color::Blue);
+    sf::RectangleShape board({760, 760});
+    draw_board(game, window);
+    if (game.state == Gamestate::Gameover) {
+        draw_end_screen(game, window);
+    } else if (game.state == Gamestate::Resetting) {
+        draw_reset_button(game, window);
+    }
+    if (game.state == Gamestate::Promoting_pawn) {
+        draw_pawn_promotion_screen(game, window);
+    }
+    window.display();
+}
+
+void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+    int result = select_square(mouse_pos.x, mouse_pos.y, game);
+
+    if (result >= 0) {
+        /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
+        ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
+        process_move(game, result, game.current_move);  
+    }
+    if (game.promoting_pawn) {
+        draw_pawn_promotion_screen(game, window);
+        game.state = Gamestate::Promoting_pawn;
+        return;
+    }
+    if (result >= 0) {
+        game.turn = ((game.turn == "white") ? "black" : "white");
+        is_game_over(game);
+    }
+}
+
+void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
+    bool selection_made = select_pawn_promotion(game, mouse_pos);
+    if (selection_made) {
+        game.state = Gamestate::Playing;
+        game.turn = ((game.turn == "white") ? "black" : "white");
+        is_game_over(game);
+    }
+}
+
+void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
+    float x, y;
+
+    x = mouse_pos.x;
+    y = mouse_pos.y;
+    if (10 <= x && x <= 54 && 10 <= y && y <= 45) {
+        game.initialise();
+        return;
+    }
+}
+
+void draw_reset_button(Game& game, sf::RenderWindow& window) {
 
     sf::RectangleShape reset_button({44, 35});
     
     reset_button.setFillColor(sf::Color::White);
     reset_button.setPosition({10, 10});
     sf::FloatRect button_bounds = reset_button.getGlobalBounds();
-    if (button_bounds.contains({x, y})) {
-        game.initialise();
-        end_screen_clicked = false;
-        return;
-    }
+
     
     sf::Font font;
     if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
@@ -249,9 +282,9 @@ void draw_board(Game& game, sf::RenderWindow& window) {
     
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
-            sf::RectangleShape cell({760 / 8, 760 / 8});
-            x_offset = 120 + j * (760 / 8);
-            y_offset = 20 + i * (760 / 8);
+            sf::RectangleShape cell({SQUARE_SIZE, SQUARE_SIZE});
+            x_offset = 120 + j * (SQUARE_SIZE);
+            y_offset = 20 + i * (SQUARE_SIZE);
             
             if (game.board[i][j].colour == "brown") {
                 cell.setFillColor(sf::Color(165, 42, 42));
@@ -392,8 +425,8 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 
     sf::Sprite sprite(texture);
     sprite.setScale({0.1f, 0.1f});
-    float x_offset { static_cast<float>(135 + piece->col * (760 / 8)) };
-    float y_offset { static_cast<float>(30 + piece->row * (760 / 8)) };
+    float x_offset { static_cast<float>(135 + piece->col * (SQUARE_SIZE)) };
+    float y_offset { static_cast<float>(30 + piece->row * (SQUARE_SIZE)) };
     if (piece->piece_type == "king") {
         if (piece->colour == "white" && game.white_in_check && game.turn == "white") {
             sprite.setColor(sf::Color(255, 0, 0, 100));
@@ -406,9 +439,9 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 
 }
 
-int select_square(int x, int y, Game& game, sf::RenderWindow& window) {
-    int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
-    int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
+int select_square(int x, int y, Game& game) {
+    int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
+    int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
     
     if (row < 0 || col < 0 || row > 7 || col > 7) {
         return -2;
@@ -438,11 +471,18 @@ int select_square(int x, int y, Game& game, sf::RenderWindow& window) {
 }
 
 void process_move(Game& game, int result, Move& move) {
-    std::cout << "moving\n";
+    //std::cout << "moving\n";
     if (move.piece == "pawn" || game.board[move.new_row][move.new_col].piece_occupying) {
         game.plys_to_100 = 0;
     } else {
         game.plys_to_100++;
+    }
+    int row = game.current_move.prev_row, col = game.current_move.prev_col;
+    if ((game.turn == "black" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 6) || 
+        (game.turn == "white" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 1) &&
+        std::abs(move.new_row - move.prev_row) == 1) {
+        game.promoting_pawn = true;
+        return;
     }
     //std::cout << "plys to 100: " << game.plys_to_100 << '\n';
     
@@ -478,11 +518,7 @@ void process_move(Game& game, int result, Move& move) {
             game.black_king_position.col = move.new_col;
         }
     }
-    int row = game.current_move.new_row, col = game.current_move.new_col;
-    if ((game.turn == "black" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 7) || 
-        (game.turn == "white" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 0)) {
-        game.promoting_pawn = true;
-    }
+
 }
 
 void is_game_over(Game& game) {
@@ -519,20 +555,14 @@ int determine_repetition(Game& game) {
     return 0;
 }
 
-void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, int pawn_col) {
+bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos) {
     int x, y;
-    const std::optional event = window.pollEvent();
-   
-    if (event) {
-        const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>();
-        if (mouse_press) {
-            x = mouse_press->position.x;
-            y = mouse_press->position.y;
-        }
-    }
+
+    x = mouse_pos.x;
+    y = mouse_pos.y;
     
-    int col = floor(((x - 135.f) / (760 / 8)) + 0.1473);
-    int row = floor(((y - 30.f) / (760 / 8)) + 0.0842105);
+    int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
+    int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
 
     if (row == 4 && col == 2) {
         game.piece_selected = "rook";
@@ -544,13 +574,17 @@ void select_pawn_promotion(Game& game, sf::RenderWindow& window, int pawn_row, i
         game.piece_selected = "queen";
     }
     if (game.piece_selected != "None") {
-        handle_pawn_promotion(game, pawn_row, pawn_col);
-        return;
+        handle_pawn_promotion(game);
+        return true;
     }
+    return false;
 }
 
-void handle_pawn_promotion(Game& game, int& row, int& col) {
-    game.board[row][col].piece_occupying->piece_type = game.piece_selected;
+void handle_pawn_promotion(Game& game) {
+    move_piece(game.board, game.current_move.prev_row, game.current_move.prev_col, 
+        game.current_move.new_row, game.current_move.new_col);
+    game.move_record.push_back(game.current_move);
+    game.board[game.current_move.new_row][game.current_move.new_col].piece_occupying->piece_type = game.piece_selected;
     game.piece_selected = "None";
     game.promoting_pawn = false;
 }
@@ -579,6 +613,7 @@ void evaluate_king_checks(Game& game) {
 void end_game(Game& game) {
     //std::cout << "It is over\n";
     game.game_over = true;
+    game.state = Gamestate::Gameover;
     if (game.repetition || game.insufficient_material || game.plys_to_100 == 100) {
         return;
     }
@@ -627,13 +662,13 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
         if (piece == "pawn") {
             result = validate_move_pawn(game, board, move);
         } else if (piece == "knight") {
-            result = validate_move_knight(game, board, move);
+            result = validate_move_knight(board, move);
         } else if (piece == "bishop") {
-            result = validate_move_bishop(game, board, move);
+            result = validate_move_bishop(board, move);
         } else if (piece == "rook") {
-            result = validate_move_rook(game, board, move);
+            result = validate_move_rook(board, move);
         } else if (piece == "queen") {
-            result = validate_move_queen(game, board, move);
+            result = validate_move_queen(board, move);
         } else if (piece == "king") {
             result = validate_move_king(game, board, move);
         } else {
@@ -728,7 +763,7 @@ int validate_en_passant(Game& game, Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_knight(Game& game, Chessboard& board, Move& move) {
+int validate_move_knight(Chessboard& board, Move& move) {
     if ((std::abs(move.new_row - move.prev_row) == 2 && std::abs(move.new_col - move.prev_col) == 1) || 
         (std::abs(move.new_row - move.prev_row) == 1 && std::abs(move.new_col - move.prev_col) == 2)) {
         return 0;
@@ -736,7 +771,7 @@ int validate_move_knight(Game& game, Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
+int validate_move_bishop(Chessboard& board, Move& move) {
     int row_change { move.new_row - move.prev_row };
     int col_change { move.new_col - move.prev_col };
 
@@ -753,7 +788,7 @@ int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_rook(Game& game, Chessboard& board, Move& move) {
+int validate_move_rook(Chessboard& board, Move& move) {
     int row_change { move.new_row - move.prev_row };
     int col_change { move.new_col - move.prev_col };
 
@@ -777,10 +812,10 @@ int validate_move_rook(Game& game, Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_queen(Game& game, Chessboard& board, Move& move) {
+int validate_move_queen(Chessboard& board, Move& move) {
   
     //std::cout << "rook: " << rook_move << " bishop: " << bishop_move << '\n';
-    if (validate_move_rook(game, board, move) == 0 || validate_move_bishop(game, board, move) == 0) {
+    if (validate_move_rook(board, move) == 0 || validate_move_bishop(board, move) == 0) {
         return 0;
     } 
     return -1;
