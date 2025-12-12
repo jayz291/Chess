@@ -12,7 +12,7 @@ constexpr int SQUARE_SIZE = 95;
 struct Piece {
     std::string piece_type {};
     std::string colour {};
-    bool moved { false };
+    int moves { 0 };
     int row;
     int col; 
 };
@@ -35,6 +35,9 @@ struct Move {
     int new_col {};
     std::string turn {};
     std::string piece {};
+    std::string piece_taken { "None" };
+    std::string special_move { "No" };
+    int piece_captured_moves {};
 };
 
 using Chessboard = std::array<std::array<Cell, 8>, 8>;
@@ -102,27 +105,27 @@ class Game {
                 }
             }
             for (int i { 0 }; i < 8; i++) {
-                board[1][i].piece_occupying = std::make_shared<Piece> ("pawn", "black", false, 1, i);
+                board[1][i].piece_occupying = std::make_shared<Piece> ("pawn", "black", 0, 1, i);
             }
             for (int i { 0 }; i < 8; i++) {
-                board[6][i].piece_occupying = std::make_shared<Piece> ("pawn", "white", false, 6, i);
+                board[6][i].piece_occupying = std::make_shared<Piece> ("pawn", "white", 0, 6, i);
             }
-            board[0][0].piece_occupying = std::make_shared<Piece> ("rook", "black", false, 0, 0);
-            board[0][1].piece_occupying = std::make_shared<Piece> ("knight", "black", false, 0, 1);
-            board[0][2].piece_occupying = std::make_shared<Piece> ("bishop", "black", false, 0, 2);
-            board[0][3].piece_occupying = std::make_shared<Piece> ("queen", "black", false, 0, 3);
-            board[0][4].piece_occupying = std::make_shared<Piece> ("king", "black", false, 0, 4);
-            board[0][5].piece_occupying = std::make_shared<Piece> ("bishop", "black", false, 0, 5);
-            board[0][6].piece_occupying = std::make_shared<Piece> ("knight", "black", false, 0, 6);
-            board[0][7].piece_occupying = std::make_shared<Piece> ("rook", "black", false, 0, 7);
-            board[7][0].piece_occupying = std::make_shared<Piece> ("rook", "white", false, 7, 0);
-            board[7][1].piece_occupying = std::make_shared<Piece> ("knight", "white", false, 7, 1);
-            board[7][2].piece_occupying = std::make_shared<Piece> ("bishop", "white", false, 7, 2);
-            board[7][3].piece_occupying = std::make_shared<Piece> ("queen", "white", false, 7, 3);
-            board[7][4].piece_occupying = std::make_shared<Piece> ("king", "white", false, 7, 4);
-            board[7][5].piece_occupying = std::make_shared<Piece> ("bishop", "white", false, 7, 5);
-            board[7][6].piece_occupying = std::make_shared<Piece> ("knight", "white", false, 7, 6);
-            board[7][7].piece_occupying = std::make_shared<Piece> ("rook", "white", false, 7, 7);
+            board[0][0].piece_occupying = std::make_shared<Piece> ("rook", "black", 0, 0, 0);
+            board[0][1].piece_occupying = std::make_shared<Piece> ("knight", "black", 0, 0, 1);
+            board[0][2].piece_occupying = std::make_shared<Piece> ("bishop", "black", 0, 0, 2);
+            board[0][3].piece_occupying = std::make_shared<Piece> ("queen", "black", 0, 0, 3);
+            board[0][4].piece_occupying = std::make_shared<Piece> ("king", "black", 0, 0, 4);
+            board[0][5].piece_occupying = std::make_shared<Piece> ("bishop", "black", 0, 0, 5);
+            board[0][6].piece_occupying = std::make_shared<Piece> ("knight", "black", 0, 0, 6);
+            board[0][7].piece_occupying = std::make_shared<Piece> ("rook", "black", 0, 0, 7);
+            board[7][0].piece_occupying = std::make_shared<Piece> ("rook", "white", 0, 7, 0);
+            board[7][1].piece_occupying = std::make_shared<Piece> ("knight", "white", 0, 7, 1);
+            board[7][2].piece_occupying = std::make_shared<Piece> ("bishop", "white", 0, 7, 2);
+            board[7][3].piece_occupying = std::make_shared<Piece> ("queen", "white", 0, 7, 3);
+            board[7][4].piece_occupying = std::make_shared<Piece> ("king", "white", 0, 7, 4);
+            board[7][5].piece_occupying = std::make_shared<Piece> ("bishop", "white", 0, 7, 5);
+            board[7][6].piece_occupying = std::make_shared<Piece> ("knight", "white", 0, 7, 6);
+            board[7][7].piece_occupying = std::make_shared<Piece> ("rook", "white", 0, 7, 7);
         }
 };
 
@@ -130,10 +133,11 @@ void run_game_loop();
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
 void draw_reset_button(Game& game, sf::RenderWindow& window);
+void draw_undo_button(Game& game, sf::RenderWindow& window);
 int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, int result, Move& move);
-void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col);
+void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo = false);
 int determine_possible_moves(Game& game);
 void draw_end_screen(Game& game, sf::RenderWindow& window);
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
@@ -144,6 +148,8 @@ int determine_insufficient_material(Game& game);
 void is_game_over(Game& game);
 void render(Game& game, sf::RenderWindow& window);
 void handle_input(Game& game, sf::RenderWindow& window);
+void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos);
+void undo_move(Game& game);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
@@ -185,6 +191,7 @@ void handle_input(Game& game, sf::RenderWindow& window) {
             //std::cout << "clicked\n";
             if (game.state == Gamestate::Playing) {
                 handle_clicks_playing(game, window, mouse_press->position);
+                handle_clicks_undoing(game, mouse_press->position);
             } else if (game.state == Gamestate::Promoting_pawn) {
                 handle_clicks_promoting(game, mouse_press->position);
             } else if (game.state == Gamestate::Gameover) {
@@ -205,6 +212,9 @@ void render(Game& game, sf::RenderWindow& window) {
     window.clear(sf::Color::Blue);
     sf::RectangleShape board({760, 760});
     draw_board(game, window);
+    if (game.state != Gamestate::Gameover) {
+        draw_undo_button(game, window);
+    }
     if (game.state == Gamestate::Gameover) {
         draw_end_screen(game, window);
     } else if (game.state == Gamestate::Resetting) {
@@ -255,14 +265,83 @@ void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
     }
 }
 
+void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos) {
+    int x = mouse_pos.x;
+    int y = mouse_pos.y;
+    if (950 <= x && x <= 994 && 10 <= y && y <= 45) {
+        undo_move(game);
+    }
+}
+
+void undo_move(Game& game) {
+    if (game.move_record.size() == 0) {
+        return;
+    }
+    Move prev_move = game.move_record[game.move_record.size() - 1];
+
+    move_piece(game.board, prev_move.new_row, prev_move.new_col, prev_move.prev_row,
+    prev_move.prev_col, true);
+    if (prev_move.special_move != "en passant") {
+        if (prev_move.piece_taken != "None" && ((game.move_record.size() - 1) % 2 == 0)) {
+            game.board[prev_move.new_row][prev_move.new_col].piece_occupying = 
+                std::make_shared<Piece> (prev_move.piece_taken, "black", prev_move.piece_captured_moves, 
+                    prev_move.new_row, prev_move.new_col);
+        } else if (prev_move.piece_taken != "None" && ((game.move_record.size() - 1) % 2 == 1)) {
+            game.board[prev_move.new_row][prev_move.new_col].piece_occupying = 
+                std::make_shared<Piece> (prev_move.piece_taken, "white", prev_move.piece_captured_moves, 
+                    prev_move.new_row, prev_move.new_col);
+        }
+    }
+    if (prev_move.special_move == "en passant") {
+        if ((game.move_record.size() - 1) % 2 == 0) {
+            game.board[prev_move.new_row + 1][prev_move.new_col].piece_occupying =
+            std::make_shared<Piece> (prev_move.piece_taken, "black", prev_move.piece_captured_moves, 
+                prev_move.new_row + 1, prev_move.new_col);
+        } else if ((game.move_record.size() - 1) % 2 == 1) {
+            game.board[prev_move.new_row - 1][prev_move.new_col].piece_occupying =
+            std::make_shared<Piece> (prev_move.piece_taken, "white", prev_move.piece_captured_moves, 
+                prev_move.new_row - 1, prev_move.new_col);           
+        }
+    }
+    if (prev_move.special_move == "castling") {
+        if ((game.move_record.size() - 1) % 2 == 1) {
+            if (prev_move.new_col - prev_move.prev_col == 2) {
+                move_piece(game.board, 0, 5, 0, 7, true);
+            } else {
+                move_piece(game.board, 0, 3, 0, 0, true);
+            }
+        } else {
+            if (prev_move.new_col - prev_move.prev_col == 2) {
+                move_piece(game.board, 7, 5, 7, 7, true);
+            } else {
+                move_piece(game.board, 7, 3, 7, 0, true);
+            }          
+        }
+    }
+    if (prev_move.special_move == "promotion") {
+        game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type = "pawn";
+    }
+    if (prev_move.piece_taken == "None" && prev_move.piece != "pawn") {
+        if (game.plys_to_100 > 0) {
+            game.plys_to_100--;
+        }
+    }
+    std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
+ 
+    if (game.board_record.size() > 0) {
+        game.board_record.pop_back();
+    }
+    game.move_record.pop_back();
+    game.turn = ((game.turn == "white") ? "black" : "white");
+    std::cout << "undo done\n";
+}
+
 void draw_reset_button(Game& game, sf::RenderWindow& window) {
 
     sf::RectangleShape reset_button({44, 35});
     
     reset_button.setFillColor(sf::Color::White);
     reset_button.setPosition({10, 10});
-    sf::FloatRect button_bounds = reset_button.getGlobalBounds();
-
     
     sf::Font font;
     if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
@@ -274,6 +353,23 @@ void draw_reset_button(Game& game, sf::RenderWindow& window) {
     text.setPosition({13, 13});
     text.setString("Reset");
     window.draw(reset_button);
+    window.draw(text);
+}
+
+void draw_undo_button(Game& game, sf::RenderWindow& window) {
+    sf::RectangleShape undo_button({44, 35});
+    undo_button.setFillColor(sf::Color::White);
+    undo_button.setPosition({950, 10});
+    sf::Font font;
+    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+        return;
+    }
+    sf::Text text(font);
+    text.setFillColor(sf::Color::Red);
+    text.setCharacterSize(15);
+    text.setPosition({953, 13});
+    text.setString("Undo");
+    window.draw(undo_button);
     window.draw(text);
 }
 
@@ -451,7 +547,10 @@ int select_square(int x, int y, Game& game) {
 
         Move move { game.selected.row, game.selected.col, row, col, game.turn, 
             game.board[game.selected.row][game.selected.col].piece_occupying->piece_type };
-
+        if (game.board[row][col].piece_occupying) {
+            move.piece_taken = game.board[row][col].piece_occupying->piece_type;
+            move.piece_captured_moves = game.board[row][col].piece_occupying->moves;
+        }
         int result = validate_move(game, game.board, move);
         game.board[game.selected.row][game.selected.col].selected = false;
         game.selected.row = game.selected.col = -1; 
@@ -491,19 +590,27 @@ void process_move(Game& game, int result, Move& move) {
     if (result == 1 && game.turn == "white") { 
         move_piece(game.board, 7, 7, 7, 5);
         game.board_record.clear();
+        move.special_move = "castling";
     } else if (result == 2 && game.turn == "white") {
         move_piece(game.board, 7, 0, 7, 3);
         game.board_record.clear();
+        move.special_move = "castling";
     } else if (result == 1 && game.turn == "black") {
         move_piece(game.board, 0, 7, 0, 5);
         game.board_record.clear();
+        move.special_move = "castling";
     } else if (result == 2 && game.turn == "black") {
         move_piece(game.board, 0, 0, 0, 3);
         game.board_record.clear();
+        move.special_move = "castling";
     } else if (result == 3 && game.turn == "white") {
+        move.special_move = "en passant";
+        move.piece_taken = "pawn";
         game.board[move.new_row + 1][move.new_col].piece_occupying = nullptr;
         game.board_record.clear();
     } else if (result == 3 && game.turn == "black") {
+        move.special_move = "en passant";
+        move.piece_taken = "pawn";
         game.board[move.new_row - 1][move.new_col].piece_occupying = nullptr;
         game.board_record.clear();
     }
@@ -583,6 +690,7 @@ bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos) {
 void handle_pawn_promotion(Game& game) {
     move_piece(game.board, game.current_move.prev_row, game.current_move.prev_col, 
         game.current_move.new_row, game.current_move.new_col);
+    game.current_move.special_move = "promotion";
     game.move_record.push_back(game.current_move);
     game.board[game.current_move.new_row][game.current_move.new_col].piece_occupying->piece_type = game.piece_selected;
     game.piece_selected = "None";
@@ -634,7 +742,7 @@ void end_game(Game& game) {
     }
 }
 
-void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col) {
+void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo) {
     board[new_row][new_col].piece_occupying = nullptr;
     board[new_row][new_col].piece_occupying = std::move(board[prev_row][prev_col].piece_occupying);
     if (board[new_row][new_col].piece_occupying == nullptr) {
@@ -643,9 +751,10 @@ void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int 
     }
     board[new_row][new_col].piece_occupying->row = new_row;
     board[new_row][new_col].piece_occupying->col = new_col;
-
-    if (!board[new_row][new_col].piece_occupying->moved) {
-        board[new_row][new_col].piece_occupying->moved = true;
+    if (!undo) {
+        board[new_row][new_col].piece_occupying->moves++;
+    } else {
+        board[new_row][new_col].piece_occupying->moves--;
     }
 }
 
@@ -899,11 +1008,12 @@ int check_checks(Game &game, Chessboard& copy, Move& move) {
 int test_castling(Game &game, Chessboard& copy, Move& move) {
     int castle_row = ((move.turn == "white") ? 7 : 0);
     bool in_check = ((move.turn == "white") ? game.white_in_check : game.black_in_check);
+  
     if (move.prev_row == castle_row && move.prev_col == 4 && !in_check && 
-        !copy[castle_row][4].piece_occupying->moved) {
+        copy[castle_row][4].piece_occupying->moves == 0) {
         if (move.new_row == castle_row && move.new_col == 6 && copy[castle_row][7].piece_occupying && 
             copy[castle_row][7].piece_occupying->piece_type == "rook" && 
-            !copy[castle_row][7].piece_occupying->moved) {
+            copy[castle_row][7].piece_occupying->moves == 0) {
             for (int i { 5 }; i < 7; i++) {
                 if (copy[castle_row][i].piece_occupying) {
                     return -1;
@@ -918,7 +1028,7 @@ int test_castling(Game &game, Chessboard& copy, Move& move) {
             return 1;
         } else if (move.new_row == castle_row && move.new_col == 2 && copy[castle_row][0].piece_occupying && 
             copy[castle_row][0].piece_occupying->piece_type == "rook" &&
-            !copy[castle_row][0].piece_occupying->moved) {
+            copy[castle_row][0].piece_occupying->moves == 0) {
             for (int i { 3 }; i > 1; i--) {
                 if (copy[castle_row][i].piece_occupying) {
                     return -1;
