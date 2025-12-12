@@ -43,6 +43,7 @@ struct Move {
 using Chessboard = std::array<std::array<Cell, 8>, 8>;
 
 enum class Gamestate {
+    Intro,
     Playing,
     Promoting_pawn,
     Gameover,
@@ -131,6 +132,7 @@ class Game {
 
 void run_game_loop();
 void render(Game& game, sf::RenderWindow& window);
+void draw_intro_screen(sf::RenderWindow& window);
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
 void draw_reset_button(Game& game, sf::RenderWindow& window);
@@ -150,6 +152,7 @@ void is_game_over(Game& game);
 void undo_move(Game& game);
 
 void handle_input(Game& game, sf::RenderWindow& window);
+void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);
 void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos);
@@ -174,10 +177,11 @@ int main() {
     run_game_loop();
 }
 
+
 void run_game_loop() {
     Game game {};
+    game.state = Gamestate::Intro;
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
-    
     while (window.isOpen()) {
         handle_input(game, window);
         render(game, window);
@@ -191,7 +195,9 @@ void handle_input(Game& game, sf::RenderWindow& window) {
         }
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             //std::cout << "clicked\n";
-            if (game.state == Gamestate::Playing) {
+            if (game.state == Gamestate::Intro) {
+                handle_clicks_intro(game, window, mouse_press->position);
+            } else if (game.state == Gamestate::Playing) {
                 handle_clicks_playing(game, window, mouse_press->position);
                 handle_clicks_undoing(game, mouse_press->position);
             } else if (game.state == Gamestate::Promoting_pawn) {
@@ -211,10 +217,16 @@ void handle_input(Game& game, sf::RenderWindow& window) {
 }
 
 void render(Game& game, sf::RenderWindow& window) {
+    
     window.clear(sf::Color::Blue);
     sf::RectangleShape board({760, 760});
-    draw_board(game, window);
-    if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting) {
+    if (game.state == Gamestate::Intro) {
+        draw_intro_screen(window);
+    }
+    if (game.state != Gamestate::Intro) {
+        draw_board(game, window);
+    }
+    if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting && game.state != Gamestate::Intro) {
         draw_undo_button(game, window);
     }
     if (game.state == Gamestate::Gameover) {
@@ -226,6 +238,37 @@ void render(Game& game, sf::RenderWindow& window) {
         draw_pawn_promotion_screen(game, window);
     }
     window.display();
+}
+
+void draw_intro_screen(sf::RenderWindow& window) {
+    sf::Font font;
+    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+        return;
+    }
+    sf::Text text(font);
+    sf::Text text2(font);
+    sf::RectangleShape play_button({350, 160});
+    play_button.setPosition({330, 330});
+    play_button.setFillColor(sf::Color::White);
+    text2.setFillColor(sf::Color::Black);
+    text2.setPosition({450, 380});
+    text2.setCharacterSize(60);
+    text2.setString("Play");
+    text.setFillColor(sf::Color::Black);
+    text.setCharacterSize(210);
+    text.setPosition({200, 20});
+    text.setString("Chess");
+    window.draw(text);
+    window.draw(play_button);
+    window.draw(text2);
+}
+
+void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+    int x = mouse_pos.x;
+    int y = mouse_pos.y;
+    if (330 <= x && x <= 680 && 160 <= y && y <= 490) {
+        game.state = Gamestate::Playing;
+    }
 }
 
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
