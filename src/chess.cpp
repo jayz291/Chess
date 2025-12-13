@@ -272,7 +272,7 @@ void render(Game& game, sf::RenderWindow& window) {
 
 void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     sf::Font font;
-    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
     sf::Text text(font);
@@ -468,7 +468,7 @@ void draw_reset_button(sf::RenderWindow& window) {
     reset_button.setPosition({10, 10});
     
     sf::Font font;
-    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
     sf::Text text(font);
@@ -485,7 +485,7 @@ void draw_undo_button(sf::RenderWindow& window) {
     undo_button.setFillColor(sf::Color::White);
     undo_button.setPosition({950, 10});
     sf::Font font;
-    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
     sf::Text text(font);
@@ -501,7 +501,7 @@ void draw_return_to_home_button(sf::RenderWindow& window) {
     sf::RectangleShape return_button({104, 35});
     return_button.setPosition({10, 55});
     sf::Font font;
-    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
     sf::Text text(font);
@@ -562,7 +562,7 @@ void draw_board(Game& game, sf::RenderWindow& window) {
 void draw_end_screen(Game& game, sf::RenderWindow& window) {
     sf::RectangleShape end_screen({500, 300});
     sf::Font font;
-    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
     sf::Text text(font);
@@ -623,51 +623,51 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
     sf::Texture texture;
 
     if (piece->piece_type == "pawn" && piece->colour == "black") {
-        if (!texture.loadFromFile("./src/Chess_pdt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;
         }
     } else if (piece->piece_type == "pawn" && piece->colour == "white") {
-        if (!texture.loadFromFile("./src/Chess_plt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_plt45.png")) {
             return;
         }
     } else if (piece->piece_type == "knight" && piece->colour == "black") {
-        if (!texture.loadFromFile("./src/Chess_ndt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_ndt45.png")) {
             return;
         }
     } else if (piece->piece_type == "knight" && piece->colour == "white") {
-        if (!texture.loadFromFile("./src/Chess_nlt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_nlt45.png")) {
             return;
         }
     }  else if (piece->piece_type == "bishop" && piece->colour == "black") {
-        if (!texture.loadFromFile("./src/Chess_bdt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_bdt45.png")) {
             return;
         }
     } else if (piece->piece_type == "bishop" && piece->colour == "white") {
-        if (!texture.loadFromFile("./src/Chess_blt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_blt45.png")) {
             return;
         }
     } else if (piece->piece_type == "rook" && piece->colour == "black") {
-        if (!texture.loadFromFile("./src/Chess_rdt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_rdt45.png")) {
             return;
         }
     } else if (piece->piece_type == "rook" && piece->colour == "white") {
-        if (!texture.loadFromFile("./src/Chess_rlt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_rlt45.png")) {
             return;
         }
     } else if (piece->piece_type == "queen" && piece->colour == "black") {
-        if (!texture.loadFromFile("./src/Chess_qdt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_qdt45.png")) {
             return;
         }
     } else if (piece->piece_type == "queen" && piece->colour == "white") {
-        if (!texture.loadFromFile("./src/Chess_qlt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_qlt45.png")) {
             return;
         }
     } else if (piece->piece_type == "king" && piece->colour == "black") {
-        if (!texture.loadFromFile("./src/Chess_kdt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_kdt45.png")) {
             return;
         }
     } else if (piece->piece_type == "king" && piece->colour == "white") {
-        if (!texture.loadFromFile("./src/Chess_klt45.png")) {
+        if (!texture.loadFromFile("./assets/images/Chess_klt45.png")) {
             return;
         }
     }
