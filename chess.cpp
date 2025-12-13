@@ -76,6 +76,7 @@ class Game {
         int value_black_pieces {};
         bool pawns_on_board {};
         Move current_move {};
+        std::string view { "white" };
         Game() {
             initialise();
         }
@@ -258,6 +259,16 @@ void draw_intro_screen(sf::RenderWindow& window) {
     text.setCharacterSize(210);
     text.setPosition({200, 20});
     text.setString("Chess");
+
+    sf::RectangleShape choice1_button({250, 110});
+    choice1_button.setPosition({110, 530});
+    choice1_button.setFillColor(sf::Color::White);
+
+    sf::RectangleShape choice2_button({250, 110});
+    choice2_button.setPosition({400, 530});
+    choice2_button.setFillColor(sf::Color::White);
+    window.draw(choice1_button);
+    window.draw(choice2_button);
     window.draw(text);
     window.draw(play_button);
     window.draw(text2);
@@ -268,6 +279,10 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     int y = mouse_pos.y;
     if (330 <= x && x <= 680 && 160 <= y && y <= 490) {
         game.state = Gamestate::Playing;
+    }
+    std::cout << x << ' ' << y << '\n';
+    if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
+        game.view = "black";
     }
 }
 
@@ -412,15 +427,26 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             y_offset = 20 + i * (SQUARE_SIZE);
             
             if (game.board[i][j].colour == "brown") {
-                cell.setFillColor(sf::Color(165, 42, 42));
+                if (game.view == "white") {
+                    cell.setFillColor(sf::Color(165, 42, 42));
+                } else {
+                    cell.setFillColor(sf::Color::Yellow);
+                }
             } else {
-                cell.setFillColor(sf::Color::Yellow);
+                if (game.view == "white") {
+                    cell.setFillColor(sf::Color::Yellow);
+                } else {
+                    cell.setFillColor(sf::Color(165, 42, 42));
+                }
             }
-            if (game.board[i][j].selected) {
+            if (game.board[i][j].selected && game.view == "white") {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
+            } else if (game.board[7 - i][j].selected && game.view == "black") {
+                cell.setOutlineThickness(-3.0f);
+                cell.setOutlineColor(sf::Color::Black);             
             }
             cell.setPosition({x_offset, y_offset});
             window.draw(cell);
@@ -482,10 +508,11 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
     pawn_promotion_screen.setPosition({x_offset, y_offset});
     pawn_promotion_screen.setFillColor(sf::Color::Blue);
     window.draw(pawn_promotion_screen);
-    std::shared_ptr<Piece> piece1 = std::make_shared<Piece> ("rook", game.turn, false, 4, 2);
-    std::shared_ptr<Piece> piece2 = std::make_shared<Piece> ("knight", game.turn, false, 4, 3);
-    std::shared_ptr<Piece> piece3 = std::make_shared<Piece> ("bishop", game.turn, false, 4, 4);
-    std::shared_ptr<Piece> piece4 = std::make_shared<Piece> ("queen", game.turn, false, 4, 5);
+    int row = ((game.view == "white") ? 4 : 3);
+    std::shared_ptr<Piece> piece1 = std::make_shared<Piece> ("rook", game.turn, false, row, 2);
+    std::shared_ptr<Piece> piece2 = std::make_shared<Piece> ("knight", game.turn, false, row, 3);
+    std::shared_ptr<Piece> piece3 = std::make_shared<Piece> ("bishop", game.turn, false, row, 4);
+    std::shared_ptr<Piece> piece4 = std::make_shared<Piece> ("queen", game.turn, false, row, 5);
     
     std::vector<std::shared_ptr<Piece>> promotion_pieces { piece1, piece2, piece3, piece4 };
     for (auto piece: promotion_pieces) {
@@ -550,8 +577,13 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 
     sf::Sprite sprite(texture);
     sprite.setScale({0.1f, 0.1f});
+    float y_offset;
     float x_offset { static_cast<float>(135 + piece->col * (SQUARE_SIZE)) };
-    float y_offset { static_cast<float>(30 + piece->row * (SQUARE_SIZE)) };
+    if (game.view == "white") {
+        y_offset = (30 + piece->row * (SQUARE_SIZE));
+    } else {
+        y_offset = (695 - piece->row * (SQUARE_SIZE));
+    }
     if (piece->piece_type == "king") {
         if (piece->colour == "white" && game.white_in_check && game.turn == "white") {
             sprite.setColor(sf::Color(255, 0, 0, 100));
@@ -567,11 +599,14 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
 int select_square(int x, int y, Game& game) {
     int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
+    if (game.view == "black") {
+        row = 7 - row;
+    }
     
     if (row < 0 || col < 0 || row > 7 || col > 7) {
         return -2;
     }
-    //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
+    std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
     if (game.selected.row > -1 && game.selected.col > -1) {
 
         Move move { game.selected.row, game.selected.col, row, col, game.turn, 
@@ -591,10 +626,12 @@ int select_square(int x, int y, Game& game) {
         return -1;
     } else if (game.board[row][col].piece_occupying && game.board[row][col].piece_occupying->colour == game.turn) {
         game.board[row][col].selected = true;
+        std::cout << row << " + " << col << '\n';
         game.selected.row = row;
         game.selected.col = col;
         return -1;
-    }
+  
+    } 
     return -3;
 }
 
