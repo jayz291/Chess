@@ -60,7 +60,7 @@ class Game {
     public:
         //std::vector<Piece> pieces{32}; 
         Gamestate state {};
-        Gamemode mode {};
+        Gamemode mode { Gamemode::Twoplayer };
         Chessboard board {};
         Coords selected {};
         std::string turn {};
@@ -141,13 +141,14 @@ class Game {
 
 void run_game_loop();
 void render(Game& game, sf::RenderWindow& window);
-void draw_intro_screen(sf::RenderWindow& window);
+void draw_intro_screen(sf::RenderWindow& window, Game& game);
 void draw_board(Game& game, sf::RenderWindow& window);
 void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece);
-void draw_reset_button(Game& game, sf::RenderWindow& window);
-void draw_undo_button(Game& game, sf::RenderWindow& window);
+void draw_reset_button(sf::RenderWindow& window);
+void draw_undo_button(sf::RenderWindow& window);
 void draw_end_screen(Game& game, sf::RenderWindow& window);
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
+void draw_return_to_home_button(sf::RenderWindow& window);
 int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, int result, Move& move);
@@ -167,6 +168,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
 void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
@@ -231,6 +233,9 @@ void handle_input(Game& game, sf::RenderWindow& window) {
             } else if (game.state == Gamestate::Resetting) {
                 handle_clicks_resetting(game, mouse_press->position);
             }
+            if (game.state != Gamestate::Intro) {
+                handle_clicks_returning(game, mouse_press->position);
+            }
         }
             
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
@@ -245,18 +250,19 @@ void render(Game& game, sf::RenderWindow& window) {
     window.clear(sf::Color::Blue);
     sf::RectangleShape board({760, 760});
     if (game.state == Gamestate::Intro) {
-        draw_intro_screen(window);
+        draw_intro_screen(window, game);
     }
     if (game.state != Gamestate::Intro) {
         draw_board(game, window);
+        draw_return_to_home_button(window);
     }
     if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting && game.state != Gamestate::Intro) {
-        draw_undo_button(game, window);
+        draw_undo_button(window);
     }
     if (game.state == Gamestate::Gameover) {
         draw_end_screen(game, window);
     } else if (game.state == Gamestate::Resetting) {
-        draw_reset_button(game, window);
+        draw_reset_button(window);
     }
     if (game.state == Gamestate::Promoting_pawn) {
         draw_pawn_promotion_screen(game, window);
@@ -264,7 +270,7 @@ void render(Game& game, sf::RenderWindow& window) {
     window.display();
 }
 
-void draw_intro_screen(sf::RenderWindow& window) {
+void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     sf::Font font;
     if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
         return;
@@ -309,6 +315,16 @@ void draw_intro_screen(sf::RenderWindow& window) {
     text5.setPosition({710, 540});
     text5.setCharacterSize(30);
     text5.setString("Two player");
+    if (game.mode == Gamemode::CPUblack) {
+        choice1_button.setOutlineThickness(-5.0f);
+        choice1_button.setOutlineColor(sf::Color::Black);
+    } else if (game.mode == Gamemode::CPUwhite) {
+        choice2_button.setOutlineThickness(-5.0f);
+        choice2_button.setOutlineColor(sf::Color::Black);
+    } else {
+        choice3_button.setOutlineThickness(-5.0f);
+        choice3_button.setOutlineColor(sf::Color::Black);       
+    }
     window.draw(choice1_button);
     window.draw(choice2_button);
     window.draw(choice3_button);
@@ -325,8 +341,8 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     int y = mouse_pos.y;
     if (330 <= x && x <= 680 && 160 <= y && y <= 490) {
         game.state = Gamestate::Playing;
+        game.initialise();
     }
-    std::cout << x << ' ' << y << '\n';
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
         game.view = "white";
         game.mode = Gamemode::CPUblack;
@@ -368,32 +384,32 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         game.turn = ((game.turn == "white") ? "black" : "white");
         is_game_over(game);
     }
-    if (!game.game_over) {
+    if (!game.game_over && game.mode != Gamemode::Twoplayer) {
         generate_computer_move(game);
     }
 }
 
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
-    float x, y;
-
-    x = mouse_pos.x;
-    y = mouse_pos.y;
-    if (10 <= x && x <= 54 && 10 <= y && y <= 45) {
+    if (10 <= mouse_pos.x && mouse_pos.x <= 54 && 10 <= mouse_pos.y && mouse_pos.y <= 45) {
         game.initialise();
         return;
     }
 }
 
 void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos) {
-    int x = mouse_pos.x;
-    int y = mouse_pos.y;
-    if (950 <= x && x <= 994 && 10 <= y && y <= 45) {
+    if (950 <= mouse_pos.x && mouse_pos.x <= 994 && 10 <= mouse_pos.y && mouse_pos.y <= 45) {
         if (game.mode == Gamemode::Twoplayer) {
             undo_move(game);
         } else {
             undo_move(game);
             undo_move(game);
         }
+    }
+}
+
+void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
+    if (10 <= mouse_pos.x && mouse_pos.x <= 114 && 55 <= mouse_pos.y && mouse_pos.y <= 90) {
+        game.state = Gamestate::Intro;
     }
 }
 
@@ -444,7 +460,7 @@ void undo_move(Game& game) {
     //std::cout << "undo done\n";
 }
 
-void draw_reset_button(Game& game, sf::RenderWindow& window) {
+void draw_reset_button(sf::RenderWindow& window) {
 
     sf::RectangleShape reset_button({44, 35});
     
@@ -464,7 +480,7 @@ void draw_reset_button(Game& game, sf::RenderWindow& window) {
     window.draw(text);
 }
 
-void draw_undo_button(Game& game, sf::RenderWindow& window) {
+void draw_undo_button(sf::RenderWindow& window) {
     sf::RectangleShape undo_button({44, 35});
     undo_button.setFillColor(sf::Color::White);
     undo_button.setPosition({950, 10});
@@ -479,6 +495,23 @@ void draw_undo_button(Game& game, sf::RenderWindow& window) {
     text.setString("Undo");
     window.draw(undo_button);
     window.draw(text);
+}
+
+void draw_return_to_home_button(sf::RenderWindow& window) {
+    sf::RectangleShape return_button({104, 35});
+    return_button.setPosition({10, 55});
+    sf::Font font;
+    if (!font.openFromFile("./src/Roboto-SemiBold.ttf")) {
+        return;
+    }
+    sf::Text text(font);
+    text.setFillColor(sf::Color::Red);
+    text.setCharacterSize(15);
+    text.setPosition({13, 58});
+    text.setString("Back to Home");
+    window.draw(return_button);
+    window.draw(text);
+
 }
 
 void draw_board(Game& game, sf::RenderWindow& window) {
@@ -670,7 +703,7 @@ int select_square(int x, int y, Game& game) {
     if (row < 0 || col < 0 || row > 7 || col > 7) {
         return -2;
     }
-    std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
+    //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
     if (game.selected.row > -1 && game.selected.col > -1) {
 
         Move move { game.selected.row, game.selected.col, row, col, game.turn, 
@@ -690,7 +723,6 @@ int select_square(int x, int y, Game& game) {
         return -1;
     } else if (game.board[row][col].piece_occupying && game.board[row][col].piece_occupying->colour == game.turn) {
         game.board[row][col].selected = true;
-        std::cout << row << " + " << col << '\n';
         game.selected.row = row;
         game.selected.col = col;
         return -1;
@@ -751,10 +783,10 @@ void process_move(Game& game, int result, Move& move) {
 
 void generate_computer_move(Game& game) {
     game.possible_moves = {};
-    std::cout << "generating\n";
+    //std::cout << "generating\n";
     determine_possible_moves(game, true);
     Move chosen_move = game.possible_moves[game.possible_moves.size() / 2];
-    std::cout << "nr: " << chosen_move.new_row << "nc: " << chosen_move.new_col << " piece:" << chosen_move.piece << '\n';
+    //std::cout << "nr: " << chosen_move.new_row << "nc: " << chosen_move.new_col << " piece:" << chosen_move.piece << '\n';
     if (game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying) {
         chosen_move.piece_taken = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying->piece_type;
         chosen_move.piece_captured_moves = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying->moves;
