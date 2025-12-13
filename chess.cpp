@@ -50,10 +50,17 @@ enum class Gamestate {
     Resetting
 };
 
+enum class Gamemode {
+    CPUwhite,
+    CPUblack,
+    Twoplayer
+};
+
 class Game {
     public:
         //std::vector<Piece> pieces{32}; 
         Gamestate state {};
+        Gamemode mode {};
         Chessboard board {};
         Coords selected {};
         std::string turn {};
@@ -77,6 +84,7 @@ class Game {
         bool pawns_on_board {};
         Move current_move {};
         std::string view { "white" };
+        std::vector<Move> possible_moves {};
         Game() {
             initialise();
         }
@@ -144,13 +152,14 @@ int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, int result, Move& move);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo = false);
-int determine_possible_moves(Game& game);
+int determine_possible_moves(Game& game, bool CPU = false);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
 void end_game(Game& game);
 void record_board(Game& game);
 void is_game_over(Game& game);
 void undo_move(Game& game);
+void generate_computer_move(Game& game);
 
 void handle_input(Game& game, sf::RenderWindow& window);
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);
@@ -194,13 +203,27 @@ void handle_input(Game& game, sf::RenderWindow& window) {
         if (event->is<sf::Event::Closed>()) {
             window.close();
         }
+        if (game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == "white") {
+            generate_computer_move(game);
+        }
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             //std::cout << "clicked\n";
             if (game.state == Gamestate::Intro) {
                 handle_clicks_intro(game, window, mouse_press->position);
-            } else if (game.state == Gamestate::Playing) {
+            } else if (game.state == Gamestate::Playing && game.mode == Gamemode::Twoplayer) {
+               
                 handle_clicks_playing(game, window, mouse_press->position);
                 handle_clicks_undoing(game, mouse_press->position);
+            } else if (game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing) {
+                if (game.turn == "black") {
+                    handle_clicks_playing(game, window, mouse_press->position);
+                    handle_clicks_undoing(game, mouse_press->position);                     
+                }
+            } else if (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing) {
+                if (game.turn == "white") {
+                    handle_clicks_playing(game, window, mouse_press->position);
+                    handle_clicks_undoing(game, mouse_press->position);                     
+                }              
             } else if (game.state == Gamestate::Promoting_pawn) {
                 handle_clicks_promoting(game, mouse_press->position);
             } else if (game.state == Gamestate::Gameover) {
@@ -263,15 +286,38 @@ void draw_intro_screen(sf::RenderWindow& window) {
     sf::RectangleShape choice1_button({250, 110});
     choice1_button.setPosition({110, 530});
     choice1_button.setFillColor(sf::Color::White);
+    sf::Text text3(font);
+    text3.setFillColor(sf::Color::Black);
+    text3.setPosition({130, 540});
+    text3.setCharacterSize(30);
+    text3.setString("Play CPU as\n white");
 
     sf::RectangleShape choice2_button({250, 110});
     choice2_button.setPosition({400, 530});
     choice2_button.setFillColor(sf::Color::White);
+    sf::Text text4(font);
+    text4.setFillColor(sf::Color::Black);
+    text4.setPosition({420, 540});
+    text4.setCharacterSize(30);
+    text4.setString("Play CPU as\n black");
+
+    sf::RectangleShape choice3_button({250, 110});
+    choice3_button.setPosition({690, 530});
+    choice3_button.setFillColor(sf::Color::White);
+    sf::Text text5(font);
+    text5.setFillColor(sf::Color::Black);
+    text5.setPosition({710, 540});
+    text5.setCharacterSize(30);
+    text5.setString("Two player");
     window.draw(choice1_button);
     window.draw(choice2_button);
+    window.draw(choice3_button);
     window.draw(text);
     window.draw(play_button);
     window.draw(text2);
+    window.draw(text3);
+    window.draw(text4);
+    window.draw(text5);
 }
 
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
@@ -282,7 +328,14 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     }
     std::cout << x << ' ' << y << '\n';
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
+        game.view = "white";
+        game.mode = Gamemode::CPUblack;
+    } else if (400 <= x && x <= 650 && 530 <= y && y <= 640) {
         game.view = "black";
+        game.mode = Gamemode::CPUwhite;
+    } else if (690 <= x && x <= 940 && 530 <= y && y <= 640) {
+        game.view = "white";
+        game.mode = Gamemode::Twoplayer;
     }
 }
 
@@ -303,6 +356,9 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         game.turn = ((game.turn == "white") ? "black" : "white");
         is_game_over(game);
     }
+    if (!game.game_over && result >= 0 && game.mode != Gamemode::Twoplayer) {
+        generate_computer_move(game);
+    }
 }
 
 void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
@@ -311,6 +367,9 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         game.state = Gamestate::Playing;
         game.turn = ((game.turn == "white") ? "black" : "white");
         is_game_over(game);
+    }
+    if (!game.game_over) {
+        generate_computer_move(game);
     }
 }
 
@@ -329,7 +388,12 @@ void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos) {
     int x = mouse_pos.x;
     int y = mouse_pos.y;
     if (950 <= x && x <= 994 && 10 <= y && y <= 45) {
-        undo_move(game);
+        if (game.mode == Gamemode::Twoplayer) {
+            undo_move(game);
+        } else {
+            undo_move(game);
+            undo_move(game);
+        }
     }
 }
 
@@ -642,7 +706,7 @@ void process_move(Game& game, int result, Move& move) {
     } else {
         game.plys_to_100++;
     }
-    int row = game.current_move.prev_row, col = game.current_move.prev_col;
+    int row = move.prev_row, col = move.prev_col;
     if ((game.turn == "black" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 6) || 
         (game.turn == "white" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 1) &&
         std::abs(move.new_row - move.prev_row) == 1) {
@@ -683,6 +747,22 @@ void process_move(Game& game, int result, Move& move) {
             game.black_king_position.col = move.new_col;
         }
     }
+}
+
+void generate_computer_move(Game& game) {
+    game.possible_moves = {};
+    std::cout << "generating\n";
+    determine_possible_moves(game, true);
+    Move chosen_move = game.possible_moves[game.possible_moves.size() / 2];
+    std::cout << "nr: " << chosen_move.new_row << "nc: " << chosen_move.new_col << " piece:" << chosen_move.piece << '\n';
+    if (game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying) {
+        chosen_move.piece_taken = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying->piece_type;
+        chosen_move.piece_captured_moves = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying->moves;
+    }
+    int result = validate_move(game, game.board, chosen_move);
+    process_move(game, result, chosen_move);
+    game.turn = ((game.turn == "white") ? "black" : "white");
+    is_game_over(game);
 }
 
 void is_game_over(Game& game) {
@@ -1103,7 +1183,7 @@ int test_castling(Game &game, Chessboard& copy, Move& move) {
     return -1;
 }
 
-int determine_possible_moves(Game& game) {
+int determine_possible_moves(Game& game, bool CPU) {
     std::string board_positions {};
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
@@ -1115,7 +1195,11 @@ int determine_possible_moves(Game& game) {
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece };
                         if (validate_move(game, game.board, move) == 0) {
-                            return 0;
+                            if (!CPU) {
+                                return 0;
+                            } else {
+                                game.possible_moves.push_back(move);
+                            }
                         }
                     }
                 } else if (game.board[i][j].piece_occupying->piece_type == "pawn" && game.turn == "black") {
@@ -1124,7 +1208,11 @@ int determine_possible_moves(Game& game) {
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece};
                         if (validate_move(game, game.board, move) == 0) {
-                            return 0;
+                            if (!CPU) {
+                                return 0;
+                            } else {
+                                game.possible_moves.push_back(move);
+                            }
                         }
                     }                   
                 } else if (game.board[i][j].piece_occupying->piece_type == "knight") {
@@ -1134,7 +1222,11 @@ int determine_possible_moves(Game& game) {
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece };
                         if (validate_move(game, game.board, move) == 0) {
-                            return 0;
+                            if (!CPU) {
+                                return 0;
+                            } else {
+                                game.possible_moves.push_back(move);
+                            }
                         }
                     }  
                 } else if (game.board[i][j].piece_occupying->piece_type == "bishop") {
@@ -1146,7 +1238,11 @@ int determine_possible_moves(Game& game) {
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
                             if (validate_move(game, game.board, move) == 0) {
-                                return 0;
+                                if (!CPU) {
+                                    return 0;
+                                } else {
+                                    game.possible_moves.push_back(move);
+                                }
                             }
                         }
                     }
@@ -1159,7 +1255,11 @@ int determine_possible_moves(Game& game) {
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
                             if (validate_move(game, game.board, move) == 0) {
-                                return 0;
+                                if (!CPU) {
+                                    return 0;
+                                } else {
+                                    game.possible_moves.push_back(move);
+                                }
                             }
                         }
                     }
@@ -1176,7 +1276,11 @@ int determine_possible_moves(Game& game) {
                         std::vector<Move> moves { move1, move2, move3, move4, move5, move6, move7, move8 };
                         for (Move move: moves) {
                             if (validate_move(game, game.board, move) == 0) {
-                                return 0;
+                                if (!CPU) {
+                                    return 0;
+                                } else {
+                                    game.possible_moves.push_back(move);
+                                }
                             }
                         }                 
                     }
@@ -1187,7 +1291,11 @@ int determine_possible_moves(Game& game) {
                     for (auto pair: possible_moves) {
                         Move move { i, j, pair.first, pair.second, game.turn, piece };
                         if (validate_move(game, game.board, move) == 0) {
-                            return 0;
+                            if (!CPU) {
+                                return 0;
+                            } else {
+                                game.possible_moves.push_back(move);
+                            }
                         }
                     }
                 }
