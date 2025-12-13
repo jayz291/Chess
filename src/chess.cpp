@@ -149,6 +149,9 @@ void draw_undo_button(sf::RenderWindow& window);
 void draw_end_screen(Game& game, sf::RenderWindow& window);
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
 void draw_return_to_home_button(sf::RenderWindow& window);
+sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
+    int size, const std::string& colour);
+sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, const std::string& colour);
 int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, int result, Move& move);
@@ -184,11 +187,9 @@ void handle_pawn_promotion(Game& game);
 int validate_en_passant(Game& game, Chessboard& board, Move& move);
 void record_piece_points(Game& game, std::string piece_type, std::string piece_colour);
 
-
 int main() {
     run_game_loop();
 }
-
 
 void run_game_loop() {
     Game game {};
@@ -275,46 +276,20 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text(font);
-    sf::Text text2(font);
-    sf::RectangleShape play_button({350, 160});
-    play_button.setPosition({330, 330});
-    play_button.setFillColor(sf::Color::White);
-    text2.setFillColor(sf::Color::Black);
-    text2.setPosition({450, 380});
-    text2.setCharacterSize(60);
-    text2.setString("Play");
-    text.setFillColor(sf::Color::Black);
-    text.setCharacterSize(210);
-    text.setPosition({200, 20});
-    text.setString("Chess");
+   
+    sf::RectangleShape play_button = make_rectangle({330, 330}, {350, 160}, "white");
+ 
+    sf::Text text = configure_text(font, "Chess", {200, 20}, 210, "black");
+    sf::Text text2 = configure_text(font, "Play", {450, 380}, 60, "black");
+ 
+    sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, "white");
+    sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, "white");
+    sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, "white");
 
-    sf::RectangleShape choice1_button({250, 110});
-    choice1_button.setPosition({110, 530});
-    choice1_button.setFillColor(sf::Color::White);
-    sf::Text text3(font);
-    text3.setFillColor(sf::Color::Black);
-    text3.setPosition({130, 540});
-    text3.setCharacterSize(30);
-    text3.setString("Play CPU as\n white");
+    sf::Text choice1_text = configure_text(font, "Play CPU as\n white", {130, 540}, 30, "black");
+    sf::Text choice2_text = configure_text(font, "Play CPU as\n black", {420, 540}, 30, "black");
+    sf::Text choice3_text = configure_text(font, "Two player", {710, 540}, 30, "black");
 
-    sf::RectangleShape choice2_button({250, 110});
-    choice2_button.setPosition({400, 530});
-    choice2_button.setFillColor(sf::Color::White);
-    sf::Text text4(font);
-    text4.setFillColor(sf::Color::Black);
-    text4.setPosition({420, 540});
-    text4.setCharacterSize(30);
-    text4.setString("Play CPU as\n black");
-
-    sf::RectangleShape choice3_button({250, 110});
-    choice3_button.setPosition({690, 530});
-    choice3_button.setFillColor(sf::Color::White);
-    sf::Text text5(font);
-    text5.setFillColor(sf::Color::Black);
-    text5.setPosition({710, 540});
-    text5.setCharacterSize(30);
-    text5.setString("Two player");
     if (game.mode == Gamemode::CPUblack) {
         choice1_button.setOutlineThickness(-5.0f);
         choice1_button.setOutlineColor(sf::Color::Black);
@@ -331,9 +306,36 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     window.draw(text);
     window.draw(play_button);
     window.draw(text2);
-    window.draw(text3);
-    window.draw(text4);
-    window.draw(text5);
+    window.draw(choice1_text);
+    window.draw(choice2_text);
+    window.draw(choice3_text);
+}
+
+sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
+    int size, const std::string& colour) {
+    sf::Text text(font);
+    text.setString(string);
+    text.setPosition(pos);
+    if (colour == "black") {
+        text.setFillColor(sf::Color::Black);
+    } else if (colour == "red") {
+        text.setFillColor(sf::Color::Red);
+    }
+    text.setCharacterSize(size);
+    return text;
+}
+
+sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, const std::string& colour) {
+    sf::RectangleShape rectangle(size);
+    rectangle.setPosition(pos);
+    if (colour == "white") {
+        rectangle.setFillColor(sf::Color::White);
+    } else if (colour == "black") {
+        rectangle.setFillColor(sf::Color::Black);
+    } else if (colour == "blue") {
+        rectangle.setFillColor(sf::Color::Blue);
+    }
+    return rectangle;
 }
 
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
@@ -462,56 +464,44 @@ void undo_move(Game& game) {
 
 void draw_reset_button(sf::RenderWindow& window) {
 
-    sf::RectangleShape reset_button({44, 35});
-    
-    reset_button.setFillColor(sf::Color::White);
-    reset_button.setPosition({10, 10});
+    sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, "white");
     
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text(font);
-    text.setFillColor(sf::Color::Red);
-    text.setCharacterSize(15);
-    text.setPosition({13, 13});
-    text.setString("Reset");
+    sf::Text text = configure_text(font, "Reset", {13, 13}, 15, "red");
+
     window.draw(reset_button);
     window.draw(text);
 }
 
 void draw_undo_button(sf::RenderWindow& window) {
-    sf::RectangleShape undo_button({44, 35});
-    undo_button.setFillColor(sf::Color::White);
-    undo_button.setPosition({950, 10});
+
+    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, "white");
+
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text(font);
-    text.setFillColor(sf::Color::Red);
-    text.setCharacterSize(15);
-    text.setPosition({953, 13});
-    text.setString("Undo");
+    sf::Text text = configure_text(font, "Undo", {953, 13}, 15, "red");
+
     window.draw(undo_button);
     window.draw(text);
 }
 
 void draw_return_to_home_button(sf::RenderWindow& window) {
-    sf::RectangleShape return_button({104, 35});
-    return_button.setPosition({10, 55});
+
+    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, "white");
+
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text(font);
-    text.setFillColor(sf::Color::Red);
-    text.setCharacterSize(15);
-    text.setPosition({13, 58});
-    text.setString("Back to Home");
+    sf::Text text = configure_text(font, "Back to Home", {13, 58}, 15, "red");
+
     window.draw(return_button);
     window.draw(text);
-
 }
 
 void draw_board(Game& game, sf::RenderWindow& window) {
@@ -560,7 +550,7 @@ void draw_board(Game& game, sf::RenderWindow& window) {
 }
 
 void draw_end_screen(Game& game, sf::RenderWindow& window) {
-    sf::RectangleShape end_screen({500, 300});
+   
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
@@ -568,42 +558,34 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
     sf::Text text(font);
     text.setFillColor(sf::Color::Red);
     text.setCharacterSize(40);
-    
+    text.setPosition({280, 280}); 
+
     if (game.checkmate) {
-        text.setPosition({280, 280}); 
         if (game.winner == "white") {
             text.setString("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {
             text.setString("CHECKMATE\nBLACK WON!\n-----------------------------\nClick anywhere to \ncontinue");
         }
     } else if (game.stalemate) {
-        text.setPosition({280, 280});
         text.setString("Draw by stalemate\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.repetition) {
-        text.setPosition({280, 280});
         text.setString("Draw by threefold \nrepetition\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.insufficient_material) {
-        text.setPosition({280, 280});
         text.setString("Draw by insufficient \nmaterial\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.plys_to_100 == 100) {
-        text.setPosition({280, 280});
         text.setString("Draw by the 50-move rule\n-----------------------------\nClick anywhere to \ncontinue");
     }
 
-    float x_offset = 250;
-    float y_offset = 250;
-    end_screen.setPosition({x_offset, y_offset});
-    end_screen.setFillColor(sf::Color::Black);
+    sf::RectangleShape end_screen = make_rectangle({250, 250}, {500, 300}, "black");
+
     window.draw(end_screen);
     window.draw(text);
 }
 
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
-    sf::RectangleShape pawn_promotion_screen({500, 300});
-    float x_offset = 250;
-    float y_offset = 250;
-    pawn_promotion_screen.setPosition({x_offset, y_offset});
-    pawn_promotion_screen.setFillColor(sf::Color::Blue);
+
+    sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, "blue");
+
     window.draw(pawn_promotion_screen);
     int row = ((game.view == "white") ? 4 : 3);
     std::shared_ptr<Piece> piece1 = std::make_shared<Piece> ("rook", game.turn, false, row, 2);
@@ -1092,7 +1074,6 @@ int validate_move_rook(Chessboard& board, Move& move) {
 
 int validate_move_queen(Chessboard& board, Move& move) {
   
-    //std::cout << "rook: " << rook_move << " bishop: " << bishop_move << '\n';
     if (validate_move_rook(board, move) == 0 || validate_move_bishop(board, move) == 0) {
         return 0;
     } 
