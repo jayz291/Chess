@@ -782,10 +782,8 @@ void generate_computer_move(Game& game) {
 void is_game_over(Game& game) {
     evaluate_king_checks(game);
     record_board(game);
-    int repetition = determine_repetition(game);
-    int insufficient_material = determine_insufficient_material(game);
-    if (determine_possible_moves(game) == -1 || repetition == -1 || insufficient_material == -1 || 
-        game.plys_to_100 == 100) {
+    if (determine_possible_moves(game) == -1 || determine_repetition(game) == -1 || 
+        determine_insufficient_material(game) == -1 || game.plys_to_100 == 100) {
         end_game(game);
     }
 }
@@ -1081,28 +1079,11 @@ int validate_move_queen(Chessboard& board, Move& move) {
 }
 
 int validate_move_king(Game &game, Chessboard& board, Move& move) {
-    //std::cout << "Checking king move\n";
-
-    int row_change { move.new_row - move.prev_row };
-    int col_change { move.new_col - move.prev_col };
-    std::vector<std::pair<int, int>> moves { { move.new_row + 1, move.new_col }, { move.new_row - 1, move.new_col }, 
-    { move.new_row + 1, move.new_col + 1 }, { move.new_row - 1, move.new_col - 1 }, 
-    { move.new_row - 1, move.new_col + 1 }, { move.new_row + 1, move.new_col - 1 }, 
-    { move.new_row, move.new_col - 1 }, { move.new_row, move.new_col + 1 } };
 
     //std::cout << "Distance: " << sqrt(pow(row_change, 2) + pow(col_change, 2)) << '\n';
-    if (sqrt(pow(row_change, 2) + pow(col_change, 2)) <= sqrt(2)) {
-        for (auto coord: moves) {
-            if (coord.first >= 0 && coord.first <= 7 && coord.second >= 0 && coord.second <= 7 &&
-                board[coord.first][coord.second].piece_occupying && 
-                board[coord.first][coord.second].piece_occupying->piece_type == "king" && 
-                board[coord.first][coord.second].piece_occupying->colour != move.turn) {
-                return -1;
-            }
-        }
-    
+    if (sqrt(pow(move.new_row - move.prev_row, 2) + pow(move.new_col - move.prev_col, 2)) <= sqrt(2)) {
         return 0;
-    } else if (row_change == 0 && std::abs(col_change) == 2) {
+    } else if (move.new_row - move.prev_row == 0 && std::abs(move.new_col - move.prev_col) == 2) {
         Chessboard copy {};
         for (int i { 0 }; i < 8; i++) {
             for (int j { 0 }; j < 8; j++) {
@@ -1138,8 +1119,7 @@ int check_checks(Game &game, Chessboard& copy, Move& move) {
     }   
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
-            if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == opposing_colour &&
-                copy[i][j].piece_occupying->piece_type != "king") {
+            if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == opposing_colour) {
           
                 Move test_move { i, j, king_position.row, king_position.col, 
                     opposing_colour, copy[i][j].piece_occupying->piece_type };
