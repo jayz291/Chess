@@ -6,8 +6,12 @@
 #include <SFML/Graphics.hpp>
 #include <utility>
 #include <algorithm>
+#include <iomanip>
+#include <thread>
+#include <atomic>
 
 constexpr int SQUARE_SIZE = 95;
+
 
 struct Piece {
     std::string piece_type {};
@@ -29,16 +33,20 @@ struct Coords {
 };
 
 struct Move {
-    int prev_row {};
-    int prev_col {};
-    int new_row {};
-    int new_col {};
+    int prev_row { 0 };
+    int prev_col { 0 };
+    int new_row { 0 };
+    int new_col { 0 };
     std::string turn {};
     std::string piece {};
-    std::string piece_taken { "None" };
+    std::shared_ptr<Piece> piece_taken { nullptr };
     std::string special_move { "No" };
-    int piece_captured_moves {};
 };
+
+Move calculated_move;
+std::atomic<bool> computer_turn { false };
+std::atomic<bool> thinking_in_progress { false };
+std::atomic<bool> finished { false };
 
 using Chessboard = std::array<std::array<Cell, 8>, 8>;
 
@@ -85,6 +93,8 @@ class Game {
         Move current_move {};
         std::string view { "white" };
         std::vector<Move> possible_moves {};
+        Move calculated_move {};
+        bool move_ready { false };
         Game() {
             initialise();
         }
@@ -154,15 +164,17 @@ sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vec
 sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, const std::string& colour);
 int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
-void process_move(Game& game, int result, Move& move);
+void process_move(Game& game, Chessboard& board, int result, Move move, bool CPU_testing = false);
+void process_move_testing(Game& game, Chessboard& board, int result, Move& move);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo = false);
-int determine_possible_moves(Game& game, bool CPU = false);
+std::vector<Move> determine_possible_moves(Game& game, Chessboard& board, std::string turn, bool CPU = false);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
 void end_game(Game& game);
 void record_board(Game& game);
 void is_game_over(Game& game);
 void undo_move(Game& game);
+void undo_test_move(Chessboard& board, Move& prev_move);
 void generate_computer_move(Game& game);
 
 void handle_input(Game& game, sf::RenderWindow& window);
@@ -183,9 +195,14 @@ int validate_move_king(Game& game, Chessboard& board, Move& move);
 int check_checks(Game& game, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
 int test_castling(Game& game, Chessboard& copy, Move& move);
-void handle_pawn_promotion(Game& game);
+void handle_pawn_promotion(Game& game, Chessboard& board, Move& move);
 int validate_en_passant(Game& game, Chessboard& board, Move& move);
 void record_piece_points(Game& game, std::string piece_type, std::string piece_colour);
+
+Move get_best_move(Game& game, Chessboard& copy, int depth);
+int minimax(Game& game, Chessboard& board, int depth, bool maximising);
+int evaluate(Chessboard& board);
+void update_computer_move(Game& game);
 
 int main() {
     run_game_loop();
@@ -206,9 +223,10 @@ void handle_input(Game& game, sf::RenderWindow& window) {
         if (event->is<sf::Event::Closed>()) {
             window.close();
         }
-        if (game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == "white") {
+        if (game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == "white" && !finished) {
             generate_computer_move(game);
         }
+        update_computer_move(game);
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             //std::cout << "clicked\n";
             if (game.state == Gamestate::Intro) {
@@ -221,13 +239,22 @@ void handle_input(Game& game, sf::RenderWindow& window) {
                 if (game.turn == "black") {
                     handle_clicks_playing(game, window, mouse_press->position);
                     handle_clicks_undoing(game, mouse_press->position);                     
+                } else if (!finished) {   
+                    computer_turn = true;
+                    generate_computer_move(game);
                 }
+                update_computer_move(game);
             } else if (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing) {
                 if (game.turn == "white") {
                     handle_clicks_playing(game, window, mouse_press->position);
                     handle_clicks_undoing(game, mouse_press->position);                     
-                }              
+                } else if (!finished) {
+                    computer_turn = true;
+                    generate_computer_move(game);
+                }  
+                update_computer_move(game);        
             } else if (game.state == Gamestate::Promoting_pawn) {
+
                 handle_clicks_promoting(game, mouse_press->position);
             } else if (game.state == Gamestate::Gameover) {
                 game.state = Gamestate::Resetting;
@@ -363,7 +390,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     if (result >= 0) {
         /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
         ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
-        process_move(game, result, game.current_move);  
+        process_move(game, game.board, result, game.current_move);  
     }
     if (game.promoting_pawn) {
         draw_pawn_promotion_screen(game, window);
@@ -374,9 +401,9 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         game.turn = ((game.turn == "white") ? "black" : "white");
         is_game_over(game);
     }
-    if (!game.game_over && result >= 0 && game.mode != Gamemode::Twoplayer) {
+    /*if (!game.game_over && result >= 0 && game.mode != Gamemode::Twoplayer) {
         generate_computer_move(game);
-    }
+    }*/
 }
 
 void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
@@ -419,21 +446,18 @@ void undo_move(Game& game) {
     if (game.move_record.size() == 0) {
         return;
     }
+    std::cout << "size: " << game.move_record.size() << '\n';
     Move prev_move = game.move_record[game.move_record.size() - 1];
     std::string turn = (((game.move_record.size() - 1) % 2 == 0) ? "black" : "white"); 
 
     move_piece(game.board, prev_move.new_row, prev_move.new_col, prev_move.prev_row,
     prev_move.prev_col, true);
-    if (prev_move.special_move != "en passant" && prev_move.piece_taken != "None") {
-        game.board[prev_move.new_row][prev_move.new_col].piece_occupying = 
-            std::make_shared<Piece> (prev_move.piece_taken, turn, prev_move.piece_captured_moves, 
-                prev_move.new_row, prev_move.new_col);
+    if (prev_move.special_move != "en passant" && prev_move.piece_taken != nullptr) {
+        game.board[prev_move.new_row][prev_move.new_col].piece_occupying = prev_move.piece_taken;
     }
     int captured_row = ((turn == "black") ? prev_move.new_row + 1 : prev_move.new_row - 1);
     if (prev_move.special_move == "en passant") {
-        game.board[captured_row][prev_move.new_col].piece_occupying =
-        std::make_shared<Piece> (prev_move.piece_taken, turn, prev_move.piece_captured_moves, 
-            captured_row, prev_move.new_col);
+        game.board[captured_row][prev_move.new_col].piece_occupying = prev_move.piece_taken;
     }
     int castling_row = ((turn == "black") ? 7 : 0);
     if (prev_move.special_move == "castling") {
@@ -446,7 +470,7 @@ void undo_move(Game& game) {
     if (prev_move.special_move == "promotion") {
         game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type = "pawn";
     }
-    if (prev_move.piece_taken == "None" && prev_move.piece != "pawn") {
+    if (prev_move.piece_taken == nullptr && prev_move.piece != "pawn") {
         if (game.plys_to_100 > 0) {
             game.plys_to_100--;
         }
@@ -460,6 +484,35 @@ void undo_move(Game& game) {
     game.turn = ((game.turn == "white") ? "black" : "white");
     evaluate_king_checks(game);
     //std::cout << "undo done\n";
+}
+
+void undo_test_move(Chessboard& board, Move& prev_move) {
+
+    std::string turn = ((prev_move.turn == "black") ? "white" : "black");
+
+    move_piece(board, prev_move.new_row, prev_move.new_col, prev_move.prev_row,
+    prev_move.prev_col, true);
+    if (prev_move.special_move != "en passant" && prev_move.piece_taken != nullptr) {
+        board[prev_move.new_row][prev_move.new_col].piece_occupying = prev_move.piece_taken;
+    }
+    int captured_row = ((turn == "black") ? prev_move.new_row + 1 : prev_move.new_row - 1);
+    if (prev_move.special_move == "en passant") {
+        board[captured_row][prev_move.new_col].piece_occupying = prev_move.piece_taken;
+    }
+    int castling_row = ((turn == "black") ? 7 : 0);
+    if (prev_move.special_move == "castling") {
+        if (prev_move.new_col - prev_move.prev_col == 2) {
+            move_piece(board, castling_row, 5, castling_row, 7, true);
+        } else {
+            move_piece(board, castling_row, 3, castling_row, 0, true);
+        }
+    }
+    if (prev_move.special_move == "promotion") {
+        board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type = "pawn";
+    }
+
+    //std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
+
 }
 
 void draw_reset_button(sf::RenderWindow& window) {
@@ -691,8 +744,7 @@ int select_square(int x, int y, Game& game) {
         Move move { game.selected.row, game.selected.col, row, col, game.turn, 
             game.board[game.selected.row][game.selected.col].piece_occupying->piece_type };
         if (game.board[row][col].piece_occupying) {
-            move.piece_taken = game.board[row][col].piece_occupying->piece_type;
-            move.piece_captured_moves = game.board[row][col].piece_occupying->moves;
+            move.piece_taken = game.board[row][col].piece_occupying;
         }
         int result = validate_move(game, game.board, move);
         game.board[game.selected.row][game.selected.col].selected = false;
@@ -713,46 +765,72 @@ int select_square(int x, int y, Game& game) {
     return -3;
 }
 
-void process_move(Game& game, int result, Move& move) {
+void process_move(Game& game, Chessboard& board, int result, Move move, bool CPU) {
+
+    
     //std::cout << "moving\n";
-    if (move.piece == "pawn" || game.board[move.new_row][move.new_col].piece_occupying) {
+    if (move.piece == "pawn" || board[move.new_row][move.new_col].piece_occupying) {
         game.plys_to_100 = 0;
     } else {
         game.plys_to_100++;
     }
     int row = move.prev_row, col = move.prev_col;
-    if ((game.turn == "black" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 6) || 
-        (game.turn == "white" && game.board[row][col].piece_occupying->piece_type == "pawn" && row == 1) &&
+
+    if ((game.turn == "black" && board[row][col].piece_occupying->piece_type == "pawn" && row == 6) || 
+        (game.turn == "white" && board[row][col].piece_occupying->piece_type == "pawn" && row == 1) &&
         std::abs(move.new_row - move.prev_row) == 1) {
-        game.promoting_pawn = true;
-        return;
+    
+        if (!CPU) {
+            game.promoting_pawn = true;
+            return;
+        } else {
+            std::cout << "promoting for computer\n";
+            move_piece(board, move.prev_row, move.prev_col, move.new_row, move.new_col);
+            move.special_move = "promotion";
+            board[move.new_row][move.new_col].piece_occupying->piece_type = "queen";
+            game.move_record.push_back(move);
+            return;    
+        }
     }
     //std::cout << "plys to 100: " << game.plys_to_100 << '\n';
-    
-    move_piece(game.board, move.prev_row, move.prev_col, move.new_row, move.new_col);
+    if (board[move.prev_row][move.prev_col].piece_occupying == nullptr) {
+        std::cout << "error before\n";
+    }
+    if (move.prev_row != move.new_row || move.prev_col != move.new_col ) {
+        move_piece(board, move.prev_row, move.prev_col, move.new_row, move.new_col);
+    }   
+    if (board[move.new_row][move.new_col].piece_occupying == nullptr) {
+        std::cout << "error after\n";
+    }
 
     if (result > 0 && result < 3) {
         if (result == 1 && game.turn == "white") { 
-            move_piece(game.board, 7, 7, 7, 5);
+            move_piece(board, 7, 7, 7, 5);
         } else if (result == 2 && game.turn == "white") {
-            move_piece(game.board, 7, 0, 7, 3);
+            move_piece(board, 7, 0, 7, 3);
         } else if (result == 1 && game.turn == "black") {
-            move_piece(game.board, 0, 7, 0, 5);
+            move_piece(board, 0, 7, 0, 5);
         } else if (result == 2 && game.turn == "black") {
-            move_piece(game.board, 0, 0, 0, 3);
+            move_piece(board, 0, 0, 0, 3);
         }
+
         game.board_record.clear();
         move.special_move = "castling";
     } else if (result == 3) {
         int captured_row = ((game.turn == "white") ? move.new_row + 1 : move.new_row - 1);
         move.special_move = "en passant";
-        move.piece_taken = "pawn";
-        game.board[captured_row][move.new_col].piece_occupying = nullptr;
+        move.piece_taken = board[captured_row][move.new_col].piece_occupying;
+        board[captured_row][move.new_col].piece_occupying = nullptr;
+        
         game.board_record.clear();
+        
     } 
+   
     game.move_record.push_back(move);
+    
 
-    if (game.board[move.new_row][move.new_col].piece_occupying->piece_type == "king") {
+
+    if (board[move.new_row][move.new_col].piece_occupying->piece_type == "king") {
         if (game.turn == "white") {
             game.white_king_position.row = move.new_row;
             game.white_king_position.col = move.new_col;
@@ -763,26 +841,245 @@ void process_move(Game& game, int result, Move& move) {
     }
 }
 
-void generate_computer_move(Game& game) {
-    game.possible_moves = {};
-    //std::cout << "generating\n";
-    determine_possible_moves(game, true);
-    Move chosen_move = game.possible_moves[game.possible_moves.size() / 2];
-    //std::cout << "nr: " << chosen_move.new_row << "nc: " << chosen_move.new_col << " piece:" << chosen_move.piece << '\n';
-    if (game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying) {
-        chosen_move.piece_taken = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying->piece_type;
-        chosen_move.piece_captured_moves = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying->moves;
+void process_move_testing(Game& game, Chessboard& board, int result, Move& move) {
+    //std::cout << "processing move\n";
+    if (board[move.prev_row][move.prev_col].piece_occupying == nullptr) {
+        std::cout << "error before\n";
     }
-    int result = validate_move(game, game.board, chosen_move);
-    process_move(game, result, chosen_move);
-    game.turn = ((game.turn == "white") ? "black" : "white");
-    is_game_over(game);
+    //std::cout << move.prev_row << ' ' << move.prev_col << ' ' << move.new_row << ' ' << move.new_col << '\n';
+ 
+    int row = move.prev_row, col = move.prev_col;
+    if (!board[row][col].piece_occupying) {
+        std::cout << "failed here\n";
+    }
+    if ((move.turn == "black" && board[row][col].piece_occupying->piece_type == "pawn" && row == 6) || 
+        (move.turn == "white" && board[row][col].piece_occupying->piece_type == "pawn" && row == 1) &&
+        std::abs(move.new_row - move.prev_row) == 1) {
+        if (move.prev_row != move.new_row || move.prev_col != move.new_col ) {
+            move_piece(board, move.prev_row, move.prev_col, move.new_row, move.new_col);
+            move.special_move = "promotion";
+            board[move.new_row][move.new_col].piece_occupying->piece_type = "queen";
+        }
+        return;
+    }
+    if (move.prev_row != move.new_row || move.prev_col != move.new_col ) {
+        move_piece(board, move.prev_row, move.prev_col, move.new_row, move.new_col);
+    }  
+
+ 
+    if (board[move.new_row][move.new_col].piece_occupying == nullptr) {
+        std::cout << "error after\n";
+    }
+    //std::cout << "reached here\n";
+
+    if (result > 0 && result < 3) {
+        if (result == 1 && game.turn == "white") { 
+            move_piece(board, 7, 7, 7, 5);
+        } else if (result == 2 && game.turn == "white") {
+            move_piece(board, 7, 0, 7, 3);
+        } else if (result == 1 && game.turn == "black") {
+            move_piece(board, 0, 7, 0, 5);
+        } else if (result == 2 && game.turn == "black") {
+            move_piece(board, 0, 0, 0, 3);
+        }
+        move.special_move = "castling";
+    } else if (result == 3) {
+        int captured_row = ((game.turn == "white") ? move.new_row + 1 : move.new_row - 1);
+        move.special_move = "en passant";
+        move.piece_taken = board[captured_row][move.new_col].piece_occupying;
+        board[captured_row][move.new_col].piece_occupying = nullptr;
+
+    } 
+
+}
+
+void generate_computer_move(Game& game) {
+    game.move_ready = false;
+    if (thinking_in_progress) {
+        return;
+    }
+    thinking_in_progress = true;
+    Move chosen_move;
+    auto copy = std::make_shared<Chessboard>();
+
+    for (int i { 0 }; i < 8; i++) {
+        for (int j { 0 }; j < 8; j++) {
+            if (game.board[i][j].piece_occupying) {
+                (*copy)[i][j].piece_occupying = std::make_shared<Piece>(*game.board[i][j].piece_occupying);
+            } else {
+                (*copy)[i][j].piece_occupying = nullptr;
+            }
+        }
+    }
+    Game game_copy = game;
+    std::thread computer_thread([copy, game_copy, chosen_move]() mutable {
+        chosen_move = get_best_move(game_copy, *copy, 4);
+        computer_turn = false;
+        thinking_in_progress = false;
+        finished = true;
+        calculated_move = chosen_move;
+    });
+    computer_thread.detach();
+
+
+}
+
+void update_computer_move(Game& game) {
+    if (finished) {
+        Move chosen_move = calculated_move;
+        std::cout << "best moved calculated\n";
+        std::cout << chosen_move.prev_row << ' ' << chosen_move.prev_col << ' ' 
+        << chosen_move.new_row << ' ' << chosen_move.new_col << '\n';
+        //std::cout << "nr: " << chosen_move.new_row << "nc: " << chosen_move.new_col << " piece:" << chosen_move.piece << '\n';
+        if (game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying) {
+            chosen_move.piece_taken = game.board[chosen_move.new_row][chosen_move.new_col].piece_occupying;
+        }
+        int result = validate_move(game, game.board, chosen_move);
+        process_move(game, game.board, result, chosen_move, true);
+
+        game.turn = ((game.turn == "white") ? "black" : "white");
+        is_game_over(game);
+    }
+    game.move_ready = false;
+    finished = false;
+}
+
+Move get_best_move(Game& game, Chessboard& copy, int depth) {
+    int best_score = (game.turn == "white") ? -500000 : 500000;
+    Move best_move {};
+    std::string turn = game.turn;
+    //std::cout << "generating\n";
+    std::vector<Move> possible_moves = determine_possible_moves(game, copy, turn, true);
+    //std::cout << "here2\n";
+
+    for (auto move: possible_moves) {
+        //std::cout << "here2\n";
+        int result = validate_move(game, copy, move);
+        if (result >= 0) {
+            process_move_testing(game, copy, result, move);
+            //std::cout << "here3\n";
+            bool maximising = ((turn == "white") ? true : false);
+            
+            int move_eval = minimax(game, copy, depth - 1, !maximising);
+            std::cout << "e: " << move_eval << '\n';
+            if (maximising) {
+                if (move_eval > best_score) {
+                    best_score = move_eval;
+                    best_move = move;
+                }
+            } else {
+                if (move_eval < best_score) {
+                    best_score = move_eval;
+                    best_move = move;
+                }
+            }
+            undo_test_move(copy, move);
+            turn = game.turn;
+        }
+    }
+    return best_move;
+}
+
+int minimax(Game& game, Chessboard& board, int depth, bool maximising) {
+    //std::cout << "minimaxing\n";
+    if (depth == 0) {
+        //std::cout << "reached depth 0\n";
+        return evaluate(board);
+    }
+    //std::cout << "depth: " << depth << '\n';
+    std::string turn = ((maximising == true) ? "white" : "black");
+
+    std::vector<Move> possible_moves = determine_possible_moves(game, board, turn, true);
+    //std::cout << "size: " << possible_moves.size() << '\n';
+    if (possible_moves.size() == 0) {
+        return evaluate(board);
+    }
+    if (maximising && turn == "white") {
+        int max_eval = -500000;
+        
+        for (Move possible_move: possible_moves) {
+
+            if (board[possible_move.new_row][possible_move.new_col].piece_occupying) {
+                possible_move.piece_taken = board[possible_move.new_row][possible_move.new_col].piece_occupying;
+            }
+            int result = validate_move(game, board, possible_move);
+            if (result >= 0) {
+                process_move_testing(game, board, result, possible_move);
+    
+                //turn = ((turn == "white") ? "black" : "white");
+                int eval = minimax(game, board, depth - 1, false);
+                //turn = ((turn == "white") ? "black" : "white");
+                undo_test_move(board, possible_move);
+                
+                max_eval = std::max(eval, max_eval);
+            }
+        }
+        return max_eval;
+    } else if (!maximising && turn == "black") {
+        int min_eval = 500000;
+        for (Move possible_move: possible_moves) {
+            if (board[possible_move.new_row][possible_move.new_col].piece_occupying) {
+                possible_move.piece_taken = board[possible_move.new_row][possible_move.new_col].piece_occupying;
+            }
+            int result = validate_move(game, board, possible_move);
+            if (result >= 0) {
+                process_move_testing(game, board, result, possible_move);
+
+                //turn = ((turn == "white") ? "black" : "white");
+                int eval = minimax(game, board, depth - 1, true);
+                //turn = ((turn == "white") ? "black" : "white");
+                undo_test_move(board, possible_move);
+                
+                min_eval = std::min(eval, min_eval);
+            }
+        } 
+
+        return min_eval;    
+    } else {
+        std::cout << "a. bug occurred\n";
+    }
+}
+
+int evaluate(Chessboard& board) {
+    int eval { 0 };
+    int points { 0 };
+    int pawns, knight_bishops, rooks, queens;
+    pawns = knight_bishops = rooks = queens = 0;
+    for (int i { 0 }; i < 8; i++) {
+        for (int j { 0 }; j < 8; j++) {
+            if (board[i][j].piece_occupying) {
+                if (board[i][j].piece_occupying->piece_type == "pawn") {
+                    points = 1;
+                    pawns++;
+                } else if (board[i][j].piece_occupying->piece_type == "knight" || 
+                    board[i][j].piece_occupying->piece_type == "bishop") {
+                    points = 3;
+                    knight_bishops++;
+                } else if (board[i][j].piece_occupying->piece_type == "rook") {
+                    points = 5;
+                    rooks++;
+                } else if (board[i][j].piece_occupying->piece_type == "queen") {
+                    points = 9;
+                    queens++;
+                }
+                if (board[i][j].piece_occupying->colour == "white") {
+                    eval += points;
+                } else {
+                    eval -= points;
+                }
+            }
+        }
+    }
+    //std::cout << pawns << ' ' << knight_bishops << ' ' << rooks << ' ' << queens << '\n';
+    //std::cout << "eval: " << eval << '\n';
+    return eval;
 }
 
 void is_game_over(Game& game) {
     evaluate_king_checks(game);
     record_board(game);
-    if (determine_possible_moves(game) == -1 || determine_repetition(game) == -1 || 
+    std::vector<Move> moves = determine_possible_moves(game, game.board, game.turn);
+    if (moves.size() == 0 || determine_repetition(game) == -1 || 
         determine_insufficient_material(game) == -1 || game.plys_to_100 == 100) {
         end_game(game);
     }
@@ -830,18 +1127,18 @@ bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos) {
         game.piece_selected = "queen";
     }
     if (game.piece_selected != "None") {
-        handle_pawn_promotion(game);
+        handle_pawn_promotion(game, game.board, game.current_move);
         return true;
     }
     return false;
 }
 
-void handle_pawn_promotion(Game& game) {
-    move_piece(game.board, game.current_move.prev_row, game.current_move.prev_col, 
-        game.current_move.new_row, game.current_move.new_col);
-    game.current_move.special_move = "promotion";
-    game.move_record.push_back(game.current_move);
-    game.board[game.current_move.new_row][game.current_move.new_col].piece_occupying->piece_type = game.piece_selected;
+void handle_pawn_promotion(Game& game, Chessboard& board, Move& move) {
+    move_piece(board, move.prev_row, move.prev_col, 
+        move.new_row, move.new_col);
+    move.special_move = "promotion";
+    game.move_record.push_back(move);
+    board[move.new_row][move.new_col].piece_occupying->piece_type = game.piece_selected;
     game.piece_selected = "None";
     game.promoting_pawn = false;
 }
@@ -893,9 +1190,12 @@ void end_game(Game& game) {
 
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo) {
     board[new_row][new_col].piece_occupying = nullptr;
+    //std::cout << board[prev_row][prev_col].piece_occupying->piece_type << '\n';
     board[new_row][new_col].piece_occupying = std::move(board[prev_row][prev_col].piece_occupying);
     if (board[new_row][new_col].piece_occupying == nullptr) {
-        //std::cout << "failed\n";
+        std::cout << prev_row << ' ' << prev_col << '\n';
+        std::cout << new_row << ' ' << new_col << '\n';
+        std::cout << "failed\n";
         return;
     }
     board[new_row][new_col].piece_occupying->row = new_row;
@@ -912,6 +1212,9 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
     if (move.new_row > 7 || move.new_col > 7 || move.new_row < 0 || move.new_col < 0) {
         return -1;
     }
+    //std::cout << move.prev_row << ' ' << move.prev_col << '\n';
+    //std::cout << move.new_row << ' ' << move.new_col << '\n';
+    //std::cout << std::boolalpha << (move.prev_row != move.new_row) || (move.prev_col != move.new_col) << '\n';
     if ((move.prev_row != move.new_row || move.prev_col != move.new_col) && 
         (!board[move.new_row][move.new_col].piece_occupying || 
         board[move.new_row][move.new_col].piece_occupying->colour != move.turn)) {
@@ -950,6 +1253,7 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
             return 0;
         }
     } else {
+        //std::cout << "ruledinvalid\n";
         return -1;
     }
 }
@@ -1176,118 +1480,112 @@ int test_castling(Game &game, Chessboard& copy, Move& move) {
     return -1;
 }
 
-int determine_possible_moves(Game& game, bool CPU) {
+std::vector<Move> determine_possible_moves(Game& game, Chessboard& board, std::string turn, bool CPU) {
     std::string board_positions {};
+    std::vector<Move> moves {};
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
-            if (game.board[i][j].piece_occupying && game.board[i][j].piece_occupying->colour == game.turn) {
-                std::string piece = game.board[i][j].piece_occupying->piece_type;
-                if (game.board[i][j].piece_occupying->piece_type == "pawn" && game.turn == "white") {
+            if (board[i][j].piece_occupying && board[i][j].piece_occupying->colour == turn) {
+                std::string piece = board[i][j].piece_occupying->piece_type;
+                if (board[i][j].piece_occupying->piece_type == "pawn" && turn == "white") {
                     std::vector<std::pair<int, int>> possible_moves { { i - 1, j }, 
                     { i - 2, j }, { i - 1, j + 1 }, { i - 1, j - 1 } };
                     for (auto pair: possible_moves) {
-                        Move move { i, j, pair.first, pair.second, game.turn, piece };
-                        if (validate_move(game, game.board, move) == 0) {
+                        Move move { i, j, pair.first, pair.second, turn, piece };
+                        if (validate_move(game, game.board, move) >= 0) {
+                            moves.push_back(move);
                             if (!CPU) {
-                                return 0;
-                            } else {
-                                game.possible_moves.push_back(move);
+                                return moves;
                             }
                         }
                     }
-                } else if (game.board[i][j].piece_occupying->piece_type == "pawn" && game.turn == "black") {
+                } else if (board[i][j].piece_occupying->piece_type == "pawn" && turn == "black") {
                     std::vector<std::pair<int, int>> possible_moves { { i + 1, j }, 
                     { i + 2, j }, { i + 1, j + 1 }, { i + 1, j - 1 } };
                     for (auto pair: possible_moves) {
-                        Move move { i, j, pair.first, pair.second, game.turn, piece};
-                        if (validate_move(game, game.board, move) == 0) {
+                        Move move { i, j, pair.first, pair.second, turn, piece};
+                        if (validate_move(game, game.board, move) >= 0) {
+                            moves.push_back(move);
                             if (!CPU) {
-                                return 0;
-                            } else {
-                                game.possible_moves.push_back(move);
+                                return moves;
                             }
                         }
                     }                   
-                } else if (game.board[i][j].piece_occupying->piece_type == "knight") {
+                } else if (board[i][j].piece_occupying->piece_type == "knight") {
                     std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 2 }, { i + 2, j + 1 }, 
                     { i - 1, j - 2 }, { i - 2, j - 1 }, { i + 1, j - 2 }, 
                     { i - 1, j + 2 }, { i - 2, j + 1 }, { i + 2, j - 1 } };
                     for (auto pair: possible_moves) {
-                        Move move { i, j, pair.first, pair.second, game.turn, piece };
-                        if (validate_move(game, game.board, move) == 0) {
+                        Move move { i, j, pair.first, pair.second, turn, piece };
+                        if (validate_move(game, game.board, move) >= 0) {
+                            moves.push_back(move);
                             if (!CPU) {
-                                return 0;
-                            } else {
-                                game.possible_moves.push_back(move);
+                                return moves;
                             }
                         }
                     }  
-                } else if (game.board[i][j].piece_occupying->piece_type == "bishop") {
+                } else if (board[i][j].piece_occupying->piece_type == "bishop") {
                     for (int k { 0 }; k < 8; k++) {
-                        Move move1 { i, j, i + k, j - k, game.turn, piece };
-                        Move move2 { i, j, i + k, j + k, game.turn, piece };
-                        Move move3 { i, j, i - k, j + k, game.turn, piece };
-                        Move move4 { i, j, i - k, j - k, game.turn, piece };
+                        Move move1 { i, j, i + k, j - k, turn, piece };
+                        Move move2 { i, j, i + k, j + k, turn, piece };
+                        Move move3 { i, j, i - k, j + k, turn, piece };
+                        Move move4 { i, j, i - k, j - k, turn, piece };
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
-                            if (validate_move(game, game.board, move) == 0) {
+                            if (validate_move(game, game.board, move) >= 0) {
+                                moves.push_back(move);
                                 if (!CPU) {
-                                    return 0;
-                                } else {
-                                    game.possible_moves.push_back(move);
+                                    return moves;
                                 }
                             }
                         }
                     }
-                } else if (game.board[i][j].piece_occupying->piece_type == "rook") {
+                } else if (board[i][j].piece_occupying->piece_type == "rook") {
                     for (int k { 0 }; k < 8; k++) {
-                        Move move1 { i, j, i + k, j, game.turn, piece };
-                        Move move2 { i, j, i - k, j, game.turn, piece };
-                        Move move3 { i, j, i, j + k, game.turn, piece };
-                        Move move4 { i, j, i, j - k, game.turn, piece };
+                        Move move1 { i, j, i + k, j, turn, piece };
+                        Move move2 { i, j, i - k, j, turn, piece };
+                        Move move3 { i, j, i, j + k, turn, piece };
+                        Move move4 { i, j, i, j - k, turn, piece };
                         std::vector<Move> moves { move1, move2, move3, move4 };
                         for (Move move: moves) {
-                            if (validate_move(game, game.board, move) == 0) {
+                            if (validate_move(game, game.board, move) >= 0) {
+                                moves.push_back(move);
                                 if (!CPU) {
-                                    return 0;
-                                } else {
-                                    game.possible_moves.push_back(move);
+                                    return moves;
                                 }
                             }
                         }
                     }
-                } else if (game.board[i][j].piece_occupying->piece_type == "queen") {
+                } else if (board[i][j].piece_occupying->piece_type == "queen") {
                     for (int k { 0 }; k < 8; k++) {
-                        Move move1 { i, j, i + k, j - k, game.turn, piece };
-                        Move move2 { i, j, i + k, j + k, game.turn, piece };
-                        Move move3 { i, j, i - k, j + k, game.turn, piece };
-                        Move move4 { i, j, i - k, j - k, game.turn, piece };  
-                        Move move5 { i, j, i + k, j, game.turn, piece };
-                        Move move6 { i, j, i - k, j, game.turn, piece };
-                        Move move7 { i, j, i, j + k, game.turn, piece };
-                        Move move8 { i, j, i, j - k, game.turn, piece };  
+                        Move move1 { i, j, i + k, j - k, turn, piece };
+                        Move move2 { i, j, i + k, j + k, turn, piece };
+                        Move move3 { i, j, i - k, j + k, turn, piece };
+                        Move move4 { i, j, i - k, j - k, turn, piece };  
+                        Move move5 { i, j, i + k, j, turn, piece };
+                        Move move6 { i, j, i - k, j, turn, piece };
+                        Move move7 { i, j, i, j + k, turn, piece };
+                        Move move8 { i, j, i, j - k, turn, piece };  
                         std::vector<Move> moves { move1, move2, move3, move4, move5, move6, move7, move8 };
                         for (Move move: moves) {
-                            if (validate_move(game, game.board, move) == 0) {
+                            if (validate_move(game, game.board, move) >= 0) {
+                                moves.push_back(move);
                                 if (!CPU) {
-                                    return 0;
-                                } else {
-                                    game.possible_moves.push_back(move);
+                                    return moves;
                                 }
                             }
                         }                 
                     }
-                } else if (game.board[i][j].piece_occupying->piece_type == "king") {
+                } else if (board[i][j].piece_occupying->piece_type == "king") {
                     std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 1 }, { i + 1, j }, 
                     { i, j + 1 }, { i + 1, j - 1 }, { i - 1, j + 1 }, 
                     { i - 1, j }, { i, j - 1 }, { i - 1, j - 1 } };
                     for (auto pair: possible_moves) {
-                        Move move { i, j, pair.first, pair.second, game.turn, piece };
-                        if (validate_move(game, game.board, move) == 0) {
+                        Move move { i, j, pair.first, pair.second, turn, piece };
+                        if (validate_move(game, game.board, move) >= 0) {
+                            moves.push_back(move);
                             if (!CPU) {
-                                return 0;
-                            } else {
-                                game.possible_moves.push_back(move);
+                                return moves;
                             }
                         }
                     }
@@ -1295,7 +1593,7 @@ int determine_possible_moves(Game& game, bool CPU) {
             }
         }
     }
-    return -1;
+    return moves;
 }
 
 void record_board(Game& game) {
