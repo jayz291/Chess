@@ -165,7 +165,7 @@ sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, const std
 int select_square(int x, int y, Game& game);
 bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
 void process_move(Game& game, Chessboard& board, int result, Move move, bool CPU_testing = false);
-void process_move_testing(Game& game, Chessboard& board, int result, Move& move);
+void make_move(Game& game, Chessboard& board, int result, Move& move);
 void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo = false);
 std::vector<Move> determine_possible_moves(Game& game, Chessboard& board, std::string turn, bool CPU = false);
 int determine_repetition(Game& game);
@@ -213,7 +213,16 @@ void run_game_loop() {
     game.state = Gamestate::Intro;
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
     while (window.isOpen()) {
-        handle_input(game, window);
+        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == "white") ||
+            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.turn == "black")) {
+            if (!finished) {
+                generate_computer_move(game);
+            } else {
+                update_computer_move(game);
+            }
+        } else {
+            handle_input(game, window);
+        }
         render(game, window);
     }
 }
@@ -223,9 +232,7 @@ void handle_input(Game& game, sf::RenderWindow& window) {
         if (event->is<sf::Event::Closed>()) {
             window.close();
         }
-        if (game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == "white" && !finished) {
-            generate_computer_move(game);
-        }
+   
         update_computer_move(game);
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             //std::cout << "clicked\n";
@@ -239,20 +246,12 @@ void handle_input(Game& game, sf::RenderWindow& window) {
                 if (game.turn == "black") {
                     handle_clicks_playing(game, window, mouse_press->position);
                     handle_clicks_undoing(game, mouse_press->position);                     
-                } else if (!finished) {   
-                    computer_turn = true;
-                    generate_computer_move(game);
-                }
-                update_computer_move(game);
+                } 
             } else if (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing) {
                 if (game.turn == "white") {
                     handle_clicks_playing(game, window, mouse_press->position);
                     handle_clicks_undoing(game, mouse_press->position);                     
-                } else if (!finished) {
-                    computer_turn = true;
-                    generate_computer_move(game);
-                }  
-                update_computer_move(game);        
+                } 
             } else if (game.state == Gamestate::Promoting_pawn) {
 
                 handle_clicks_promoting(game, mouse_press->position);
@@ -401,9 +400,6 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         game.turn = ((game.turn == "white") ? "black" : "white");
         is_game_over(game);
     }
-    /*if (!game.game_over && result >= 0 && game.mode != Gamemode::Twoplayer) {
-        generate_computer_move(game);
-    }*/
 }
 
 void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
@@ -412,9 +408,6 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         game.state = Gamestate::Playing;
         game.turn = ((game.turn == "white") ? "black" : "white");
         is_game_over(game);
-    }
-    if (!game.game_over && game.mode != Gamemode::Twoplayer) {
-        generate_computer_move(game);
     }
 }
 
@@ -841,7 +834,7 @@ void process_move(Game& game, Chessboard& board, int result, Move move, bool CPU
     }
 }
 
-void process_move_testing(Game& game, Chessboard& board, int result, Move& move) {
+void make_move(Game& game, Chessboard& board, int result, Move& move) {
     //std::cout << "processing move\n";
     if (board[move.prev_row][move.prev_col].piece_occupying == nullptr) {
         std::cout << "error before\n";
@@ -953,15 +946,15 @@ Move get_best_move(Game& game, Chessboard& copy, int depth) {
     //std::cout << "here2\n";
 
     for (auto move: possible_moves) {
-        //std::cout << "here2\n";
+
         int result = validate_move(game, copy, move);
         if (result >= 0) {
-            process_move_testing(game, copy, result, move);
+            make_move(game, copy, result, move);
             //std::cout << "here3\n";
             bool maximising = ((turn == "white") ? true : false);
             
             int move_eval = minimax(game, copy, depth - 1, !maximising);
-            std::cout << "e: " << move_eval << '\n';
+            //std::cout << "e: " << move_eval << '\n';
             if (maximising) {
                 if (move_eval > best_score) {
                     best_score = move_eval;
@@ -990,7 +983,7 @@ int minimax(Game& game, Chessboard& board, int depth, bool maximising) {
     std::string turn = ((maximising == true) ? "white" : "black");
 
     std::vector<Move> possible_moves = determine_possible_moves(game, board, turn, true);
-    //std::cout << "size: " << possible_moves.size() << '\n';
+    std::cout << "size: " << possible_moves.size() << '\n';
     if (possible_moves.size() == 0) {
         return evaluate(board);
     }
@@ -1004,7 +997,7 @@ int minimax(Game& game, Chessboard& board, int depth, bool maximising) {
             }
             int result = validate_move(game, board, possible_move);
             if (result >= 0) {
-                process_move_testing(game, board, result, possible_move);
+                make_move(game, board, result, possible_move);
     
                 //turn = ((turn == "white") ? "black" : "white");
                 int eval = minimax(game, board, depth - 1, false);
@@ -1023,7 +1016,7 @@ int minimax(Game& game, Chessboard& board, int depth, bool maximising) {
             }
             int result = validate_move(game, board, possible_move);
             if (result >= 0) {
-                process_move_testing(game, board, result, possible_move);
+                make_move(game, board, result, possible_move);
 
                 //turn = ((turn == "white") ? "black" : "white");
                 int eval = minimax(game, board, depth - 1, true);
