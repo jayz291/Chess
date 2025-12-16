@@ -1,9 +1,6 @@
 #include "logic.h"
 #include <iostream>
 
-//int select_square(int x, int y, Game& game);
-//bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
-
 void undo_move(Game& game, Chessboard& board, Move& prev_move, std::string turn) {
     move_piece(board, prev_move.new_row, prev_move.new_col, prev_move.prev_row,
     prev_move.prev_col, true);
@@ -136,6 +133,7 @@ void make_test_move(Game& game, Chessboard& board, int result, Move& move) {
             move.special_move = "promotion";
             board[move.new_row][move.new_col].piece_occupying->piece_type = "queen";
             game.move_record.push_back(move);
+            game.turn = ((game.turn == "black") ? "white" : "black");
         }
         return;
     }
@@ -247,7 +245,7 @@ Move get_best_move(Game& game, Chessboard& copy, int depth) {
             bool maximising = ((turn == "white") ? true : false);
             
             int move_eval = minimax(game, copy, depth - 1, -500000, 500000, !maximising);
-            std::cout << "e: " << move_eval << '\n';
+            std::cout << "e: " << move_eval << ' ' << turn << '\n';
             if (turn == "white") {
                 if (move_eval > best_score) {
                     best_score = move_eval;
@@ -380,6 +378,7 @@ void is_game_over(Game& game) {
     std::vector<Move> moves = determine_possible_moves(game, game.board, game.turn);
     if (moves.size() == 0 || determine_repetition(game) == -1 || 
         determine_insufficient_material(game) == -1 || game.plys_to_100 == 100) {
+        std::cout << moves.size() << '\n';
         end_game(game);
     }
 }
@@ -798,56 +797,199 @@ std::vector<Move> determine_possible_moves(Game& game, Chessboard& board, std::s
                         }
                     }  
                 } else if (board[i][j].piece_occupying->piece_type == "bishop") {
-                    for (int k { 0 }; k < 8; k++) {
+                    for (int k { 1 }; k < 8; k++) {
                         Move move1 { i, j, i + k, j - k, turn, piece };
-                        Move move2 { i, j, i + k, j + k, turn, piece };
-                        Move move3 { i, j, i - k, j + k, turn, piece };
-                        Move move4 { i, j, i - k, j - k, turn, piece };
-                        std::vector<Move> candidates { move1, move2, move3, move4 };
-                        for (Move move: candidates) {
-                            if (validate_move(game, board, move) >= 0) {
-                                moves.push_back(move);
-                                if (!CPU) {
-                                    return moves;
-                                }
+                        if (validate_move(game, board, move1) >= 0) {
+                            moves.push_back(move1);
+                            if (!CPU) {
+                                return moves;
                             }
+                        }
+                        if (board[i + k][j - k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move2 { i, j, i + k, j + k, turn, piece };
+                        if (validate_move(game, board, move2) >= 0) {
+                            moves.push_back(move2);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        }
+                        if (board[i + k][j + k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move3 { i, j, i - k, j + k, turn, piece };
+                        if (validate_move(game, board, move3) >= 0) {
+                            moves.push_back(move3);
+                            if (!CPU) {
+                                return moves;
+                            } 
+                        }
+                        if (board[i - k][j + k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move4 { i, j, i - k, j - k, turn, piece };
+                        if (validate_move(game, board, move4) >= 0) {
+                            moves.push_back(move4);
+                            if (!CPU) {
+                                return moves;
+                            } 
+                        }
+                        if (board[i - k][j - k].piece_occupying) {
+                            break;
                         }
                     }
                 } else if (board[i][j].piece_occupying->piece_type == "rook") {
-                    for (int k { 0 }; k < 8; k++) {
+                    for (int k { 1 }; k < 8; k++) {
                         Move move1 { i, j, i + k, j, turn, piece };
-                        Move move2 { i, j, i - k, j, turn, piece };
-                        Move move3 { i, j, i, j + k, turn, piece };
-                        Move move4 { i, j, i, j - k, turn, piece };
-                        std::vector<Move> candidates { move1, move2, move3, move4 };
-                        for (Move move: candidates) {
-                            if (validate_move(game, board, move) >= 0) {
-                                moves.push_back(move);
-                                if (!CPU) {
-                                    return moves;
-                                }
+                        if (validate_move(game, board, move1) >= 0) {
+                            moves.push_back(move1);
+                            if (!CPU) {
+                                return moves;
                             }
+                        } 
+                        if (board[i + k][j].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move2 { i, j, i - k, j, turn, piece };
+                        if (validate_move(game, board, move2) >= 0) {
+                            moves.push_back(move2);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        }
+                        if (board[i - k][j].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move3 { i, j, i, j + k, turn, piece };
+                        if (validate_move(game, board, move3) >= 0) {
+                            moves.push_back(move3);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        }
+                        if (board[i][j + k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move4 { i, j, i, j - k, turn, piece };
+                        if (validate_move(game, board, move4) >= 0) {
+                            moves.push_back(move4);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        } 
+                        if (board[i][j - k].piece_occupying) {
+                            break;
                         }
                     }
                 } else if (board[i][j].piece_occupying->piece_type == "queen") {
-                    for (int k { 0 }; k < 8; k++) {
+                    for (int k { 1 }; k < 8; k++) {
                         Move move1 { i, j, i + k, j - k, turn, piece };
-                        Move move2 { i, j, i + k, j + k, turn, piece };
-                        Move move3 { i, j, i - k, j + k, turn, piece };
-                        Move move4 { i, j, i - k, j - k, turn, piece };  
-                        Move move5 { i, j, i + k, j, turn, piece };
-                        Move move6 { i, j, i - k, j, turn, piece };
-                        Move move7 { i, j, i, j + k, turn, piece };
-                        Move move8 { i, j, i, j - k, turn, piece };  
-                        std::vector<Move> candidates { move1, move2, move3, move4, move5, move6, move7, move8 };
-                        for (Move move: candidates) {
-                            if (validate_move(game, board, move) >= 0) {
-                                moves.push_back(move);
-                                if (!CPU) {
-                                    return moves;
-                                }
+                        if (validate_move(game, board, move1) >= 0) {
+                            moves.push_back(move1);
+                            if (!CPU) {
+                                return moves;
                             }
-                        }                 
+                        }
+                        if (board[i + k][j - k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move2 { i, j, i + k, j + k, turn, piece };
+                        if (validate_move(game, board, move2) >= 0) {
+                            moves.push_back(move2);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        }
+                        if (board[i + k][j + k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move3 { i, j, i - k, j + k, turn, piece };
+                        if (validate_move(game, board, move3) >= 0) {
+                            moves.push_back(move3);
+                            if (!CPU) {
+                                return moves;
+                            } 
+                        }
+                        if (board[i - k][j + k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move4 { i, j, i - k, j - k, turn, piece };
+                        if (validate_move(game, board, move4) >= 0) {
+                            moves.push_back(move4);
+                            if (!CPU) {
+                                return moves;
+                            } 
+                        }
+                        if (board[i - k][j - k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move5 { i, j, i + k, j, turn, piece };
+                        if (validate_move(game, board, move5) >= 0) {
+                            moves.push_back(move5);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        } 
+                        if (board[i + k][j].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move6 { i, j, i - k, j, turn, piece };
+                        if (validate_move(game, board, move6) >= 0) {
+                            moves.push_back(move6);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        }
+                        if (board[i - k][j].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move7 { i, j, i, j + k, turn, piece };
+                        if (validate_move(game, board, move7) >= 0) {
+                            moves.push_back(move7);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        }
+                        if (board[i][j + k].piece_occupying) {
+                            break;
+                        }
+                    }
+                    for (int k { 1 }; k < 8; k++) {
+                        Move move8 { i, j, i, j - k, turn, piece };
+                        if (validate_move(game, board, move8) >= 0) {
+                            moves.push_back(move8);
+                            if (!CPU) {
+                                return moves;
+                            }
+                        } 
+                        if (board[i][j - k].piece_occupying) {
+                            break;
+                        }
                     }
                 } else if (board[i][j].piece_occupying->piece_type == "king") {
                     std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 1 }, { i + 1, j }, 
