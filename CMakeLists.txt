@@ -9,7 +9,18 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 
-add_executable(chess src/chess.cpp)
+add_executable(chess
+    src/main.cpp
+    src/game.cpp
+    src/logic.cpp
+    src/gui.cpp
+    src/game.h
+    src/logic.h
+    src/gui.h
+    src/definitions.h
+)
+
+target_include_directories(chess PRIVATE src)
 
 add_custom_command(TARGET chess POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
