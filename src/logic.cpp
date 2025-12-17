@@ -692,21 +692,69 @@ int check_checks(Game &game, Chessboard& copy, Move& move) {
                 break;
             }
         }
-    }   
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-            if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == opposing_colour) {
-          
-                Move test_move { i, j, king_position.row, king_position.col, 
-                    opposing_colour, copy[i][j].piece_occupying->piece_type };
-                test = validate_move(game, copy, test_move, true);
-                if (test == 0) {
-                    //std::cout << "prev: " << i << ' ' << j << " new: " << new_row << ' ' << new_col << '\n';
+    } 
+    int pawn_direction = (move.turn == "white") ? -1 : 1;
+    std::vector<std::pair<int, int>> bishop_directions { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
+    for (auto pair: bishop_directions) {
+        for (int k { 1 }; k < 8; k++) {
+            int target_row = king_position.row + k * pair.first;
+            int target_col = king_position.col + k * pair.second;
+            if (target_row < 0 || target_col < 0 || target_row > 7 || target_col > 7) {
+                break;
+            }
+            if (copy[target_row][target_col].piece_occupying) {
+                if ((copy[target_row][target_col].piece_occupying->piece_type == "bishop" ||
+                    copy[target_row][target_col].piece_occupying->piece_type == "queen") && 
+                    copy[target_row][target_col].piece_occupying->colour == opposing_colour) {
                     return 1;
+                } else if (k == 1 && copy[target_row][target_col].piece_occupying->piece_type == "king") {
+                    return 1;
+                } else if (k == 1 && copy[target_row][target_col].piece_occupying->piece_type == "pawn" &&
+                    copy[target_row][target_col].piece_occupying->colour == opposing_colour &&
+                    pair.first == pawn_direction) {
+                    return 1;
+                } else {
+                    break;
                 }
+            }
+        }   
+    }
+    std::vector<std::pair<int, int>> rook_directions { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 } };
+    for (auto pair: rook_directions) {
+        for (int k { 1 }; k < 8; k++) {
+            int target_row = king_position.row + k * pair.first;
+            int target_col = king_position.col + k * pair.second;
+            if (target_row < 0 || target_col < 0 || target_row > 7 || target_col > 7) {
+                break;
+            }
+            if (copy[target_row][target_col].piece_occupying) {
+                if ((copy[target_row][target_col].piece_occupying->piece_type == "rook" ||
+                    copy[target_row][target_col].piece_occupying->piece_type == "queen") && 
+                    copy[target_row][target_col].piece_occupying->colour == opposing_colour) {
+                    return 1;
+                } else if (k == 1 && copy[target_row][target_col].piece_occupying->piece_type == "king") {
+                    return 1;
+                } else {
+                    break;
+                }
+            }
+        }   
+    }
+    int i { king_position.row };
+    int j { king_position.col };
+    std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 2 }, { i + 2, j + 1 }, 
+    { i - 1, j - 2 }, { i - 2, j - 1 }, { i + 1, j - 2 }, 
+    { i - 1, j + 2 }, { i - 2, j + 1 }, { i + 2, j - 1 } };
+    for (auto pair: possible_moves) {
+        if (pair.first >= 0 && pair.first <= 7 && pair.second >= 0 && pair.second <= 7) {
+            if (copy[pair.first][pair.second].piece_occupying && 
+                copy[pair.first][pair.second].piece_occupying->piece_type == "knight" &&
+                copy[pair.first][pair.second].piece_occupying->colour == opposing_colour) {
+                return 1;
             }
         }
     }
+    
     return 0;
     
 }
