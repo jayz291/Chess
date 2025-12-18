@@ -18,9 +18,9 @@ void Game::initialise() {
     pawns_on_board = true;
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
-    winner = piece_selected = "None";
+    winner = piece_selected = -1;
     white_in_check = black_in_check = game_over = false;
-    turn = "white";
+    turn = white;
     checkmate = stalemate = repetition = insufficient_material = promoting_pawn = false;
     selected.col = selected.row = -1;
     black_king_position.row = 0;
@@ -37,27 +37,27 @@ void Game::initialise() {
         }
     }
     for (int i { 0 }; i < 8; i++) {
-        board[1][i].piece_occupying = std::make_shared<Piece> ("pawn", "black", 0, 1, i);
+        board[1][i].piece_occupying = std::make_shared<Piece> (pawn, black, 0, 1, i);
     }
     for (int i { 0 }; i < 8; i++) {
-        board[6][i].piece_occupying = std::make_shared<Piece> ("pawn", "white", 0, 6, i);
+        board[6][i].piece_occupying = std::make_shared<Piece> (pawn, white, 0, 6, i);
     }
-    board[0][0].piece_occupying = std::make_shared<Piece> ("rook", "black", 0, 0, 0);
-    board[0][1].piece_occupying = std::make_shared<Piece> ("knight", "black", 0, 0, 1);
-    board[0][2].piece_occupying = std::make_shared<Piece> ("bishop", "black", 0, 0, 2);
-    board[0][3].piece_occupying = std::make_shared<Piece> ("queen", "black", 0, 0, 3);
-    board[0][4].piece_occupying = std::make_shared<Piece> ("king", "black", 0, 0, 4);
-    board[0][5].piece_occupying = std::make_shared<Piece> ("bishop", "black", 0, 0, 5);
-    board[0][6].piece_occupying = std::make_shared<Piece> ("knight", "black", 0, 0, 6);
-    board[0][7].piece_occupying = std::make_shared<Piece> ("rook", "black", 0, 0, 7);
-    board[7][0].piece_occupying = std::make_shared<Piece> ("rook", "white", 0, 7, 0);
-    board[7][1].piece_occupying = std::make_shared<Piece> ("knight", "white", 0, 7, 1);
-    board[7][2].piece_occupying = std::make_shared<Piece> ("bishop", "white", 0, 7, 2);
-    board[7][3].piece_occupying = std::make_shared<Piece> ("queen", "white", 0, 7, 3);
-    board[7][4].piece_occupying = std::make_shared<Piece> ("king", "white", 0, 7, 4);
-    board[7][5].piece_occupying = std::make_shared<Piece> ("bishop", "white", 0, 7, 5);
-    board[7][6].piece_occupying = std::make_shared<Piece> ("knight", "white", 0, 7, 6);
-    board[7][7].piece_occupying = std::make_shared<Piece> ("rook", "white", 0, 7, 7);
+    board[0][0].piece_occupying = std::make_shared<Piece> (rook, black, 0, 0, 0);
+    board[0][1].piece_occupying = std::make_shared<Piece> (knight, black, 0, 0, 1);
+    board[0][2].piece_occupying = std::make_shared<Piece> (bishop, black, 0, 0, 2);
+    board[0][3].piece_occupying = std::make_shared<Piece> (queen, black, 0, 0, 3);
+    board[0][4].piece_occupying = std::make_shared<Piece> (king, black, 0, 0, 4);
+    board[0][5].piece_occupying = std::make_shared<Piece> (bishop, black, 0, 0, 5);
+    board[0][6].piece_occupying = std::make_shared<Piece> (knight, black, 0, 0, 6);
+    board[0][7].piece_occupying = std::make_shared<Piece> (rook, black, 0, 0, 7);
+    board[7][0].piece_occupying = std::make_shared<Piece> (rook, white, 0, 7, 0);
+    board[7][1].piece_occupying = std::make_shared<Piece> (knight, white, 0, 7, 1);
+    board[7][2].piece_occupying = std::make_shared<Piece> (bishop, white, 0, 7, 2);
+    board[7][3].piece_occupying = std::make_shared<Piece> (queen, white, 0, 7, 3);
+    board[7][4].piece_occupying = std::make_shared<Piece> (king, white, 0, 7, 4);
+    board[7][5].piece_occupying = std::make_shared<Piece> (bishop, white, 0, 7, 5);
+    board[7][6].piece_occupying = std::make_shared<Piece> (knight, white, 0, 7, 6);
+    board[7][7].piece_occupying = std::make_shared<Piece> (rook, white, 0, 7, 7);
 }
 
 

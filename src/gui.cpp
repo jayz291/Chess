@@ -18,12 +18,12 @@ void handle_input(Game& game, sf::RenderWindow& window) {
                 handle_clicks_playing(game, window, mouse_press->position);
                 handle_clicks_undoing(game, mouse_press->position);
             } else if (game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing) {
-                if (game.turn == "black") {
+                if (game.turn == black) {
                     handle_clicks_playing(game, window, mouse_press->position);
                     handle_clicks_undoing(game, mouse_press->position);                     
                 } 
             } else if (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing) {
-                if (game.turn == "white") {
+                if (game.turn == white) {
                     handle_clicks_playing(game, window, mouse_press->position);
                     handle_clicks_undoing(game, mouse_press->position);                     
                 } 
@@ -147,13 +147,13 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         game.initialise();
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
-        game.view = "white";
+        game.view = white;
         game.mode = Gamemode::CPUblack;
     } else if (400 <= x && x <= 650 && 530 <= y && y <= 640) {
-        game.view = "black";
+        game.view = black;
         game.mode = Gamemode::CPUwhite;
     } else if (690 <= x && x <= 940 && 530 <= y && y <= 640) {
-        game.view = "white";
+        game.view = white;
         game.mode = Gamemode::Twoplayer;
     }
 }
@@ -172,7 +172,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         return;
     }
     if (result >= 0) {
-        game.turn = ((game.turn == "white") ? "black" : "white");
+        game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
     }
 }
@@ -181,7 +181,7 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
     bool selection_made = select_pawn_promotion(game, mouse_pos);
     if (selection_made) {
         game.state = Gamestate::Playing;
-        game.turn = ((game.turn == "white") ? "black" : "white");
+        game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
     }
 }
@@ -262,24 +262,24 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             y_offset = 20 + i * (SQUARE_SIZE);
             
             if (game.board[i][j].colour == "brown") {
-                if (game.view == "white") {
+                if (game.view == white) {
                     cell.setFillColor(sf::Color(165, 42, 42));
                 } else {
                     cell.setFillColor(sf::Color::Yellow);
                 }
             } else {
-                if (game.view == "white") {
+                if (game.view == white) {
                     cell.setFillColor(sf::Color::Yellow);
                 } else {
                     cell.setFillColor(sf::Color(165, 42, 42));
                 }
             }
-            if (game.board[i][j].selected && game.view == "white") {
+            if (game.board[i][j].selected && game.view == white) {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
-            } else if (game.board[7 - i][j].selected && game.view == "black") {
+            } else if (game.board[7 - i][j].selected && game.view == black) {
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);             
             }
@@ -293,29 +293,29 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             
             uint64_t mask = 1ULL << square;
 
-            if (game.bitboards.white_pawns & mask) {
+            if (game.bitboards.bitboards[0][0] & mask) {
                 draw_piece(game, window, rank, file, "white pawn");
-            } else if (game.bitboards.black_pawns & mask) {
+            } else if (game.bitboards.bitboards[1][0] & mask) {
                 draw_piece(game, window, rank, file, "black pawn");
-            } else if (game.bitboards.white_knights & mask) {
+            } else if (game.bitboards.bitboards[0][1] & mask) {
                 draw_piece(game, window, rank, file, "white knight");
-            } else if (game.bitboards.black_knights & mask) {
+            } else if (game.bitboards.bitboards[1][1] & mask) {
                 draw_piece(game, window, rank, file, "black knight");
-            } else if (game.bitboards.white_bishops & mask) {
+            } else if (game.bitboards.bitboards[0][2] & mask) {
                 draw_piece(game, window, rank, file, "white bishop");
-            } else if (game.bitboards.black_bishops & mask) {
+            } else if (game.bitboards.bitboards[1][2] & mask) {
                 draw_piece(game, window, rank, file, "black bishop");
-            } else if (game.bitboards.white_rooks & mask) {
+            } else if (game.bitboards.bitboards[0][3] & mask) {
                 draw_piece(game, window, rank, file, "white rook");
-            } else if (game.bitboards.black_rooks & mask) {
+            } else if (game.bitboards.bitboards[1][3] & mask) {
                 draw_piece(game, window, rank, file, "black rook");
-            } else if (game.bitboards.white_queens & mask) {
+            } else if (game.bitboards.bitboards[0][4] & mask) {
                 draw_piece(game, window, rank, file, "white queen");
-            } else if (game.bitboards.black_queens & mask) {
+            } else if (game.bitboards.bitboards[1][4] & mask) {
                 draw_piece(game, window, rank, file, "black queen");
-            } else if (game.bitboards.white_king & mask) {
+            } else if (game.bitboards.bitboards[0][5] & mask) {
                 draw_piece(game, window, rank, file, "white king");
-            } else if (game.bitboards.black_king & mask) {
+            } else if (game.bitboards.bitboards[1][5] & mask) {
                 draw_piece(game, window, rank, file, "black king");
             }
         }
@@ -334,7 +334,7 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
     text.setPosition({280, 280}); 
 
     if (game.checkmate) {
-        if (game.winner == "white") {
+        if (game.winner == white) {
             text.setString("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {
             text.setString("CHECKMATE\nBLACK WON!\n-----------------------------\nClick anywhere to \ncontinue");
@@ -360,11 +360,11 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
     sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, "blue");
 
     window.draw(pawn_promotion_screen);
-    int row = ((game.view == "white") ? 4 : 3);
-    std::shared_ptr<Piece> piece1 = std::make_shared<Piece> ("rook", game.turn, false, row, 2);
-    std::shared_ptr<Piece> piece2 = std::make_shared<Piece> ("knight", game.turn, false, row, 3);
-    std::shared_ptr<Piece> piece3 = std::make_shared<Piece> ("bishop", game.turn, false, row, 4);
-    std::shared_ptr<Piece> piece4 = std::make_shared<Piece> ("queen", game.turn, false, row, 5);
+    int row = ((game.view == white) ? 4 : 3);
+    std::shared_ptr<Piece> piece1 = std::make_shared<Piece> (rook, game.turn, false, row, 2);
+    std::shared_ptr<Piece> piece2 = std::make_shared<Piece> (knight, game.turn, false, row, 3);
+    std::shared_ptr<Piece> piece3 = std::make_shared<Piece> (bishop, game.turn, false, row, 4);
+    std::shared_ptr<Piece> piece4 = std::make_shared<Piece> (queen, game.turn, false, row, 5);
     
     std::vector<std::shared_ptr<Piece>> promotion_pieces { piece1, piece2, piece3, piece4 };
     for (auto piece: promotion_pieces) {
@@ -431,17 +431,17 @@ void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string 
     sprite.setScale({0.1f, 0.1f});
     float y_offset;
     float x_offset { static_cast<float>(135 + y * (SQUARE_SIZE)) };
-    if (game.view == "white") {
+    if (game.view == white) {
         y_offset = (30 + x * (SQUARE_SIZE));
     } else {
         y_offset = (695 - x * (SQUARE_SIZE));
     }
     if (piece == "white king") {
-        if (game.white_in_check && game.turn == "white") {
+        if (game.white_in_check && game.turn == white) {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         } 
     } else if (piece == "black king") {
-        if (game.black_in_check && game.turn == "black") {
+        if (game.black_in_check && game.turn == black) {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         }
     }
@@ -453,7 +453,7 @@ void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string 
 int select_square(int x, int y, Game& game) {
     int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
-    if (game.view == "black") {
+    if (game.view == black) {
         row = 7 - row;
     }
     
@@ -497,15 +497,15 @@ bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos) {
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
 
     if (row == 4 && col == 2) {
-        game.piece_selected = "rook";
+        game.piece_selected = rook;
     } else if (row == 4 && col == 3) {
-        game.piece_selected = "knight";
+        game.piece_selected = knight;
     } else if (row == 4 && col == 4) {
-        game.piece_selected = "bishop";
+        game.piece_selected = bishop;
     } else if (row == 4 && col == 5) {
-        game.piece_selected = "queen";
+        game.piece_selected = queen;
     }
-    if (game.piece_selected != "None") {
+    if (game.piece_selected != -1) {
         handle_pawn_promotion(game, game.board, game.current_move);
         return true;
     }

@@ -16,7 +16,7 @@ class Game {
         Chessboard board {};
         Bitboards bitboards {};
         Coords selected {};
-        std::string turn {};
+        int turn {};
         bool white_in_check {};
         bool black_in_check {};
         Coords black_king_position {};
@@ -26,9 +26,9 @@ class Game {
         bool stalemate {};
         bool repetition {};
         bool insufficient_material {};
-        std::string winner { "None" };
+        int winner { -1 };
         bool promoting_pawn {};
-        std::string piece_selected { "None" };
+        int piece_selected {};
         std::vector<Move> move_record {};
         std::vector<std::string> board_record {};
         int plys_to_100 {};
@@ -36,7 +36,7 @@ class Game {
         int value_black_pieces {};
         bool pawns_on_board {};
         Move current_move {};
-        std::string view { "white" };
+        int view { white };
         std::vector<Move> possible_moves {};
         Move calculated_move {};
         bool move_ready { false };
