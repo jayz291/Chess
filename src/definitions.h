@@ -61,7 +61,19 @@ struct Bitboards {
     uint64_t white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_king;
     uint64_t black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_king;
     uint64_t occupied = white_occupied | black_occupied;
+    uint64_t knight_attacks[64];
+    uint64_t king_moves[64];
 };
+
+extern uint64_t FILE_H;
+extern uint64_t FILE_A;
+extern uint64_t FILE_B;
+extern uint64_t FILE_G;
+extern uint64_t FILE_AB;
+extern uint64_t FILE_GH;
+extern uint64_t RANK_4;
+extern uint64_t RANK_5;
+
 
 enum class Gamestate {
     Intro,

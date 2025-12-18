@@ -5,6 +5,11 @@
 #include <thread>
 #include <chrono>
 
+void find_valid_knight_moves(Game& game);
+void find_valid_king_moves(Game& game);
+void find_valid_white_pawn_moves(Game& game);
+void find_valid_black_pawn_moves(Game& game);
+
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
 int validate_move_knight(Chessboard& board, Move& move);

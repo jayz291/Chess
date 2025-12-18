@@ -1,6 +1,71 @@
 #include "logic.h"
 #include <iostream>
 
+uint64_t FILE_H = 0x8080808080808080ULL;
+uint64_t FILE_A = 0x0101010101010101ULL;
+uint64_t FILE_B = 0x0202020202020202ULL;
+uint64_t FILE_G = 0x4040404040404040ULL;
+uint64_t FILE_AB = FILE_A | FILE_B;
+uint64_t FILE_GH = FILE_G | FILE_H;
+uint64_t RANK_4 = 0x00000000FF000000ULL;
+uint64_t RANK_5 = 0x000000FF00000000ULL;
+
+void find_valid_knight_moves(Game& game) {
+    for (int cell { 0 }; cell < 64; cell++) {
+        uint64_t position = 1ULL << cell;
+        uint64_t moves = 0;
+        moves |= (position >> 17 & ~FILE_H);
+        moves |= (position >> 15 & ~FILE_A);
+        moves |= (position >> 10 & ~FILE_GH);
+        moves |= (position >> 6 & ~FILE_AB);
+        moves |= (position << 6 & ~FILE_GH);
+        moves |= (position << 10 & ~FILE_AB);
+        moves |= (position << 15 & ~FILE_H);
+        moves |= (position << 17 & ~FILE_A);
+        game.bitboards.knight_attacks[cell] = moves;
+    }
+}
+
+void find_valid_king_moves(Game& game) {
+    for (int cell { 0 }; cell < 64; cell++) {
+        uint64_t position = 1ULL << cell;
+        uint64_t moves = 0;
+        moves |= (position >> 9 & ~FILE_H);
+        moves |= (position >> 8);
+        moves |= (position >> 7 & ~FILE_A);
+        moves |= (position >> 1 & ~FILE_H);
+        moves |= (position << 1 & ~FILE_A);
+        moves |= (position << 7 & ~FILE_H);
+        moves |= (position << 8);
+        moves |= (position << 9 & ~FILE_A);
+        game.bitboards.king_moves[cell] = moves;
+    }
+}
+
+void find_valid_white_pawn_moves(Game& game) {
+    uint64_t non_capture_moves = 0ULL;
+    uint64_t double_move = 0ULL;
+    uint64_t single_move = 0ULL;
+    uint64_t capture_moves = 0ULL;
+    single_move |= game.bitboards.white_pawns << 8 & ~game.bitboards.occupied;
+    double_move |= (single_move << 8 & RANK_4 & ~game.bitboards.occupied);
+    capture_moves |= (game.bitboards.white_pawns << 7 & ~FILE_A & game.bitboards.black_occupied);
+    capture_moves |= (game.bitboards.white_pawns << 9 & ~FILE_A & game.bitboards.black_occupied);
+    non_capture_moves = single_move | double_move;
+}
+
+void find_valid_black_pawn_moves(Game& game) {
+    uint64_t non_capture_moves = 0ULL;
+    uint64_t double_move = 0ULL;
+    uint64_t single_move = 0ULL;
+    uint64_t capture_moves = 0ULL;
+    single_move |= game.bitboards.black_pawns >> 8 & ~game.bitboards.occupied;
+    double_move |= (single_move >> 8 & RANK_5 & ~game.bitboards.occupied);
+    capture_moves |= (game.bitboards.black_pawns >> 7 & ~FILE_A & game.bitboards.white_occupied);
+    capture_moves |= (game.bitboards.black_pawns >> 9 & ~FILE_A & game.bitboards.white_occupied);
+    non_capture_moves = single_move | double_move;
+}
+
 void undo_move(Game& game, Chessboard& board, Move& prev_move, std::string turn) {
     move_piece(board, prev_move.new_row, prev_move.new_col, prev_move.prev_row,
     prev_move.prev_col, true);
