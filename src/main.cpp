@@ -13,8 +13,8 @@ void run_game_loop() {
     game.state = Gamestate::Intro;
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
     while (window.isOpen()) {
-        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == "white") ||
-            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.turn == "black")) {
+        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == white) ||
+            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.turn == black)) {
             
             if (!finished) {
                 generate_computer_move(game);
@@ -24,7 +24,6 @@ void run_game_loop() {
             }
         } 
         handle_input(game, window);
-    
         render(game, window);
     }
 }

@@ -59,6 +59,15 @@ enum {
     king = 5
 };
 
+extern uint64_t FILE_H;
+extern uint64_t FILE_A;
+extern uint64_t FILE_B;
+extern uint64_t FILE_G;
+extern uint64_t FILE_AB;
+extern uint64_t FILE_GH;
+extern uint64_t RANK_4;
+extern uint64_t RANK_5;
+
 struct Bitboards {
     uint64_t bitboards[2][6];
     uint64_t white_pawns = 0x000000000000FF00ULL;
@@ -91,6 +100,7 @@ struct Bitboards {
         bitboards[1][3] = black_rooks;
         bitboards[1][4] = black_queens;
         bitboards[1][5] = black_king;
+        find_valid_knight_moves();
     }
     void update_occupied() {
         white_occupied = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
@@ -99,16 +109,22 @@ struct Bitboards {
         bitboards[1][5];
         occupied = white_occupied | black_occupied;
     }
+    void find_valid_knight_moves() {
+        for (int cell { 0 }; cell < 64; cell++) {
+            uint64_t position = 1ULL << cell;
+            uint64_t moves = 0;
+            moves |= (position >> 17 & ~FILE_H);
+            moves |= (position >> 15 & ~FILE_A);
+            moves |= (position >> 10 & ~FILE_GH);
+            moves |= (position >> 6 & ~FILE_AB);
+            moves |= (position << 6 & ~FILE_GH);
+            moves |= (position << 10 & ~FILE_AB);
+            moves |= (position << 15 & ~FILE_H);
+            moves |= (position << 17 & ~FILE_A);
+            knight_attacks[cell] = moves;
+        }
+    }
 };
-
-extern uint64_t FILE_H;
-extern uint64_t FILE_A;
-extern uint64_t FILE_B;
-extern uint64_t FILE_G;
-extern uint64_t FILE_AB;
-extern uint64_t FILE_GH;
-extern uint64_t RANK_4;
-extern uint64_t RANK_5;
 
 
 enum class Gamestate {

@@ -7,24 +7,11 @@ uint64_t FILE_B = 0x0202020202020202ULL;
 uint64_t FILE_G = 0x4040404040404040ULL;
 uint64_t FILE_AB = FILE_A | FILE_B;
 uint64_t FILE_GH = FILE_G | FILE_H;
+uint64_t RANK_2 = 0x000000000000FF00ULL;
+uint64_t RANK_7 = 0x00FF000000000000ULL;
 uint64_t RANK_4 = 0x00000000FF000000ULL;
 uint64_t RANK_5 = 0x000000FF00000000ULL;
 
-void find_valid_knight_moves(Game& game) {
-    for (int cell { 0 }; cell < 64; cell++) {
-        uint64_t position = 1ULL << cell;
-        uint64_t moves = 0;
-        moves |= (position >> 17 & ~FILE_H);
-        moves |= (position >> 15 & ~FILE_A);
-        moves |= (position >> 10 & ~FILE_GH);
-        moves |= (position >> 6 & ~FILE_AB);
-        moves |= (position << 6 & ~FILE_GH);
-        moves |= (position << 10 & ~FILE_AB);
-        moves |= (position << 15 & ~FILE_H);
-        moves |= (position << 17 & ~FILE_A);
-        game.bitboards.knight_attacks[cell] = moves;
-    }
-}
 
 void find_valid_king_moves(Game& game) {
     for (int cell { 0 }; cell < 64; cell++) {
@@ -164,10 +151,15 @@ void make_game_move(Game& game, Chessboard& board, int result, Move move) {
         game.board_record.clear();
         move.special_move = "castling";
     } else if (result == 3) {
+        
         int captured_row = ((game.turn == white) ? move.new_row + 1 : move.new_row - 1);
+        int opposing_turn = ((game.turn == white)) ? black : white;
+        int shift = 56 - (captured_row) * 8 + move.new_col;
+        u_int64_t mask = (1ULL << shift);
         move.special_move = "en passant";
         move.piece_taken = board[captured_row][move.new_col].piece_occupying;
         board[captured_row][move.new_col].piece_occupying = nullptr;
+        game.bitboards.bitboards[opposing_turn][0] &= (~mask);
         game.board_record.clear();
     } 
    
@@ -484,13 +476,14 @@ void handle_pawn_promotion(Game& game, Chessboard& board, Move& move) {
     move_piece(game, board, move);
     u_int64_t mask = 1ULL;
     int shift = 56 - move.new_row * 8 + move.new_col;
+    u_int64_t square = mask << shift;
     move.special_move = "promotion";
     game.move_record.push_back(move);
     board[move.new_row][move.new_col].piece_occupying->piece_type = game.piece_selected;
-    if (game.turn == white) {
-        game.bitboards.white_pawns &= ~mask << shift;
+    
+    game.bitboards.bitboards[game.turn][0] &= (~square);
+    game.bitboards.bitboards[game.turn][game.piece_selected] |= (square);
 
-    }
     game.piece_selected = -1;
     game.promoting_pawn = false;
 }
@@ -591,7 +584,7 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
         if (piece == pawn) {
             result = validate_move_pawn(game, board, move);
         } else if (piece == knight) {
-            result = validate_move_knight(board, move);
+            result = validate_move_knight(game, board, move);
         } else if (piece == bishop) {
             result = validate_move_bishop(board, move);
         } else if (piece == rook) {
@@ -639,37 +632,7 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
         std::abs(move.new_col - move.prev_col) == 1 && !board[move.new_row][move.new_col].piece_occupying) {
         return validate_en_passant(game, board, move);  
     }
-    /*
-    if (move.turn == white) {
-        if (move.prev_row == 6 && !board[move.prev_row - 1][move.prev_col].piece_occupying) {
-            no_capture_moves = { { move.prev_row - 1, move.prev_col }, { move.prev_row - 2, move.prev_col } };
-        } else {
-            no_capture_moves = { { move.prev_row - 1, move.prev_col } };
-        }
-        capture_moves = { { move.prev_row - 1, move.prev_col - 1 }, { move.prev_row - 1, move.prev_col + 1 } };
 
-    } else {
-        if (move.prev_row == 1 && !board[move.prev_row + 1][move.prev_col].piece_occupying) {
-            no_capture_moves = { { move.prev_row + 1, move.prev_col }, { move.prev_row + 2, move.prev_col } };
-        } else {
-            no_capture_moves = { { move.prev_row + 1, move.prev_col } };
-        }
-        capture_moves = { { move.prev_row + 1, move.prev_col - 1 }, { move.prev_row + 1, move.prev_col + 1 } };
-    }
-
-    if (board[move.new_row][move.new_col].piece_occupying) {
-        it = std::find(capture_moves.begin(), capture_moves.end(), new_move);
-        if (it != capture_moves.end()) {
-            return 0;
-        } 
-        return -1; 
-    } else {
-        it = std::find(no_capture_moves.begin(), no_capture_moves.end(), new_move);
-        if (it != no_capture_moves.end()) {
-            return 0;
-        } 
-        return -1;
-    } */
     int from = (7 - move.prev_row) * 8 + (move.prev_col);
     int to = (7 - move.new_row) * 8 + (move.new_col);
     u_int64_t mask = 1ULL;
@@ -680,7 +643,8 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
                 return 0;
             }
         } else if (to - from == 16) {
-            if ((mask << to & ~game.bitboards.occupied) && (mask << (to - 8) & ~game.bitboards.occupied) && RANK_4) {
+            if ((mask << to & ~game.bitboards.occupied) && (mask << (to - 8) & ~game.bitboards.occupied) &&
+                mask << from & RANK_2) {
                 return 0;
             }
         } else if (to - from == 7 || to - from == 9) {
@@ -696,7 +660,8 @@ int validate_move_pawn(Game& game, Chessboard& board, Move& move) {
                 return 0;
             }
         } else if (to - from == -16) {
-            if ((mask << to & ~game.bitboards.occupied) && (mask << (to + 8) & ~game.bitboards.occupied) && RANK_5) {
+            if ((mask << to & ~game.bitboards.occupied) && (mask << (to + 8) & ~game.bitboards.occupied) && 
+                mask << from & RANK_7) {
                 return 0;
             }
         } else if (to - from == -7 || to - from == -9) {
@@ -729,9 +694,11 @@ int validate_en_passant(Game& game, Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_knight(Chessboard& board, Move& move) {
-    if ((std::abs(move.new_row - move.prev_row) == 2 && std::abs(move.new_col - move.prev_col) == 1) || 
-        (std::abs(move.new_row - move.prev_row) == 1 && std::abs(move.new_col - move.prev_col) == 2)) {
+int validate_move_knight(Game& game, Chessboard& board, Move& move) {
+    int index = 56 - 8 * move.prev_row + move.prev_col;
+    int square = 56 - 8 * move.new_row + move.new_col;
+    u_int64_t mask = 1ULL << square;
+    if (game.bitboards.knight_attacks[index] & mask) {
         return 0;
     }
     return -1;

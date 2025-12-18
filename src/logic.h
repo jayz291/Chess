@@ -12,7 +12,7 @@ void find_valid_black_pawn_moves(Game& game);
 
 int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Chessboard& board, Move& move);
-int validate_move_knight(Chessboard& board, Move& move);
+int validate_move_knight(Game& game, Chessboard& board, Move& move);
 int validate_move_bishop(Chessboard& board, Move& move);
 int validate_move_rook(Chessboard& board, Move& move);
 int validate_move_queen(Chessboard& board, Move& move);
