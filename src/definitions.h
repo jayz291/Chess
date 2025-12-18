@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <memory>
+#include <cstdint>
 
 constexpr int SQUARE_SIZE = 95;
 
@@ -43,6 +44,24 @@ struct Move {
 };
 
 using Chessboard = std::array<std::array<Cell, 8>, 8>;
+
+struct Bitboards {
+    uint64_t white_pawns = 0x000000000000FF00ULL;
+    uint64_t white_knights = 0x0000000000000042ULL;
+    uint64_t white_rooks = 0x0000000000000081ULL;
+    uint64_t white_bishops = 0x0000000000000024ULL;
+    uint64_t white_queens = 0x0000000000000008ULL;
+    uint64_t white_king = 0x0000000000000010ULL;
+    uint64_t black_pawns = 0x00FF000000000000ULL;
+    uint64_t black_knights = 0x4200000000000000ULL;
+    uint64_t black_rooks = 0x8100000000000000ULL;
+    uint64_t black_bishops = 0x2400000000000000ULL;
+    uint64_t black_queens = 0x0800000000000000ULL;
+    uint64_t black_king = 0x1000000000000000ULL;
+    uint64_t white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_king;
+    uint64_t black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_king;
+    uint64_t occupied = white_occupied | black_occupied;
+};
 
 enum class Gamestate {
     Intro,
