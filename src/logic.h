@@ -24,7 +24,7 @@ int validate_en_passant(Game& game, Chessboard& board, Move& move);
 
 void make_game_move(Game& game, Chessboard& board, int result, Move move);
 void make_test_move(Game& game, Chessboard& board, int result, Move& move);
-void move_piece(Chessboard& board, int prev_row, int prev_col, int new_row, int new_col, bool undo = false);
+void move_piece(Game& game, Chessboard& board, Move& move, bool undo = false);
 void undo_game_move(Game& game);
 void undo_test_move(Game& game, Chessboard& board, Move& prev_move);
 void undo_move(Game& game, Chessboard& board, Move& prev_move, std::string turn);

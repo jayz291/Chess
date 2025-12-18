@@ -63,6 +63,11 @@ struct Bitboards {
     uint64_t occupied = white_occupied | black_occupied;
     uint64_t knight_attacks[64];
     uint64_t king_moves[64];
+    void update_occupied() {
+        white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_king;
+        black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_king;
+        occupied = white_occupied | black_occupied;
+    }
 };
 
 extern uint64_t FILE_H;
