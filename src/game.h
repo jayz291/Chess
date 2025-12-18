@@ -14,6 +14,7 @@ class Game {
         Gamestate state {};
         Gamemode mode { Gamemode::Twoplayer };
         Chessboard board {};
+        Bitboards bitboards {};
         Coords selected {};
         std::string turn {};
         bool white_in_check {};

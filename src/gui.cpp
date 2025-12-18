@@ -287,11 +287,36 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             window.draw(cell);
         }
     }
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-            if (game.board[i][j].piece_occupying != nullptr) {
-                draw_piece(game, window, game.board[i][j].piece_occupying);
-                
+    for (int rank = 0; rank < 8; rank++) {
+        for (int file = 0; file < 8; file++) {
+            int square = rank * 8 + file;
+            
+            uint64_t mask = 1ULL << square;
+
+            if (game.bitboards.white_pawns & mask) {
+                draw_piece(game, window, rank, file, "white pawn");
+            } else if (game.bitboards.black_pawns & mask) {
+                draw_piece(game, window, rank, file, "black pawn");
+            } else if (game.bitboards.white_knights & mask) {
+                draw_piece(game, window, rank, file, "white knight");
+            } else if (game.bitboards.black_knights & mask) {
+                draw_piece(game, window, rank, file, "black knight");
+            } else if (game.bitboards.white_bishops & mask) {
+                draw_piece(game, window, rank, file, "white bishop");
+            } else if (game.bitboards.black_bishops & mask) {
+                draw_piece(game, window, rank, file, "black bishop");
+            } else if (game.bitboards.white_rooks & mask) {
+                draw_piece(game, window, rank, file, "white rook");
+            } else if (game.bitboards.black_rooks & mask) {
+                draw_piece(game, window, rank, file, "black rook");
+            } else if (game.bitboards.white_queens & mask) {
+                draw_piece(game, window, rank, file, "white queen");
+            } else if (game.bitboards.black_queens & mask) {
+                draw_piece(game, window, rank, file, "black queen");
+            } else if (game.bitboards.white_king & mask) {
+                draw_piece(game, window, rank, file, "white king");
+            } else if (game.bitboards.black_king & mask) {
+                draw_piece(game, window, rank, file, "black king");
             }
         }
     }
@@ -343,60 +368,60 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
     
     std::vector<std::shared_ptr<Piece>> promotion_pieces { piece1, piece2, piece3, piece4 };
     for (auto piece: promotion_pieces) {
-        draw_piece(game, window, piece);
+        //draw_piece(game, window, piece);
     }
     window.display();
 }
 
-void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& piece) {
+void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string piece) {
     //std::string piece_type = piece->piece_type;
     sf::Texture texture;
 
-    if (piece->piece_type == "pawn" && piece->colour == "black") {
+    if (piece == "black pawn") {
         if (!texture.loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "pawn" && piece->colour == "white") {
+    } else if (piece == "white pawn") {
         if (!texture.loadFromFile("./assets/images/Chess_plt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "knight" && piece->colour == "black") {
+    } else if (piece == "black knight") {
         if (!texture.loadFromFile("./assets/images/Chess_ndt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "knight" && piece->colour == "white") {
+    } else if (piece == "white knight") {
         if (!texture.loadFromFile("./assets/images/Chess_nlt45.png")) {
             return;
         }
-    }  else if (piece->piece_type == "bishop" && piece->colour == "black") {
+    }  else if (piece == "black bishop") {
         if (!texture.loadFromFile("./assets/images/Chess_bdt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "bishop" && piece->colour == "white") {
+    } else if (piece == "white bishop") {
         if (!texture.loadFromFile("./assets/images/Chess_blt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "rook" && piece->colour == "black") {
+    } else if (piece == "black rook") {
         if (!texture.loadFromFile("./assets/images/Chess_rdt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "rook" && piece->colour == "white") {
+    } else if (piece == "white rook") {
         if (!texture.loadFromFile("./assets/images/Chess_rlt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "queen" && piece->colour == "black") {
+    } else if (piece == "black queen") {
         if (!texture.loadFromFile("./assets/images/Chess_qdt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "queen" && piece->colour == "white") {
+    } else if (piece == "white queen") {
         if (!texture.loadFromFile("./assets/images/Chess_qlt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "king" && piece->colour == "black") {
+    } else if (piece == "black king") {
         if (!texture.loadFromFile("./assets/images/Chess_kdt45.png")) {
             return;
         }
-    } else if (piece->piece_type == "king" && piece->colour == "white") {
+    } else if (piece == "white king") {
         if (!texture.loadFromFile("./assets/images/Chess_klt45.png")) {
             return;
         }
@@ -405,16 +430,18 @@ void draw_piece(Game& game, sf::RenderWindow& window, std::shared_ptr<Piece>& pi
     sf::Sprite sprite(texture);
     sprite.setScale({0.1f, 0.1f});
     float y_offset;
-    float x_offset { static_cast<float>(135 + piece->col * (SQUARE_SIZE)) };
+    float x_offset { static_cast<float>(135 + y * (SQUARE_SIZE)) };
     if (game.view == "white") {
-        y_offset = (30 + piece->row * (SQUARE_SIZE));
+        y_offset = (30 + x * (SQUARE_SIZE));
     } else {
-        y_offset = (695 - piece->row * (SQUARE_SIZE));
+        y_offset = (695 - x * (SQUARE_SIZE));
     }
-    if (piece->piece_type == "king") {
-        if (piece->colour == "white" && game.white_in_check && game.turn == "white") {
+    if (piece == "white king") {
+        if (game.white_in_check && game.turn == "white") {
             sprite.setColor(sf::Color(255, 0, 0, 100));
-        } else if (piece->colour == "black" && game.black_in_check && game.turn == "black") {
+        } 
+    } else if (piece == "black king") {
+        if (game.black_in_check && game.turn == "black") {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         }
     }
