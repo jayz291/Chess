@@ -723,22 +723,14 @@ int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
 int validate_move_rook(Game& game, Chessboard& board, Move& move) {
     int row_change { move.new_row - move.prev_row };
     int col_change { move.new_col - move.prev_col };
+    int from = 56 - 8 * move.prev_row + move.prev_col;
+    int to = 56 - 8 * move.new_row + move.new_col;
 
-    if (row_change == 0) {
-        int col_direction = ((col_change > 0) ? 1 : -1); 
-        for (int i { 1 }; i < std::abs(col_change); i++) {
-            if (board[move.prev_row][move.prev_col + col_direction * i].piece_occupying) {
-                return -1;
-            }
-        } 
-        return 0;
-    } else if (col_change == 0) {
-        int row_direction = ((row_change > 0) ? 1 : -1);
-        for (int i { 1 }; i < std::abs(row_change); i++) {
-            if (board[move.prev_row + row_direction * i][move.prev_col].piece_occupying) {
-                return -1;
-            }
-        } 
+    if (row_change == 0 || col_change == 0) {
+        uint64_t path = game.bitboards.between_table[from][to];
+        if (path & game.bitboards.occupied) {
+            return -1;
+        }
         return 0;
     }
     return -1;

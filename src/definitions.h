@@ -140,7 +140,6 @@ struct Bitboards {
                         mask |= (1ULL << curr_square);
                         curr_square += 8 * row_step + col_step;
                     }
-                    between_table[from][to] = mask;
                 } else if (std::abs(row_change) == 0 && from != to) {
                     int col_step = ((col_change < 0) ? -1 : 1);
                     int curr_square = from + col_step;
@@ -153,9 +152,10 @@ struct Bitboards {
                     int curr_square = from + 8 * row_step;
                     while (curr_square != to) {
                         mask |= (1ULL << curr_square);
-                        curr_square += row_step;
+                        curr_square += 8 * row_step;
                     }
                 }
+                between_table[from][to] = mask;
             }
         }
     }
