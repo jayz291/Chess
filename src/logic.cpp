@@ -586,11 +586,11 @@ int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_
         } else if (piece == knight) {
             result = validate_move_knight(game, board, move);
         } else if (piece == bishop) {
-            result = validate_move_bishop(board, move);
+            result = validate_move_bishop(game, board, move);
         } else if (piece == rook) {
-            result = validate_move_rook(board, move);
+            result = validate_move_rook(game, board, move);
         } else if (piece == queen) {
-            result = validate_move_queen(board, move);
+            result = validate_move_queen(game, board, move);
         } else if (piece == king) {
             result = validate_move_king(game, board, move);
         } else {
@@ -704,24 +704,23 @@ int validate_move_knight(Game& game, Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_bishop(Chessboard& board, Move& move) {
+int validate_move_bishop(Game& game, Chessboard& board, Move& move) {
     int row_change { move.new_row - move.prev_row };
     int col_change { move.new_col - move.prev_col };
+    int from = 56 - 8 * move.prev_row + move.prev_col;
+    int to = 56 - 8 * move.new_row + move.new_col;
 
     if (std::abs(row_change) == std::abs(col_change)) {
-        int row_direction = ((row_change > 0) ? 1 : -1);
-        int col_direction = ((col_change > 0) ? 1 : -1);   
-        for (int i { 1 }; i < std::abs(row_change); i++) {
-            if (board[move.prev_row + row_direction * i][move.prev_col + col_direction * i].piece_occupying) {
-                return -1;
-            }
+        uint64_t path = game.bitboards.between_table[from][to];
+        if (path & game.bitboards.occupied) {
+            return -1;
         }
         return 0;
     }
     return -1;
 }
 
-int validate_move_rook(Chessboard& board, Move& move) {
+int validate_move_rook(Game& game, Chessboard& board, Move& move) {
     int row_change { move.new_row - move.prev_row };
     int col_change { move.new_col - move.prev_col };
 
@@ -745,8 +744,8 @@ int validate_move_rook(Chessboard& board, Move& move) {
     return -1;
 }
 
-int validate_move_queen(Chessboard& board, Move& move) {
-    if (validate_move_rook(board, move) == 0 || validate_move_bishop(board, move) == 0) {
+int validate_move_queen(Game& game, Chessboard& board, Move& move) {
+    if (validate_move_rook(game, board, move) == 0 || validate_move_bishop(game, board, move) == 0) {
         return 0;
     } 
     return -1;

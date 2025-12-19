@@ -87,6 +87,7 @@ struct Bitboards {
     uint64_t occupied = white_occupied | black_occupied;
     uint64_t knight_attacks[64];
     uint64_t king_moves[64];
+    uint64_t between_table[64][64];
     Bitboards() {
         bitboards[0][0] = white_pawns;
         bitboards[0][1] = white_knights;
@@ -101,6 +102,7 @@ struct Bitboards {
         bitboards[1][4] = black_queens;
         bitboards[1][5] = black_king;
         find_valid_knight_moves();
+        make_between_table();
     }
     void update_occupied() {
         white_occupied = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
@@ -122,6 +124,39 @@ struct Bitboards {
             moves |= (position << 15 & ~FILE_H);
             moves |= (position << 17 & ~FILE_A);
             knight_attacks[cell] = moves;
+        }
+    }
+    void make_between_table() {
+        for (int from { 0 }; from < 64; from++) {
+            for (int to { 0 }; to < 64; to++) {
+                int row_change = to / 8 - from / 8;
+                int col_change = to % 8 - from % 8;
+                uint64_t mask = 0ULL;
+                if (std::abs(row_change) == std::abs(col_change) && from != to) {
+                    int row_step = ((row_change < 0) ? -1 : 1);
+                    int col_step = ((col_change < 0) ? -1 : 1);
+                    int curr_square = from + 8 * row_step + col_step;
+                    while (curr_square != to) {
+                        mask |= (1ULL << curr_square);
+                        curr_square += 8 * row_step + col_step;
+                    }
+                    between_table[from][to] = mask;
+                } else if (std::abs(row_change) == 0 && from != to) {
+                    int col_step = ((col_change < 0) ? -1 : 1);
+                    int curr_square = from + col_step;
+                    while (curr_square != to) {
+                        mask |= (1ULL << curr_square);
+                        curr_square += col_step;
+                    }
+                } else if (std::abs(col_change) == 0 && from != to) {
+                    int row_step = ((row_change < 0) ? -1 : 1);
+                    int curr_square = from + 8 * row_step;
+                    while (curr_square != to) {
+                        mask |= (1ULL << curr_square);
+                        curr_square += row_step;
+                    }
+                }
+            }
         }
     }
 };

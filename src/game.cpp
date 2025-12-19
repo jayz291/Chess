@@ -26,6 +26,7 @@ void Game::initialise() {
     black_king_position.row = 0;
     white_king_position.row = 7;
     black_king_position.col = white_king_position.col = 4;
+    bitboards = {};
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
         board[i][j].piece_occupying = nullptr;
