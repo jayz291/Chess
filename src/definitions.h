@@ -67,6 +67,8 @@ extern uint64_t FILE_AB;
 extern uint64_t FILE_GH;
 extern uint64_t RANK_4;
 extern uint64_t RANK_5;
+extern uint64_t RANK_2;
+extern uint64_t RANK_7;
 
 struct Bitboards {
     uint64_t bitboards[2][6];
@@ -87,6 +89,8 @@ struct Bitboards {
     uint64_t occupied = white_occupied | black_occupied;
     uint64_t knight_attacks[64];
     uint64_t king_moves[64];
+    uint64_t pawn_attacks[2][64];
+    uint64_t pawn_moves[2][64];
     uint64_t between_table[64][64];
     Bitboards() {
         bitboards[0][0] = white_pawns;
@@ -104,6 +108,7 @@ struct Bitboards {
         find_valid_knight_moves();
         find_valid_king_moves();
         make_between_table();
+        find_pawn_attacks();
     }
     void update_occupied() {
         white_occupied = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
@@ -173,6 +178,34 @@ struct Bitboards {
                 }
                 between_table[from][to] = mask;
             }
+        }
+    }
+    void find_pawn_attacks() {
+        for (int cell { 0 }; cell < 64; cell++) {
+            uint64_t position = 1ULL << cell;
+            uint64_t non_capture_moves = 0ULL;
+            uint64_t capture_moves = 0ULL;
+            non_capture_moves |= (position << 8);
+            capture_moves |= (position << 7 & ~FILE_H);
+            capture_moves |= (position << 9 & ~FILE_A);
+            if (position & RANK_2) {
+                non_capture_moves |= (position << 16);
+            }
+            pawn_attacks[white][cell] = capture_moves;
+            pawn_moves[white][cell] = non_capture_moves;
+        }
+        for (int cell { 0 }; cell < 64; cell++) {
+            uint64_t position = 1ULL << cell;
+            uint64_t non_capture_moves = 0ULL;
+            uint64_t capture_moves = 0ULL;
+            non_capture_moves |= (position >> 8);
+            capture_moves |= (position >> 7 & ~FILE_A);
+            capture_moves |= (position >> 9 & ~FILE_H);
+            if (position & RANK_7) {
+                non_capture_moves |= (position >> 16);
+            }
+            pawn_attacks[black][cell] = capture_moves;
+            pawn_moves[black][cell] = non_capture_moves;
         }
     }
 };

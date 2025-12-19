@@ -162,6 +162,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     int result = select_square(mouse_pos.x, mouse_pos.y, game);
 
     if (result >= 0) {
+        std::cout << result << '\n';
         /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
         ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
         make_game_move(game, game.bitboards, game.board, result, game.current_move);  

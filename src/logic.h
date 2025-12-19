@@ -7,6 +7,9 @@
 
 void find_valid_white_pawn_moves(Game& game);
 void find_valid_black_pawn_moves(Game& game);
+uint64_t find_rook_attacks(int square, Bitboards& bitboards);
+uint64_t find_bishop_attacks(int square, Bitboards& bitboards);
+bool determine_square_validity(int square, int direction);
 
 int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);

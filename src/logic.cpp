@@ -36,6 +36,57 @@ void find_valid_black_pawn_moves(Game& game) {
     non_capture_moves = single_move | double_move;
 }
 
+uint64_t find_rook_attacks(int square, Bitboards& bitboards) {
+    int directions[4] = {-1, 1, 8, -8};
+    int curr = square;
+    uint64_t attacks = 0ULL;
+    for (int i { 0 }; i < 4; i++) {
+        int direction = directions[i];
+        curr = square;
+        while (determine_square_validity(curr, direction) == true) {
+            curr += direction;
+            uint64_t mask = 1ULL << curr;
+            attacks |= mask;
+            if (bitboards.occupied & mask) {
+                break;
+            }
+        }
+    }
+    return attacks;
+}
+
+uint64_t find_bishop_attacks(int square, Bitboards& bitboards) {
+    int directions[4] = {7, -7, 9, -9};
+    int curr = square;
+    uint64_t attacks = 0ULL;
+    for (int i { 0 }; i < 4; i++) {
+        int direction = directions[i];
+        curr = square;
+        while (determine_square_validity(curr, direction) == true) {
+            curr += direction;
+            uint64_t mask = 1ULL << curr;
+            attacks |= mask;
+            if (bitboards.occupied & mask) {
+                break;
+            }
+        }
+    }
+    return attacks;
+}
+
+bool determine_square_validity(int square, int direction) {
+    int rank = square / 8;
+    int file = square % 8;
+    if ((direction == 9 || direction == -7 || direction == 1) && file == 7) {
+        return false;
+    } else if ((direction == -9 || direction == 7 || direction == -1) && file == 0) {
+        return false;
+    } else if ((direction > 0 && rank == 7) || (direction < 0 && rank == 0)) {
+        return false;
+    } 
+    return true; 
+}
+
 void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_move, int turn) {
     move_piece(game, bitboards, board, prev_move, true);
     if (prev_move.special_move != "en passant" && prev_move.piece_taken != nullptr) {
@@ -517,6 +568,7 @@ void end_game(Game& game) {
 }
 
 void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool undo) {
+
     int piece = board[move.prev_row][move.prev_col].piece_occupying->piece_type;
     int captured {};
     if (board[move.new_row][move.new_col].piece_occupying) {
@@ -531,12 +583,12 @@ void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move,
     uint64_t to_bit = 1ULL << to_square;
     int opposing_turn = ((game.turn == white) ? black : white);
 
-    game.bitboards.bitboards[game.turn][piece] &= ~from_bit;
+    bitboards.bitboards[game.turn][piece] &= ~from_bit;
    
-    game.bitboards.bitboards[game.turn][piece] |= to_bit;
-    game.bitboards.bitboards[opposing_turn][captured] &= ~to_bit;
+    bitboards.bitboards[game.turn][piece] |= to_bit;
+    bitboards.bitboards[opposing_turn][captured] &= ~to_bit;
     
-    game.bitboards.update_occupied();
+    bitboards.update_occupied();
 
     if (board[move.new_row][move.new_col].piece_occupying == nullptr) {
         std::cout << "failed\n";
@@ -631,7 +683,6 @@ int validate_move_pawn(Game& game, Bitboards& bitboards, Chessboard& board, Move
                 return 0;
             }
         }
-        std::cout << "rejected\n";
         return -1;
     } else {
         if (to - from == -8) {
@@ -743,86 +794,33 @@ int validate_move_king(Game &game, Bitboards& bitboards, Chessboard& board, Move
 }
 
 int check_checks(Game &game, Bitboards& bitboard_copy, Chessboard& copy, Move& move) {
-    int test {};
-    Coords king_position {};
-
-    //std::cout << "checking checks\n";
-    if (move.prev_row != move.new_row || move.prev_col != move.new_col) {
-        copy[move.new_row][move.new_col].piece_occupying = nullptr;
-        copy[move.new_row][move.new_col].piece_occupying = std::move(copy[move.prev_row][move.prev_col].piece_occupying);
-    }
+    //int test {};
+    //Coords king_position {};
     int opposing_colour = ((move.turn == white) ? black : white);
-   
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-            if (copy[i][j].piece_occupying && copy[i][j].piece_occupying->colour == move.turn &&
-                copy[i][j].piece_occupying->piece_type == king) {
-                king_position.row = i;
-                king_position.col = j;
-                break;
-            }
-        }
-    } 
-    int pawn_direction = (move.turn == white) ? -1 : 1;
-    std::vector<std::pair<int, int>> bishop_directions { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } };
-    for (auto pair: bishop_directions) {
-        for (int k { 1 }; k < 8; k++) {
-            int target_row = king_position.row + k * pair.first;
-            int target_col = king_position.col + k * pair.second;
-            if (target_row < 0 || target_col < 0 || target_row > 7 || target_col > 7) {
-                break;
-            }
-            if (copy[target_row][target_col].piece_occupying) {
-                if ((copy[target_row][target_col].piece_occupying->piece_type == bishop ||
-                    copy[target_row][target_col].piece_occupying->piece_type == queen) && 
-                    copy[target_row][target_col].piece_occupying->colour == opposing_colour) {
-                    return 1;
-                } else if (k == 1 && copy[target_row][target_col].piece_occupying->piece_type == king) {
-                    return 1;
-                } else if (k == 1 && copy[target_row][target_col].piece_occupying->piece_type == pawn &&
-                    copy[target_row][target_col].piece_occupying->colour == opposing_colour &&
-                    pair.first == pawn_direction) {
-                    return 1;
-                } else {
-                    break;
-                }
-            }
-        }   
+    
+    if (move.prev_row != move.new_row || move.prev_col != move.new_col) {
+        move_piece(game, bitboard_copy, copy, move);
     }
-    std::vector<std::pair<int, int>> rook_directions { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 } };
-    for (auto pair: rook_directions) {
-        for (int k { 1 }; k < 8; k++) {
-            int target_row = king_position.row + k * pair.first;
-            int target_col = king_position.col + k * pair.second;
-            if (target_row < 0 || target_col < 0 || target_row > 7 || target_col > 7) {
-                break;
-            }
-            if (copy[target_row][target_col].piece_occupying) {
-                if ((copy[target_row][target_col].piece_occupying->piece_type == rook ||
-                    copy[target_row][target_col].piece_occupying->piece_type == queen) && 
-                    copy[target_row][target_col].piece_occupying->colour == opposing_colour) {
-                    return 1;
-                } else if (k == 1 && copy[target_row][target_col].piece_occupying->piece_type == king) {
-                    return 1;
-                } else {
-                    break;
-                }
-            }
-        }   
+    
+    int square = __builtin_ctzll(bitboard_copy.bitboards[move.turn][king]);
+    if (bitboard_copy.knight_attacks[square] & bitboard_copy.bitboards[opposing_colour][knight]) {
+        return 1;
     }
-    int i { king_position.row };
-    int j { king_position.col };
-    std::vector<std::pair<int, int>> possible_moves { { i + 1, j + 2 }, { i + 2, j + 1 }, 
-    { i - 1, j - 2 }, { i - 2, j - 1 }, { i + 1, j - 2 }, 
-    { i - 1, j + 2 }, { i - 2, j + 1 }, { i + 2, j - 1 } };
-    for (auto pair: possible_moves) {
-        if (pair.first >= 0 && pair.first <= 7 && pair.second >= 0 && pair.second <= 7) {
-            if (copy[pair.first][pair.second].piece_occupying && 
-                copy[pair.first][pair.second].piece_occupying->piece_type == knight &&
-                copy[pair.first][pair.second].piece_occupying->colour == opposing_colour) {
-                return 1;
-            }
-        }
+    if (bitboard_copy.pawn_attacks[move.turn][square] & bitboard_copy.bitboards[opposing_colour][pawn]) {
+        return 1;
+    }
+    if (bitboard_copy.king_moves[square] & bitboard_copy.bitboards[opposing_colour][king]) {
+        return 1;
+    }
+    uint64_t bishop_attacks = find_bishop_attacks(square, bitboard_copy);
+    uint64_t rook_attacks = find_rook_attacks(square, bitboard_copy);
+    if ((bishop_attacks & bitboard_copy.bitboards[opposing_colour][bishop]) || 
+        (bishop_attacks & bitboard_copy.bitboards[opposing_colour][queen])) {
+        return 1;
+    }
+    if ((rook_attacks & bitboard_copy.bitboards[opposing_colour][rook]) || 
+        (rook_attacks & bitboard_copy.bitboards[opposing_colour][queen])) {
+        return 1;
     }
     
     return 0;
