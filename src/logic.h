@@ -15,18 +15,18 @@ int validate_move_bishop(Bitboards& bitboards, Chessboard& board, Move& move);
 int validate_move_rook(Bitboards& bitboards, Chessboard& board, Move& move);
 int validate_move_queen(Bitboards& bitboards, Chessboard& board, Move& move);
 int validate_move_king(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
-int check_checks(Game& game, Chessboard& copy, Move& move);
+int check_checks(Game& game, Bitboards& bitboard_copy, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
-int test_castling(Game& game, Chessboard& copy, Move& move);
+int test_castling(Game& game, Bitboards& bitboard_copy, Chessboard& copy, Move& move);
 int validate_en_passant(Game& game, Chessboard& board, Move& move);
 
-void make_game_move(Game& game, Chessboard& board, int result, Move move);
-void make_test_move(Game& game, Chessboard& board, int result, Move& move);
-void move_piece(Game& game, Chessboard& board, Move& move, bool undo = false);
+void make_game_move(Game& game, Bitboards& bitboards, Chessboard& board, int result, Move move);
+void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, int result, Move& move);
+void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool undo = false);
 void undo_game_move(Game& game);
 void undo_test_move(Game& game, Chessboard& board, Move& prev_move);
-void undo_move(Game& game, Chessboard& board, Move& prev_move, int turn);
-void handle_pawn_promotion(Game& game, Chessboard& board, Move& move);
+void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_move, int turn);
+void handle_pawn_promotion(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
 
 std::vector<Move> determine_possible_moves(Game& game, Chessboard& board, int turn, bool CPU = false);
 int determine_repetition(Game& game);
