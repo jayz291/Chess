@@ -5,18 +5,16 @@
 #include <thread>
 #include <chrono>
 
-void find_valid_knight_moves(Game& game);
-void find_valid_king_moves(Game& game);
 void find_valid_white_pawn_moves(Game& game);
 void find_valid_black_pawn_moves(Game& game);
 
-int validate_move(Game& game, Chessboard& board, Move& move, bool only_checking_checks = false);
-int validate_move_pawn(Game& game, Chessboard& board, Move& move);
-int validate_move_knight(Game& game, Chessboard& board, Move& move);
-int validate_move_bishop(Game& game, Chessboard& board, Move& move);
-int validate_move_rook(Game& game, Chessboard& board, Move& move);
-int validate_move_queen(Game& game, Chessboard& board, Move& move);
-int validate_move_king(Game& game, Chessboard& board, Move& move);
+int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool only_checking_checks = false);
+int validate_move_pawn(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
+int validate_move_knight(Bitboards& bitboards, Chessboard& board, Move& move);
+int validate_move_bishop(Bitboards& bitboards, Chessboard& board, Move& move);
+int validate_move_rook(Bitboards& bitboards, Chessboard& board, Move& move);
+int validate_move_queen(Bitboards& bitboards, Chessboard& board, Move& move);
+int validate_move_king(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
 int check_checks(Game& game, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
 int test_castling(Game& game, Chessboard& copy, Move& move);

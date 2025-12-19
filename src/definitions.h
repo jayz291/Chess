@@ -102,6 +102,7 @@ struct Bitboards {
         bitboards[1][4] = black_queens;
         bitboards[1][5] = black_king;
         find_valid_knight_moves();
+        find_valid_king_moves();
         make_between_table();
     }
     void update_occupied() {
@@ -124,6 +125,21 @@ struct Bitboards {
             moves |= (position << 15 & ~FILE_H);
             moves |= (position << 17 & ~FILE_A);
             knight_attacks[cell] = moves;
+        }
+    }
+    void find_valid_king_moves() {
+        for (int cell { 0 }; cell < 64; cell++) {
+            uint64_t position = 1ULL << cell;
+            uint64_t moves = 0;
+            moves |= (position >> 9 & ~FILE_H);
+            moves |= (position >> 8);
+            moves |= (position >> 7 & ~FILE_A);
+            moves |= (position >> 1 & ~FILE_H);
+            moves |= (position << 1 & ~FILE_A);
+            moves |= (position << 7 & ~FILE_H);
+            moves |= (position << 8);
+            moves |= (position << 9 & ~FILE_A);
+            king_moves[cell] = moves;
         }
     }
     void make_between_table() {

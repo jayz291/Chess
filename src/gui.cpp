@@ -468,7 +468,7 @@ int select_square(int x, int y, Game& game) {
         if (game.board[row][col].piece_occupying) {
             move.piece_taken = game.board[row][col].piece_occupying;
         }
-        int result = validate_move(game, game.board, move);
+        int result = validate_move(game, game.bitboards, game.board, move);
         game.board[game.selected.row][game.selected.col].selected = false;
         game.selected.row = game.selected.col = -1; 
   
