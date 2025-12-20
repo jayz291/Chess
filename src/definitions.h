@@ -43,6 +43,13 @@ struct Move {
     int eval { 0 };
 };
 
+// flags: captured piece, castling, en passant, promotion
+
+typedef u_int16_t Encoded_move;
+const uint16_t MASK_FROM = 0x3F;
+const uint16_t MASK_TO = 0xFC0;
+const uint16_t MASK_FLAGS = 0xF000;
+
 using Chessboard = std::array<std::array<Cell, 8>, 8>;
 
 enum {

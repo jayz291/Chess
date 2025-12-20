@@ -44,5 +44,5 @@ class Game {
         void initialise();
 };
 
-
-
+void print_bitboard(uint64_t bitboard);
+void print_all_bitboards(Bitboards& bitboards);

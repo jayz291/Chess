@@ -68,3 +68,54 @@ std::ostream& operator<<(std::ostream& os, const Move& move) {
     return os;
 }
 
+void print_bitboard(uint64_t bitboard) {
+    std::cout << "\n";
+
+    for (int rank = 7; rank >= 0; --rank) {
+        std::cout << rank + 1 << "  "; 
+        
+        for (int file = 0; file < 8; ++file) {
+            int square_index = rank * 8 + file;
+            uint64_t mask = 1ULL << square_index;
+
+            if (bitboard & mask) {
+                std::cout << "1 "; 
+            } else {
+                std::cout << ". "; 
+            }
+        }
+        std::cout << "\n";
+    }
+    std::cout << "\n   a b c d e f g h\n\n";
+}
+
+void print_all_bitboards(Bitboards& bitboards) {
+    std::cout << "-----------------------------------------------\n";
+    for (int i = 0; i < 2; i++) {
+        for (int j = 0; j < 6; j++) {
+            std::string colour = ((i == 0) ? "white" : "black");
+            
+            if (j == 0) {
+                std::cout << colour << " pawns";
+            }
+            if (j == 1) {
+                std::cout << colour << " knights";
+            }
+            if (j == 2) {
+                std::cout << colour << " bishops";
+            }
+            if (j == 3) {
+                std::cout << colour << " rooks";
+            }
+            if (j == 4) {
+                std::cout << colour << " queens";
+            }
+            if (j == 5) {
+                std::cout << colour << " king";
+            }
+            
+            print_bitboard(bitboards.bitboards[i][j]);
+        }
+    }
+}
+

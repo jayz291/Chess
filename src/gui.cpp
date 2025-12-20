@@ -162,7 +162,6 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     int result = select_square(mouse_pos.x, mouse_pos.y, game);
 
     if (result >= 0) {
-        std::cout << result << '\n';
         /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
         ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
         make_game_move(game, game.bitboards, game.board, result, game.current_move);  
@@ -172,6 +171,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         game.state = Gamestate::Promoting_pawn;
         return;
     }
+    print_all_bitboards(game.bitboards);
     if (result >= 0) {
         game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
@@ -185,6 +185,7 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
     }
+    print_all_bitboards(game.bitboards);
 }
 
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
@@ -454,6 +455,8 @@ void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string 
 int select_square(int x, int y, Game& game) {
     int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
+    int square = 56 - 8 * row + col;
+    uint64_t mask = 1ULL << square;
     if (game.view == black) {
         row = 7 - row;
     }
@@ -466,6 +469,7 @@ int select_square(int x, int y, Game& game) {
 
         Move move { game.selected.row, game.selected.col, row, col, game.turn, 
             game.board[game.selected.row][game.selected.col].piece_occupying->piece_type };
+
         if (game.board[row][col].piece_occupying) {
             move.piece_taken = game.board[row][col].piece_occupying;
         }
@@ -478,7 +482,8 @@ int select_square(int x, int y, Game& game) {
             return result;
         } 
         return -1;
-    } else if (game.board[row][col].piece_occupying && game.board[row][col].piece_occupying->colour == game.turn) {
+    } else if (((mask & game.bitboards.white_occupied) && game.turn == white) || 
+                ((mask & game.bitboards.black_occupied) && game.turn == black)) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
