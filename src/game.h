@@ -40,6 +40,7 @@ class Game {
         std::vector<Move> possible_moves {};
         Move calculated_move {};
         bool move_ready { false };
+        uint8_t castling_rights;
         Game();
         void initialise();
 };

@@ -171,7 +171,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         game.state = Gamestate::Promoting_pawn;
         return;
     }
-    print_all_bitboards(game.bitboards);
+    //print_all_bitboards(game.bitboards);
     if (result >= 0) {
         game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);

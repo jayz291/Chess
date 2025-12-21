@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <cstdint>
+#include <bitset>
 
 constexpr int SQUARE_SIZE = 95;
 
@@ -40,7 +41,7 @@ struct Move {
     int piece {};
     std::shared_ptr<Piece> piece_taken { nullptr };
     std::string special_move { "No" };
-    int eval { 0 };
+    uint8_t castling_rights {};
 };
 
 // flags: captured piece, castling, en passant, promotion
