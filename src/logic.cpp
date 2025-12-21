@@ -701,17 +701,17 @@ int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& mov
         
         int piece = move.piece;
         if (piece == pawn) {
-            result = validate_move_pawn(game, game.bitboards, board, move);
+            result = validate_move_pawn(game, bitboards, move);
         } else if (piece == knight) {
-            result = validate_move_knight(game.bitboards, move);
+            result = validate_move_knight(bitboards, move);
         } else if (piece == bishop) {
-            result = validate_move_bishop(game.bitboards, move);
+            result = validate_move_bishop(bitboards, move);
         } else if (piece == rook) {
-            result = validate_move_rook(game.bitboards, move);
+            result = validate_move_rook(bitboards, move);
         } else if (piece == queen) {
-            result = validate_move_queen(game.bitboards, move);
+            result = validate_move_queen(bitboards, move);
         } else if (piece == king) {
-            result = validate_move_king(game, game.bitboards, move);
+            result = validate_move_king(game, bitboards, move);
         } else {
             return 0;
         }
@@ -742,19 +742,20 @@ int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& mov
     }
 }
 
-int validate_move_pawn(Game& game, Bitboards& bitboards, Chessboard& board, Move& move) {
+int validate_move_pawn(Game& game, Bitboards& bitboards, Move& move) {
+    int square = 56 - 8 * move.new_row + move.new_col;
+    uint64_t mask = 1ULL;
 
     if (move.turn == white && move.prev_row == 3 && move.new_row - move.prev_row == -1 && 
-        std::abs(move.new_col - move.prev_col) == 1 && !board[move.new_row][move.new_col].piece_occupying) {
-        return validate_en_passant(game, board, move);
+        std::abs(move.new_col - move.prev_col) == 1 && (~bitboards.occupied & mask << square)) {
+        return validate_en_passant(game, bitboards, move);
     } else if (move.turn == black && move.prev_row == 4 && move.new_row - move.prev_row == 1 && 
-        std::abs(move.new_col - move.prev_col) == 1 && !board[move.new_row][move.new_col].piece_occupying) {
-        return validate_en_passant(game, board, move);  
+        std::abs(move.new_col - move.prev_col) == 1 && (~bitboards.occupied & mask << square)) {
+        return validate_en_passant(game, bitboards, move);  
     }
 
     int from = (7 - move.prev_row) * 8 + (move.prev_col);
     int to = (7 - move.new_row) * 8 + (move.new_col);
-    u_int64_t mask = 1ULL;
     //std::cout << to - from << '\n';
     if (game.turn == white) {
         if (to - from == 8) {
@@ -791,15 +792,17 @@ int validate_move_pawn(Game& game, Bitboards& bitboards, Chessboard& board, Move
     }
 }
 
-int validate_en_passant(Game& game, Chessboard& board, Move& move) {
+int validate_en_passant(Game& game, Bitboards& bitboards, Move& move) {
     //std::cout << "here\n";
     int col_position {}, required_prev_row {}, required_new_row {};
     col_position = ((move.new_col - move.prev_col == 1) ? move.prev_col + 1 : move.prev_col - 1);
     required_prev_row = ((move.turn == white) ? 1 : 6);
     required_new_row = ((move.turn == white) ? 3 : 4);
+    int square = 56 - 8 * move.prev_row + col_position;
+    uint64_t mask = 1ULL;
+    int opposing_turn = ((move.turn == white) ? black : white);
    
-    if (board[move.prev_row][col_position].piece_occupying && 
-        board[move.prev_row][col_position].piece_occupying->piece_type == pawn) {
+    if (bitboards.bitboards[opposing_turn][pawn] & mask << square) {
         Move prev_move = game.move_record[game.move_record.size() - 1];
         //std::cout << "prev" << prev_move.prev_row << ' ' << prev_move.prev_col << 
         //" Curr" << prev_move.new_row << prev_move.new_col << '\n';
@@ -823,12 +826,10 @@ int validate_move_knight(Bitboards& bitboards, Move& move) {
 }
 
 int validate_move_bishop(Bitboards& bitboards, Move& move) {
-    int row_change { move.new_row - move.prev_row };
-    int col_change { move.new_col - move.prev_col };
     int from = 56 - 8 * move.prev_row + move.prev_col;
     int to = 56 - 8 * move.new_row + move.new_col;
 
-    if (std::abs(row_change) == std::abs(col_change)) {
+    if (std::abs(move.new_row - move.prev_row) == std::abs(move.new_col - move.prev_col)) {
         uint64_t path = bitboards.between_table[from][to];
         if (path & bitboards.occupied) {
             return -1;
@@ -839,12 +840,10 @@ int validate_move_bishop(Bitboards& bitboards, Move& move) {
 }
 
 int validate_move_rook(Bitboards& bitboards, Move& move) {
-    int row_change { move.new_row - move.prev_row };
-    int col_change { move.new_col - move.prev_col };
     int from = 56 - 8 * move.prev_row + move.prev_col;
     int to = 56 - 8 * move.new_row + move.new_col;
 
-    if (row_change == 0 || col_change == 0) {
+    if (move.new_row - move.prev_row == 0 || move.new_col - move.prev_col == 0) {
         uint64_t path = bitboards.between_table[from][to];
         if (path & bitboards.occupied) {
             return -1;

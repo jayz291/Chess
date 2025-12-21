@@ -17,7 +17,7 @@ int get_from(Encoded_move move);
 int get_to(Encoded_move move);
 
 int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool only_checking_checks = false);
-int validate_move_pawn(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
+int validate_move_pawn(Game& game, Bitboards& bitboards, Move& move);
 int validate_move_knight(Bitboards& bitboards, Move& move);
 int validate_move_bishop(Bitboards& bitboards, Move& move);
 int validate_move_rook(Bitboards& bitboards, Move& move);
@@ -26,7 +26,7 @@ int validate_move_king(Game& game, Bitboards& bitboards, Move& move);
 int check_checks(Game& game, Bitboards& bitboard_copy, Chessboard& copy, Move& move);
 void evaluate_king_checks(Game& game);
 int test_castling(Game& game, Bitboards& bitboard_copy, Move& move);
-int validate_en_passant(Game& game, Chessboard& board, Move& move);
+int validate_en_passant(Game& game, Bitboards& bitboards, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 void update_castling_flags(Game& game, Bitboards& bitboards, Move& move);
 
