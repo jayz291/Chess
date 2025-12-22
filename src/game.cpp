@@ -64,6 +64,7 @@ void Game::initialise() {
 
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
+    os << "Piece: " << move.piece << '\n';
     os << "Prev row and col: " << move.prev_row << ' ' << move.prev_col << '\n';
     os << "New row and col: " << move.new_row << ' ' << move.new_col << '\n';
     return os;

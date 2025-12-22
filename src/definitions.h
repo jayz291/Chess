@@ -93,8 +93,8 @@ struct Bitboards {
     uint64_t black_queens = 0x0800000000000000ULL;
     uint64_t black_king = 0x1000000000000000ULL;
     uint64_t occupied_tables[2];
-    uint64_t white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_king;
-    uint64_t black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_king;
+    uint64_t white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_queens | white_king;
+    uint64_t black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_queens | black_king;
     uint64_t occupied = white_occupied | black_occupied;
     uint64_t knight_attacks[64];
     uint64_t king_moves[64];

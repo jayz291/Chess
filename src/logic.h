@@ -5,8 +5,6 @@
 #include <thread>
 #include <chrono>
 
-void find_valid_white_pawn_moves(Game& game);
-void find_valid_black_pawn_moves(Game& game);
 uint64_t find_rook_attacks(int square, Bitboards& bitboards);
 uint64_t find_bishop_attacks(int square, Bitboards& bitboards);
 bool determine_square_validity(int square, int direction);

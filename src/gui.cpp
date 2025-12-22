@@ -185,7 +185,8 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
     }
-    print_all_bitboards(game.bitboards);
+    
+    //print_all_bitboards(game.bitboards);
 }
 
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
@@ -455,11 +456,12 @@ void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string 
 int select_square(int x, int y, Game& game) {
     int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
-    int square = 56 - 8 * row + col;
-    uint64_t mask = 1ULL << square;
-    if (game.view == black) {
+    
+    if (game.mode == Gamemode::CPUwhite) {
         row = 7 - row;
     }
+    int square = 56 - 8 * row + col;
+    uint64_t mask = 1ULL << square;
     
     if (row < 0 || col < 0 || row > 7 || col > 7) {
         return -2;
@@ -483,7 +485,7 @@ int select_square(int x, int y, Game& game) {
         } 
         return -1;
     } else if (((mask & game.bitboards.white_occupied) && game.turn == white) || 
-                ((mask & game.bitboards.black_occupied) && game.turn == black)) {
+        ((mask & game.bitboards.black_occupied) && game.turn == black)) {
         game.board[row][col].selected = true;
         game.selected.row = row;
         game.selected.col = col;
