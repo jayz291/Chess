@@ -202,7 +202,6 @@ void make_game_move(Game& game, Bitboards& bitboards, Chessboard& board, int res
     if ((game.turn == black && board[row][col].piece_occupying->piece_type == pawn && row == 6) || 
         (game.turn == white && board[row][col].piece_occupying->piece_type == pawn && row == 1) &&
         std::abs(move.new_row - move.prev_row) == 1) {
-    
             game.promoting_pawn = true;
             return;
     }
@@ -410,6 +409,10 @@ void update_computer_move(Game& game) {
         }
         int result = validate_move(game, game.bitboards, game.board, chosen_move);
         make_game_move(game, game.bitboards, game.board, result, chosen_move);
+        if (game.promoting_pawn) {
+            game.piece_selected = queen;
+            handle_pawn_promotion(game, game.bitboards, game.board, chosen_move);
+        }
 
         game.turn = ((chosen_move.turn == white) ? black : white);
         is_game_over(game);
