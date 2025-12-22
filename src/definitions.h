@@ -92,6 +92,7 @@ struct Bitboards {
     uint64_t black_bishops = 0x2400000000000000ULL;
     uint64_t black_queens = 0x0800000000000000ULL;
     uint64_t black_king = 0x1000000000000000ULL;
+    uint64_t occupied_tables[2];
     uint64_t white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_king;
     uint64_t black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_king;
     uint64_t occupied = white_occupied | black_occupied;
@@ -113,6 +114,8 @@ struct Bitboards {
         bitboards[1][3] = black_rooks;
         bitboards[1][4] = black_queens;
         bitboards[1][5] = black_king;
+        occupied_tables[0] = white_occupied;
+        occupied_tables[1] = black_occupied;
         find_valid_knight_moves();
         find_valid_king_moves();
         make_between_table();
@@ -123,6 +126,8 @@ struct Bitboards {
         bitboards[0][5];
         black_occupied = bitboards[1][0] | bitboards[1][1] | bitboards[1][2] | bitboards[1][3] | bitboards[1][4] |
         bitboards[1][5];
+        occupied_tables[0] = white_occupied;
+        occupied_tables[1] = black_occupied;
         occupied = white_occupied | black_occupied;
     }
     void find_valid_knight_moves() {
