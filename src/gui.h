@@ -5,7 +5,7 @@
 void render(Game& game, sf::RenderWindow& window);
 void draw_intro_screen(sf::RenderWindow& window, Game& game);
 void draw_board(Game& game, sf::RenderWindow& window);
-void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string piece);
+void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, int piece, int colour);
 void draw_reset_button(sf::RenderWindow& window);
 void draw_undo_button(sf::RenderWindow& window);
 void draw_end_screen(Game& game, sf::RenderWindow& window);

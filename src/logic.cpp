@@ -268,10 +268,10 @@ void update_castling_flags(Game& game, Bitboards& bitboards, Move& move) {
         game.castling_rights &= ~12;
     }
     if (~bitboards.bitboards[white][rook] & mask << 0) {
-        game.castling_rights &= ~(mask << 3);
+        game.castling_rights &= ~(mask << 2);
     }
     if (~bitboards.bitboards[white][rook] & mask << 7) {
-        game.castling_rights &= ~(mask << 2); 
+        game.castling_rights &= ~(mask << 3); 
     }  
     move.castling_rights = game.castling_rights;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
@@ -739,13 +739,6 @@ void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move,
         std::cout << move << '\n';
         std::cout << "failed\n";
         return;
-    }
-    board[move.new_row][move.new_col].piece_occupying->row = move.new_row;
-    board[move.new_row][move.new_col].piece_occupying->col = move.new_col;
-    if (!undo) {
-        board[move.new_row][move.new_col].piece_occupying->moves++;
-    } else {
-        board[move.new_row][move.new_col].piece_occupying->moves--;
     }
 }
 

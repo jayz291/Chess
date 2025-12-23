@@ -296,30 +296,30 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             
             uint64_t mask = 1ULL << square;
 
-            if (game.bitboards.bitboards[0][0] & mask) {
-                draw_piece(game, window, rank, file, "white pawn");
-            } else if (game.bitboards.bitboards[1][0] & mask) {
-                draw_piece(game, window, rank, file, "black pawn");
-            } else if (game.bitboards.bitboards[0][1] & mask) {
-                draw_piece(game, window, rank, file, "white knight");
-            } else if (game.bitboards.bitboards[1][1] & mask) {
-                draw_piece(game, window, rank, file, "black knight");
-            } else if (game.bitboards.bitboards[0][2] & mask) {
-                draw_piece(game, window, rank, file, "white bishop");
-            } else if (game.bitboards.bitboards[1][2] & mask) {
-                draw_piece(game, window, rank, file, "black bishop");
-            } else if (game.bitboards.bitboards[0][3] & mask) {
-                draw_piece(game, window, rank, file, "white rook");
-            } else if (game.bitboards.bitboards[1][3] & mask) {
-                draw_piece(game, window, rank, file, "black rook");
-            } else if (game.bitboards.bitboards[0][4] & mask) {
-                draw_piece(game, window, rank, file, "white queen");
-            } else if (game.bitboards.bitboards[1][4] & mask) {
-                draw_piece(game, window, rank, file, "black queen");
-            } else if (game.bitboards.bitboards[0][5] & mask) {
-                draw_piece(game, window, rank, file, "white king");
-            } else if (game.bitboards.bitboards[1][5] & mask) {
-                draw_piece(game, window, rank, file, "black king");
+            if (game.bitboards.bitboards[white][pawn] & mask) {
+                draw_piece(game, window, rank, file, pawn, white);
+            } else if (game.bitboards.bitboards[black][pawn] & mask) {
+                draw_piece(game, window, rank, file, pawn, black);
+            } else if (game.bitboards.bitboards[white][knight] & mask) {
+                draw_piece(game, window, rank, file, knight, white);
+            } else if (game.bitboards.bitboards[black][knight] & mask) {
+                draw_piece(game, window, rank, file, knight, black);
+            } else if (game.bitboards.bitboards[white][bishop] & mask) {
+                draw_piece(game, window, rank, file, bishop, white);
+            } else if (game.bitboards.bitboards[black][bishop] & mask) {
+                draw_piece(game, window, rank, file, bishop, black);
+            } else if (game.bitboards.bitboards[white][rook] & mask) {
+                draw_piece(game, window, rank, file, rook, white);
+            } else if (game.bitboards.bitboards[black][rook] & mask) {
+                draw_piece(game, window, rank, file, rook, black);
+            } else if (game.bitboards.bitboards[white][queen] & mask) {
+                draw_piece(game, window, rank, file, queen, white);
+            } else if (game.bitboards.bitboards[black][queen] & mask) {
+                draw_piece(game, window, rank, file, queen, black);
+            } else if (game.bitboards.bitboards[white][king] & mask) {
+                draw_piece(game, window, rank, file, king, white);
+            } else if (game.bitboards.bitboards[black][king] & mask) {
+                draw_piece(game, window, rank, file, king, black);
             }
         }
     }
@@ -363,68 +363,64 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
     sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, "blue");
 
     window.draw(pawn_promotion_screen);
-    int row = ((game.view == white) ? 4 : 3);
-    std::shared_ptr<Piece> piece1 = std::make_unique<Piece> (rook, game.turn, false, row, 2);
-    std::shared_ptr<Piece> piece2 = std::make_unique<Piece> (knight, game.turn, false, row, 3);
-    std::shared_ptr<Piece> piece3 = std::make_unique<Piece> (bishop, game.turn, false, row, 4);
-    std::shared_ptr<Piece> piece4 = std::make_unique<Piece> (queen, game.turn, false, row, 5);
-    
-    std::vector<std::shared_ptr<Piece>> promotion_pieces { piece1, piece2, piece3, piece4 };
-    for (auto piece: promotion_pieces) {
-        //draw_piece(game, window, piece);
-    }
+    int rank = ((game.view == white) ? 4 : 3);
+    draw_piece(game, window, rank, 2, rook, game.turn);
+    draw_piece(game, window, rank, 3, knight, game.turn);
+    draw_piece(game, window, rank, 4, bishop, game.turn);
+    draw_piece(game, window, rank, 5, queen, game.turn);
+ 
     window.display();
 }
 
-void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string piece) {
+void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, int piece, int colour) {
     //std::string piece_type = piece->piece_type;
     sf::Texture texture;
 
-    if (piece == "black pawn") {
+    if (piece == pawn && colour == black) {
         if (!texture.loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;
         }
-    } else if (piece == "white pawn") {
+    } else if (piece == pawn && colour == white) {
         if (!texture.loadFromFile("./assets/images/Chess_plt45.png")) {
             return;
         }
-    } else if (piece == "black knight") {
+    } else if (piece == knight && colour == black) {
         if (!texture.loadFromFile("./assets/images/Chess_ndt45.png")) {
             return;
         }
-    } else if (piece == "white knight") {
+    } else if (piece == knight && colour == white) {
         if (!texture.loadFromFile("./assets/images/Chess_nlt45.png")) {
             return;
         }
-    }  else if (piece == "black bishop") {
+    }  else if (piece == bishop && colour == black) {
         if (!texture.loadFromFile("./assets/images/Chess_bdt45.png")) {
             return;
         }
-    } else if (piece == "white bishop") {
+    } else if (piece == bishop && colour == white) {
         if (!texture.loadFromFile("./assets/images/Chess_blt45.png")) {
             return;
         }
-    } else if (piece == "black rook") {
+    } else if (piece == rook && colour == black) {
         if (!texture.loadFromFile("./assets/images/Chess_rdt45.png")) {
             return;
         }
-    } else if (piece == "white rook") {
+    } else if (piece == rook && colour == white) {
         if (!texture.loadFromFile("./assets/images/Chess_rlt45.png")) {
             return;
         }
-    } else if (piece == "black queen") {
+    } else if (piece == queen && colour == black) {
         if (!texture.loadFromFile("./assets/images/Chess_qdt45.png")) {
             return;
         }
-    } else if (piece == "white queen") {
+    } else if (piece == queen && colour == white) {
         if (!texture.loadFromFile("./assets/images/Chess_qlt45.png")) {
             return;
         }
-    } else if (piece == "black king") {
+    } else if (piece == king && colour == black) {
         if (!texture.loadFromFile("./assets/images/Chess_kdt45.png")) {
             return;
         }
-    } else if (piece == "white king") {
+    } else if (piece == king && colour == white) {
         if (!texture.loadFromFile("./assets/images/Chess_klt45.png")) {
             return;
         }
@@ -439,11 +435,11 @@ void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, std::string 
     } else {
         y_offset = (695 - x * (SQUARE_SIZE));
     }
-    if (piece == "white king") {
+    if (piece == king && colour == white) {
         if (game.white_in_check && game.turn == white) {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         } 
-    } else if (piece == "black king") {
+    } else if (piece == king && colour == black) {
         if (game.black_in_check && game.turn == black) {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         }

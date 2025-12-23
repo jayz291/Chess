@@ -39,27 +39,27 @@ void Game::initialise() {
         }
     }
     for (int i { 0 }; i < 8; i++) {
-        board[1][i].piece_occupying = std::make_unique<Piece> (pawn, black, 0, 1, i);
+        board[1][i].piece_occupying = std::make_unique<Piece> (pawn, black);
     }
     for (int i { 0 }; i < 8; i++) {
-        board[6][i].piece_occupying = std::make_unique<Piece> (pawn, white, 0, 6, i);
+        board[6][i].piece_occupying = std::make_unique<Piece> (pawn, white);
     }
-    board[0][0].piece_occupying = std::make_unique<Piece> (rook, black, 0, 0, 0);
-    board[0][1].piece_occupying = std::make_unique<Piece> (knight, black, 0, 0, 1);
-    board[0][2].piece_occupying = std::make_unique<Piece> (bishop, black, 0, 0, 2);
-    board[0][3].piece_occupying = std::make_unique<Piece> (queen, black, 0, 0, 3);
-    board[0][4].piece_occupying = std::make_unique<Piece> (king, black, 0, 0, 4);
-    board[0][5].piece_occupying = std::make_unique<Piece> (bishop, black, 0, 0, 5);
-    board[0][6].piece_occupying = std::make_unique<Piece> (knight, black, 0, 0, 6);
-    board[0][7].piece_occupying = std::make_unique<Piece> (rook, black, 0, 0, 7);
-    board[7][0].piece_occupying = std::make_unique<Piece> (rook, white, 0, 7, 0);
-    board[7][1].piece_occupying = std::make_unique<Piece> (knight, white, 0, 7, 1);
-    board[7][2].piece_occupying = std::make_unique<Piece> (bishop, white, 0, 7, 2);
-    board[7][3].piece_occupying = std::make_unique<Piece> (queen, white, 0, 7, 3);
-    board[7][4].piece_occupying = std::make_unique<Piece> (king, white, 0, 7, 4);
-    board[7][5].piece_occupying = std::make_unique<Piece> (bishop, white, 0, 7, 5);
-    board[7][6].piece_occupying = std::make_unique<Piece> (knight, white, 0, 7, 6);
-    board[7][7].piece_occupying = std::make_unique<Piece> (rook, white, 0, 7, 7);
+    board[0][0].piece_occupying = std::make_unique<Piece> (rook, black);
+    board[0][1].piece_occupying = std::make_unique<Piece> (knight, black);
+    board[0][2].piece_occupying = std::make_unique<Piece> (bishop, black);
+    board[0][3].piece_occupying = std::make_unique<Piece> (queen, black);
+    board[0][4].piece_occupying = std::make_unique<Piece> (king, black);
+    board[0][5].piece_occupying = std::make_unique<Piece> (bishop, black);
+    board[0][6].piece_occupying = std::make_unique<Piece> (knight, black);
+    board[0][7].piece_occupying = std::make_unique<Piece> (rook, black);
+    board[7][0].piece_occupying = std::make_unique<Piece> (rook, white);
+    board[7][1].piece_occupying = std::make_unique<Piece> (knight, white);
+    board[7][2].piece_occupying = std::make_unique<Piece> (bishop, white);
+    board[7][3].piece_occupying = std::make_unique<Piece> (queen, white);
+    board[7][4].piece_occupying = std::make_unique<Piece> (king, white);
+    board[7][5].piece_occupying = std::make_unique<Piece> (bishop, white);
+    board[7][6].piece_occupying = std::make_unique<Piece> (knight, white);
+    board[7][7].piece_occupying = std::make_unique<Piece> (rook, white);
 }
 
 

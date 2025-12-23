@@ -14,9 +14,6 @@ struct Piece;
 struct Piece {
     int piece_type {};
     int colour {};
-    int moves { 0 };
-    int row;
-    int col; 
 };
 
 struct Cell {
