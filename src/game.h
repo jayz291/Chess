@@ -19,8 +19,6 @@ class Game {
         int turn {};
         bool white_in_check {};
         bool black_in_check {};
-        Coords black_king_position {};
-        Coords white_king_position {};
         bool game_over {};
         bool checkmate {};
         bool stalemate {};

@@ -174,16 +174,6 @@ void undo_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& p
         Move prev_prev_move = game.move_record[game.move_record.size() - 2];
         game.castling_rights = prev_prev_move.castling_rights;
     }
-    
-    if (prev_move.piece == king) {
-        if (prev_move.turn == white) {
-            game.white_king_position.row = prev_move.prev_row;
-            game.white_king_position.col = prev_move.prev_col;
-        } else {
-            game.black_king_position.row = prev_move.prev_row;
-            game.black_king_position.col = prev_move.prev_col;
-        }
-    }
 
     //game.turn = ((game.turn == black) ? white : black);
     //std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
@@ -242,15 +232,6 @@ void make_game_move(Game& game, Bitboards& bitboards, Chessboard& board, int res
     game.move_record.push_back(move);
     
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
-    if (board[move.new_row][move.new_col].piece_occupying->piece_type == king) {
-        if (game.turn == white) {
-            game.white_king_position.row = move.new_row;
-            game.white_king_position.col = move.new_col;
-        } else {
-            game.black_king_position.row = move.new_row;
-            game.black_king_position.col = move.new_col;
-        }
-    }
 }
 
 void update_castling_flags(Game& game, Bitboards& bitboards, Move& move) {
@@ -351,16 +332,6 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
     game.move_record.push_back(move);
     
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
-    if (board[move.new_row][move.new_col].piece_occupying->piece_type == king) {
-        if (move.turn == white) {
-            game.white_king_position.row = move.new_row;
-            game.white_king_position.col = move.new_col;
-        } else {
-            game.black_king_position.row = move.new_row;
-            game.black_king_position.col = move.new_col;
-        }
-    }
-
 }
 
 void generate_computer_move(Game& game) {
@@ -534,7 +505,6 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
             if (board[possible_move.new_row][possible_move.new_col].piece_occupying) {
                 possible_move.piece_taken = board[possible_move.new_row][possible_move.new_col].piece_occupying;
             }
-
           
             Bitboards saved_bitboards = bitboards;
             make_test_move(game, bitboards, board, possible_move);
@@ -647,7 +617,7 @@ void handle_pawn_promotion(Game& game, Bitboards& bitboards, Chessboard& board, 
     bitboards.bitboards[game.turn][game.piece_selected] |= (square);
     bitboards.update_occupied();
     update_castling_flags(game, game.bitboards, move);
-     game.move_record.push_back(move);
+    game.move_record.push_back(move);
     game.piece_selected = -1;
     game.promoting_pawn = false;
 

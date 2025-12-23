@@ -23,9 +23,6 @@ void Game::initialise() {
     turn = white;
     checkmate = stalemate = repetition = insufficient_material = promoting_pawn = false;
     selected.col = selected.row = -1;
-    black_king_position.row = 0;
-    white_king_position.row = 7;
-    black_king_position.col = white_king_position.col = 4;
     bitboards = {};
     castling_rights = 0b00001111;
     for (int i { 0 }; i < 8; i++) {
