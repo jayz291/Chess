@@ -12,22 +12,6 @@ uint64_t RANK_7 = 0x00FF000000000000ULL;
 uint64_t RANK_4 = 0x00000000FF000000ULL;
 uint64_t RANK_5 = 0x000000FF00000000ULL;
 
-int create_encoded_move(int from, int to, int flags) {
-    return (flags << 12) | (to << 6) | from;
-}
-
-int get_from(Encoded_move move) {
-    return move & MASK_FROM;
-}
-
-int get_to(Encoded_move move) {
-    return (move >> 6) & MASK_TO;
-}
-
-int get_flags(Encoded_move move) {
-    return (move >> 12) & MASK_TO;
-}
-
 uint64_t find_rook_attacks(int square, Bitboards& bitboards) {
     int directions[4] = {-1, 1, 8, -8};
     int curr = square;
@@ -273,7 +257,7 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
     if ((move.turn == black && board[row][col].piece_occupying->piece_type == pawn && row == 6) || 
         (move.turn == white && board[row][col].piece_occupying->piece_type == pawn && row == 1) &&
         std::abs(move.new_row - move.prev_row) == 1) {
-            std::cout << "promoting pawn\n";
+            //std::cout << "promoting pawn\n";
             game.promoting_pawn = true;
             move_piece(game, bitboards, board, move);
             u_int64_t mask = 1ULL;

@@ -41,15 +41,6 @@ struct Move {
     uint8_t castling_rights {};
 };
 
-// flags: captured piece, castling, en passant, promotion
-
-typedef u_int16_t Encoded_move;
-const uint16_t MASK_FROM = 0x3F;
-const uint16_t MASK_TO = 0xFC0;
-const uint16_t MASK_FLAGS = 0xF000;
-
-using Chessboard = std::array<std::array<Cell, 8>, 8>;
-
 enum {
     white = 0,
     black = 1
@@ -77,42 +68,29 @@ extern uint64_t RANK_7;
 
 struct Bitboards {
     uint64_t bitboards[2][6];
-    uint64_t white_pawns = 0x000000000000FF00ULL;
-    uint64_t white_knights = 0x0000000000000042ULL;
-    uint64_t white_rooks = 0x0000000000000081ULL;
-    uint64_t white_bishops = 0x0000000000000024ULL;
-    uint64_t white_queens = 0x0000000000000008ULL;
-    uint64_t white_king = 0x0000000000000010ULL;
-    uint64_t black_pawns = 0x00FF000000000000ULL;
-    uint64_t black_knights = 0x4200000000000000ULL;
-    uint64_t black_rooks = 0x8100000000000000ULL;
-    uint64_t black_bishops = 0x2400000000000000ULL;
-    uint64_t black_queens = 0x0800000000000000ULL;
-    uint64_t black_king = 0x1000000000000000ULL;
     uint64_t occupied_tables[2];
-    uint64_t white_occupied = white_pawns | white_knights | white_rooks | white_bishops | white_queens | white_king;
-    uint64_t black_occupied = black_pawns | black_knights | black_rooks | black_bishops | black_queens | black_king;
-    uint64_t occupied = white_occupied | black_occupied;
+    uint64_t white_occupied;
+    uint64_t black_occupied;
+    uint64_t occupied;
     uint64_t knight_attacks[64];
     uint64_t king_moves[64];
     uint64_t pawn_attacks[2][64];
     uint64_t pawn_moves[2][64];
     uint64_t between_table[64][64];
     Bitboards() {
-        bitboards[0][0] = white_pawns;
-        bitboards[0][1] = white_knights;
-        bitboards[0][2] = white_bishops;
-        bitboards[0][3] = white_rooks;
-        bitboards[0][4] = white_queens;
-        bitboards[0][5] = white_king;
-        bitboards[1][0] = black_pawns;
-        bitboards[1][1] = black_knights;
-        bitboards[1][2] = black_bishops;
-        bitboards[1][3] = black_rooks;
-        bitboards[1][4] = black_queens;
-        bitboards[1][5] = black_king;
-        occupied_tables[0] = white_occupied;
-        occupied_tables[1] = black_occupied;
+        bitboards[white][pawn] = 0x000000000000FF00ULL;
+        bitboards[white][knight] = 0x0000000000000042ULL;
+        bitboards[white][bishop] = 0x0000000000000024ULL;
+        bitboards[white][rook] = 0x0000000000000081ULL;
+        bitboards[white][queen] = 0x0000000000000008ULL;
+        bitboards[white][king] = 0x0000000000000010ULL;
+        bitboards[black][pawn] = 0x00FF000000000000ULL;
+        bitboards[black][knight] = 0x4200000000000000ULL;
+        bitboards[black][bishop] = 0x2400000000000000ULL;
+        bitboards[black][rook] = 0x8100000000000000ULL;
+        bitboards[black][queen] = 0x0800000000000000ULL;
+        bitboards[black][king] = 0x1000000000000000ULL;
+        update_occupied();
         find_valid_knight_moves();
         find_valid_king_moves();
         make_between_table();
