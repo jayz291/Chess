@@ -364,10 +364,10 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
 
     window.draw(pawn_promotion_screen);
     int row = ((game.view == white) ? 4 : 3);
-    std::shared_ptr<Piece> piece1 = std::make_shared<Piece> (rook, game.turn, false, row, 2);
-    std::shared_ptr<Piece> piece2 = std::make_shared<Piece> (knight, game.turn, false, row, 3);
-    std::shared_ptr<Piece> piece3 = std::make_shared<Piece> (bishop, game.turn, false, row, 4);
-    std::shared_ptr<Piece> piece4 = std::make_shared<Piece> (queen, game.turn, false, row, 5);
+    std::shared_ptr<Piece> piece1 = std::make_unique<Piece> (rook, game.turn, false, row, 2);
+    std::shared_ptr<Piece> piece2 = std::make_unique<Piece> (knight, game.turn, false, row, 3);
+    std::shared_ptr<Piece> piece3 = std::make_unique<Piece> (bishop, game.turn, false, row, 4);
+    std::shared_ptr<Piece> piece4 = std::make_unique<Piece> (queen, game.turn, false, row, 5);
     
     std::vector<std::shared_ptr<Piece>> promotion_pieces { piece1, piece2, piece3, piece4 };
     for (auto piece: promotion_pieces) {

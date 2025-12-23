@@ -370,12 +370,12 @@ void generate_computer_move(Game& game) {
     }
     thinking_in_progress = true;
 
-    auto copy = std::make_shared<Chessboard>();
+    auto copy = std::make_unique<Chessboard>();
     Bitboards bitboards_copy = game.bitboards;
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
             if (game.board[i][j].piece_occupying) {
-                (*copy)[i][j].piece_occupying = std::make_shared<Piece>(*game.board[i][j].piece_occupying);
+                (*copy)[i][j].piece_occupying = std::make_unique<Piece>(*game.board[i][j].piece_occupying);
             } else {
                 (*copy)[i][j].piece_occupying = nullptr;
             }
@@ -384,8 +384,8 @@ void generate_computer_move(Game& game) {
     positions_searched = 0;
     Game game_copy = game;
     auto start = std::chrono::steady_clock::now();
-    std::thread computer_thread([copy, bitboards_copy, game_copy, start]() mutable {
-        Move chosen_move = get_best_move(game_copy, bitboards_copy, *copy, 4);
+    std::thread computer_thread([lambda_copy = std::move(copy), bitboards_copy, game_copy, start]() mutable {
+        Move chosen_move = get_best_move(game_copy, bitboards_copy, *lambda_copy, 4);
         computer_turn = false;
         thinking_in_progress = false;
         finished = true;
@@ -393,6 +393,7 @@ void generate_computer_move(Game& game) {
         auto end = std::chrono::steady_clock::now();
         std::chrono::duration<double, std::milli> duration = end - start;
         std::cout << duration.count() << '\n';
+        std::cout << "Avg nodes per sec: " << positions_searched / duration.count() * 1000 << '\n';
     });
     computer_thread.detach();
 }
@@ -562,43 +563,35 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
 
 int evaluate(Bitboards& bitboards) {
     int eval { 0 };
-    uint64_t mask = 1ULL;
-    uint64_t occupied = bitboards.occupied;
-    while (occupied) {
-        int cell = __builtin_ctzll(occupied);
-        if (mask << cell & bitboards.bitboards[white][pawn]) {
-            eval++;
-        } else if (mask << cell & bitboards.bitboards[black][pawn]) {
-            eval--;
-        } else if ((mask << cell & bitboards.bitboards[white][knight]) || 
-            (mask << cell & bitboards.bitboards[white][bishop])) {
-            eval += 3;
-        } else if ((mask << cell & bitboards.bitboards[black][knight]) || 
-            (mask << cell & bitboards.bitboards[black][bishop])) {
-            eval -= 3;
-        } else if ((mask << cell & bitboards.bitboards[white][rook])) {
-            eval += 5;
-        } else if ((mask << cell & bitboards.bitboards[black][rook])) {
-            eval -= 5;
-        } else if ((mask << cell & bitboards.bitboards[white][queen])) {
-            eval += 9;
-        } else if ((mask << cell & bitboards.bitboards[black][queen])) {
-            eval -= 9;
-        }  
-        occupied &= occupied - 1;
-    }
+    
+    const int pawn_val { 1 };
+    const int knight_val { 3 };
+    const int bishop_val { 3 };
+    const int rook_val { 5 };
+    const int queen_val { 9 };
+    eval += __builtin_popcountll(bitboards.bitboards[white][pawn]) * pawn_val;
+    eval += __builtin_popcountll(bitboards.bitboards[white][knight]) * knight_val;
+    eval += __builtin_popcountll(bitboards.bitboards[white][bishop]) * bishop_val;
+    eval += __builtin_popcountll(bitboards.bitboards[white][rook]) * rook_val;
+    eval += __builtin_popcountll(bitboards.bitboards[white][queen]) * queen_val;
+    eval -= __builtin_popcountll(bitboards.bitboards[black][pawn]) * pawn_val;
+    eval -= __builtin_popcountll(bitboards.bitboards[black][knight]) * knight_val;
+    eval -= __builtin_popcountll(bitboards.bitboards[black][bishop]) * bishop_val;
+    eval -= __builtin_popcountll(bitboards.bitboards[black][rook]) * rook_val;
+    eval -= __builtin_popcountll(bitboards.bitboards[black][queen]) * queen_val;
+    
     return eval;
 }
 
 void is_game_over(Game& game) {
     evaluate_king_checks(game);
     record_board(game);
-    auto copy = std::make_shared<Chessboard>();
+    auto copy = std::make_unique<Chessboard>();
     Bitboards bitboards_copy = game.bitboards;
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
             if (game.board[i][j].piece_occupying) {
-                (*copy)[i][j].piece_occupying = std::make_shared<Piece>(*game.board[i][j].piece_occupying);
+                (*copy)[i][j].piece_occupying = std::make_unique<Piece>(*game.board[i][j].piece_occupying);
             } else {
                 (*copy)[i][j].piece_occupying = nullptr;
             }
@@ -791,7 +784,7 @@ int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& mov
             for (int i { 0 }; i < 8; i++) {
                 for (int j { 0 }; j < 8; j++) {
                     if (board[i][j].piece_occupying) {
-                        copy[i][j].piece_occupying = std::make_shared<Piece>(*board[i][j].piece_occupying);
+                        copy[i][j].piece_occupying = std::make_unique<Piece>(*board[i][j].piece_occupying);
                     } else {
                         copy[i][j].piece_occupying = nullptr;
                     }
@@ -949,7 +942,7 @@ int check_checks(Game& game, Bitboards& bitboards, Chessboard& board_copy, Move&
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
             if (board_copy[i][j].piece_occupying) {
-                copy[i][j].piece_occupying = std::make_shared<Piece>(*board_copy[i][j].piece_occupying);
+                copy[i][j].piece_occupying = std::make_unique<Piece>(*board_copy[i][j].piece_occupying);
             } else {
                 copy[i][j].piece_occupying = nullptr;
             }
@@ -1064,6 +1057,7 @@ int test_castling(Game &game, Bitboards& bitboard_copy, Move& move) {
 std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard& board, int turn, bool CPU) {
     //std::string board_positions {};
     std::vector<Move> moves {};
+    moves.reserve(64);
     uint64_t mask = 1ULL;
     uint64_t current_pieces = bitboards.occupied_tables[turn];
        
