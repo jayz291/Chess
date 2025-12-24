@@ -458,7 +458,6 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         
         for (Move possible_move: possible_moves) {
            
-            Bitboards saved_bitboards = bitboards;
             make_test_move(game, bitboards, board, possible_move);
             int king_square = __builtin_ctzll(bitboards.bitboards[turn][king]);
             if (is_square_attacked(bitboards, king_square, turn)) {
@@ -485,7 +484,6 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         int min_eval = 600000;
         for (Move possible_move: possible_moves) {
           
-            Bitboards saved_bitboards = bitboards;
             make_test_move(game, bitboards, board, possible_move);
             int king_square = __builtin_ctzll(bitboards.bitboards[turn][king]);
             if (is_square_attacked(bitboards, king_square, turn)) {
@@ -502,9 +500,7 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
 
             if (beta <= alpha) {
                 break;
-            }
-            
-            
+            }    
         } 
         return min_eval;    
     } 
@@ -523,7 +519,29 @@ int evaluate(Bitboards& bitboards) {
     eval -= __builtin_popcountll(bitboards.bitboards[black][bishop]) * piece_values[bishop];
     eval -= __builtin_popcountll(bitboards.bitboards[black][rook]) * piece_values[rook];
     eval -= __builtin_popcountll(bitboards.bitboards[black][queen]) * piece_values[queen];
-    
+    eval += positional_eval(bitboards.bitboards[white][pawn], white_pawn_square_table);
+    eval += positional_eval(bitboards.bitboards[white][knight], knights_table);
+    eval += positional_eval(bitboards.bitboards[white][bishop], bishop_table);
+    eval += positional_eval(bitboards.bitboards[white][rook], rook_table);
+    eval += positional_eval(bitboards.bitboards[white][queen], queen_table);
+    eval += positional_eval(bitboards.bitboards[white][king], king_table_beginning_white);
+    eval -= positional_eval(bitboards.bitboards[black][pawn], black_pawn_square_table);
+    eval -= positional_eval(bitboards.bitboards[black][knight], knights_table);
+    eval -= positional_eval(bitboards.bitboards[black][bishop], bishop_table);
+    eval -= positional_eval(bitboards.bitboards[black][rook], rook_table);
+    eval -= positional_eval(bitboards.bitboards[black][queen], queen_table);
+    eval -= positional_eval(bitboards.bitboards[black][king], king_table_beginning_black);
+  
+    return eval;
+}
+
+int positional_eval(uint64_t bitboard, const int table[]) {
+    int eval { 0 };
+    while (bitboard) {
+        int square = __builtin_ctzll(bitboard);
+        eval += table[square];
+        bitboard &= bitboard - 1;
+    }
     return eval;
 }
 
@@ -533,6 +551,10 @@ int sort_moves_by_priority(Move& move) {
     }
     if (move.special_move == "promotion") {
         return 9000;
+    }
+    if (move.special_move == "castling") {
+        std::cout << "Castling\n";
+        return 4000;
     }
     return 0;
 }
@@ -1161,24 +1183,24 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
                     }
                 }
                 king_moves &= king_moves - 1;
-            }
-            if (from_square == 4 && turn == white) {
-                Move move1 { 7 - from_square / 8, from_square % 8, 7, 6, turn, king, nullptr, "castling" };
-                Move move2 { 7 - from_square / 8, from_square % 8, 7, 2, turn, king, nullptr, "castling" };
-                if ((test_castling(game, bitboards, move1) == 2 && check_checks(game, bitboards, board, move1) != 1)) {
-                    moves.push_back(move1);
-                }
-                if (test_castling(game, bitboards, move2) == 1) {
-                    moves.push_back(move2);
-                }
-            } else if (from_square == 60 && turn == black) {
-                Move move1 { 7 - from_square / 8, from_square % 8, 0, 6, turn, king, nullptr, "castling" };
-                Move move2 { 7 - from_square / 8, from_square % 8, 0, 2, turn, king, nullptr, "castling" };
-                if ((test_castling(game, bitboards, move1) == 2 && check_checks(game, bitboards, board, move1) != 1)) {
-                    moves.push_back(move1);
-                }
-                if (test_castling(game, bitboards, move2) == 1 && check_checks(game, bitboards, board, move2) != 1) {
-                    moves.push_back(move2);
+                if (from_square == 4 && turn == white) {
+                    Move move1 { 7 - from_square / 8, from_square % 8, 7, 6, turn, king, nullptr, "castling" };
+                    Move move2 { 7 - from_square / 8, from_square % 8, 7, 2, turn, king, nullptr, "castling" };
+                    if (test_castling(game, bitboards, move1) == 1) {
+                        moves.push_back(move1);
+                    }
+                    if (test_castling(game, bitboards, move2) == 2) {
+                        moves.push_back(move2);
+                    }
+                } else if (from_square == 60 && turn == black) {
+                    Move move1 { 7 - from_square / 8, from_square % 8, 0, 6, turn, king, nullptr, "castling" };
+                    Move move2 { 7 - from_square / 8, from_square % 8, 0, 2, turn, king, nullptr, "castling" };
+                    if (test_castling(game, bitboards, move1) == 1) {
+                        moves.push_back(move1);
+                    }
+                    if (test_castling(game, bitboards, move2) == 2) {
+                        moves.push_back(move2);
+                    }
                 }
             }
         }
