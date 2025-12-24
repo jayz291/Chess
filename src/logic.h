@@ -45,4 +45,5 @@ void update_computer_move(Game& game);
 Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth);
 int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta, bool maximising);
 int evaluate(Bitboards& bitboards);
+int sort_moves_by_priority(Move& move);
 

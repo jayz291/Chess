@@ -383,15 +383,15 @@ Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth
     int turn = game.turn;
     //std::cout << "generating\n";
     std::vector<Move> possible_moves = determine_possible_moves(game, bitboards, copy, turn, true);
+    std::sort(possible_moves.begin(), possible_moves.end(), [&](Move& move1, Move& move2) {
+        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+    });
 
-    std::cout << possible_moves.size() << '\n';
+    //std::cout << possible_moves.size() << '\n';
     //std::cout << "here2\n";
 
     for (auto move: possible_moves) {
         //std::cout << "testing possible moves\n";
-        if (copy[move.new_row][move.new_col].piece_occupying) {
-            move.piece_taken = copy[move.new_row][move.new_col].piece_occupying;
-        }
        
         make_test_move(game, bitboards, copy, move);
         int king_square = __builtin_ctzll(bitboards.bitboards[turn][king]);
@@ -437,6 +437,9 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
     int turn = ((maximising == true) ? white : black);
 
     std::vector<Move> possible_moves = determine_possible_moves(game, bitboards, board, turn, true);
+    std::sort(possible_moves.begin(), possible_moves.end(), [&](Move& move1, Move& move2) {
+        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+    });
     //std::cout << "size: " << possible_moves.size() << '\n';
     if (possible_moves.size() == 0) {
         Move default_move { 0, 0, 0, 0, turn, -1 };
@@ -454,10 +457,6 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         int max_eval = -600000;
         
         for (Move possible_move: possible_moves) {
-           
-            if (board[possible_move.new_row][possible_move.new_col].piece_occupying) {
-                possible_move.piece_taken = board[possible_move.new_row][possible_move.new_col].piece_occupying;
-            }
            
             Bitboards saved_bitboards = bitboards;
             make_test_move(game, bitboards, board, possible_move);
@@ -483,12 +482,8 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         if (turn != black) {
             std::cout << "a bug occurred\n";
         }
-        //game.turn = black;
         int min_eval = 600000;
         for (Move possible_move: possible_moves) {
-            if (board[possible_move.new_row][possible_move.new_col].piece_occupying) {
-                possible_move.piece_taken = board[possible_move.new_row][possible_move.new_col].piece_occupying;
-            }
           
             Bitboards saved_bitboards = bitboards;
             make_test_move(game, bitboards, board, possible_move);
@@ -518,23 +513,28 @@ int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
 int evaluate(Bitboards& bitboards) {
     int eval { 0 };
     
-    const int pawn_val { 1 };
-    const int knight_val { 3 };
-    const int bishop_val { 3 };
-    const int rook_val { 5 };
-    const int queen_val { 9 };
-    eval += __builtin_popcountll(bitboards.bitboards[white][pawn]) * pawn_val;
-    eval += __builtin_popcountll(bitboards.bitboards[white][knight]) * knight_val;
-    eval += __builtin_popcountll(bitboards.bitboards[white][bishop]) * bishop_val;
-    eval += __builtin_popcountll(bitboards.bitboards[white][rook]) * rook_val;
-    eval += __builtin_popcountll(bitboards.bitboards[white][queen]) * queen_val;
-    eval -= __builtin_popcountll(bitboards.bitboards[black][pawn]) * pawn_val;
-    eval -= __builtin_popcountll(bitboards.bitboards[black][knight]) * knight_val;
-    eval -= __builtin_popcountll(bitboards.bitboards[black][bishop]) * bishop_val;
-    eval -= __builtin_popcountll(bitboards.bitboards[black][rook]) * rook_val;
-    eval -= __builtin_popcountll(bitboards.bitboards[black][queen]) * queen_val;
+    eval += __builtin_popcountll(bitboards.bitboards[white][pawn]) * piece_values[pawn];
+    eval += __builtin_popcountll(bitboards.bitboards[white][knight]) * piece_values[knight];
+    eval += __builtin_popcountll(bitboards.bitboards[white][bishop]) * piece_values[bishop];
+    eval += __builtin_popcountll(bitboards.bitboards[white][rook]) * piece_values[rook];
+    eval += __builtin_popcountll(bitboards.bitboards[white][queen]) * piece_values[queen];
+    eval -= __builtin_popcountll(bitboards.bitboards[black][pawn]) * piece_values[pawn];
+    eval -= __builtin_popcountll(bitboards.bitboards[black][knight]) * piece_values[knight];
+    eval -= __builtin_popcountll(bitboards.bitboards[black][bishop]) * piece_values[bishop];
+    eval -= __builtin_popcountll(bitboards.bitboards[black][rook]) * piece_values[rook];
+    eval -= __builtin_popcountll(bitboards.bitboards[black][queen]) * piece_values[queen];
     
     return eval;
+}
+
+int sort_moves_by_priority(Move& move) {
+    if (move.piece_taken != nullptr) {
+        return 10000 + piece_values[move.piece_taken->piece_type] - piece_values[move.piece];
+    }
+    if (move.special_move == "promotion") {
+        return 9000;
+    }
+    return 0;
 }
 
 void is_game_over(Game& game) {
@@ -1007,7 +1007,6 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
     moves.reserve(64);
     uint64_t mask = 1ULL;
     uint64_t current_pieces = bitboards.occupied_tables[turn];
-       
     
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
@@ -1018,7 +1017,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
             while (captures) {
                 int to_square = __builtin_ctzll(captures);
                 if (mask << to_square & bitboards.occupied_tables[opposing_turn]) {
-                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, pawn };
+                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, pawn,
+                    board[7 - to_square / 8][to_square % 8].piece_occupying };
                     if (!CPU) {
                         if (check_checks(game, bitboards, board, move) != 1) {
                             moves.push_back(move);
@@ -1034,7 +1034,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
                 int to_square = __builtin_ctzll(non_captures);
                 if (mask << to_square & ~bitboards.occupied) {
                 
-                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, pawn };
+                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, pawn,
+                    board[7 - to_square / 8][to_square % 8].piece_occupying  };
                     if (!CPU) {
                         if (check_checks(game, bitboards, board, move) != 1) {
                             moves.push_back(move);
@@ -1060,7 +1061,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
             while (knight_moves) {
                 int to_square = __builtin_ctzll(knight_moves);
                 if (mask << to_square & ~bitboards.occupied_tables[turn]) {
-                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, knight };
+                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, knight,
+                    board[7 - to_square / 8][to_square % 8].piece_occupying };
                     if (!CPU) {
                         if (check_checks(game, bitboards, board, move) != 1) {
                             moves.push_back(move);
@@ -1077,7 +1079,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
             uint64_t bishop_attacks = find_bishop_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
             while (bishop_attacks) {
                 int to_square = __builtin_ctzll(bishop_attacks);
-                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, bishop };
+                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, bishop,
+                board[7 - to_square / 8][to_square % 8].piece_occupying };
                 if (!CPU) {
                     if (check_checks(game, bitboards, board, move) != 1) {
                         moves.push_back(move);
@@ -1093,7 +1096,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
             uint64_t rook_attacks = find_rook_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
-                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, rook };
+                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, rook, 
+                board[7 - to_square / 8][to_square % 8].piece_occupying };
                 if (!CPU) {
                     if (check_checks(game, bitboards, board, move) != 1) {
                         moves.push_back(move);
@@ -1109,7 +1113,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
             uint64_t bishop_attacks = find_bishop_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
             while (bishop_attacks) {
                 int to_square = __builtin_ctzll(bishop_attacks);
-                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, queen };
+                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, queen, 
+                board[7 - to_square / 8][to_square % 8].piece_occupying };
                 if (!CPU) {
                     if (check_checks(game, bitboards, board, move) != 1) {
                         moves.push_back(move);
@@ -1123,7 +1128,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
             uint64_t rook_attacks = find_rook_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
-                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, queen };
+                Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, queen,
+                board[7 - to_square / 8][to_square % 8].piece_occupying };
                 if (!CPU) {
                     if (check_checks(game, bitboards, board, move) != 1) {
                         std::cout << "here\n";
@@ -1143,7 +1149,8 @@ std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Che
                 int to_square = __builtin_ctzll(king_moves);
                 if (mask << to_square & ~bitboards.occupied_tables[turn]) {
                     //print_bitboard(bitboards.occupied_tables[turn]);
-                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, king };
+                    Move move { 7 - from_square / 8, from_square % 8, 7 - to_square / 8, to_square % 8, turn, king,
+                    board[7 - to_square / 8][to_square % 8].piece_occupying };
                     if (!CPU) {
                         if (check_checks(game, bitboards, board, move) != 1) {
                             moves.push_back(move);

@@ -6,6 +6,7 @@
 #include <memory>
 #include <cstdint>
 #include <bitset>
+#include <algorithm>
 
 constexpr int SQUARE_SIZE = 95;
 
@@ -54,6 +55,8 @@ enum {
     queen = 4,
     king = 5
 };
+
+const int piece_values[5] = { 100, 300, 300, 500, 900 };
 
 extern uint64_t FILE_H;
 extern uint64_t FILE_A;
