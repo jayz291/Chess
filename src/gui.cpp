@@ -257,6 +257,17 @@ void draw_return_to_home_button(sf::RenderWindow& window) {
 
 void draw_board(Game& game, sf::RenderWindow& window) {
     float x_offset {}, y_offset {};
+
+    bool prev_move_available { false };
+    Move prev_move { -1, -1, -1, -1 };
+    if (game.move_record.size() > 0) {
+        prev_move_available = true;
+        prev_move = game.move_record.back();
+        if (game.view == black) {
+            prev_move.new_row = 7 - prev_move.new_row;
+            prev_move.prev_row = 7 - prev_move.prev_row;
+        }
+    }
     
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
@@ -266,15 +277,35 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             
             if (game.board[i][j].colour == "brown") {
                 if (game.view == white) {
-                    cell.setFillColor(sf::Color(165, 42, 42));
+                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
+                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                        cell.setFillColor(sf::Color(1, 140, 32));
+                    } else {
+                        cell.setFillColor(sf::Color(165, 42, 42));
+                    }
                 } else {
-                    cell.setFillColor(sf::Color::Yellow);
+                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
+                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                        cell.setFillColor(sf::Color(144, 238, 144));
+                    } else {
+                        cell.setFillColor(sf::Color::Yellow);
+                    }
                 }
             } else {
                 if (game.view == white) {
-                    cell.setFillColor(sf::Color::Yellow);
+                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
+                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                        cell.setFillColor(sf::Color(144, 238, 144));
+                    } else {
+                        cell.setFillColor(sf::Color::Yellow);
+                    }
                 } else {
-                    cell.setFillColor(sf::Color(165, 42, 42));
+                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
+                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                        cell.setFillColor(sf::Color(1, 140, 32));
+                    } else {
+                        cell.setFillColor(sf::Color(165, 42, 42));
+                    }
                 }
             }
             if (game.board[i][j].selected && game.view == white) {

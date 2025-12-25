@@ -28,7 +28,6 @@ class Game {
         bool promoting_pawn {};
         int piece_selected {};
         std::vector<Move> move_record {};
-        std::vector<Move> test_moves {};
         std::vector<std::string> board_record {};
         int plys_to_100 {};
         int value_white_pieces {};

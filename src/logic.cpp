@@ -92,7 +92,7 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
         board[captured_row][prev_move.prev_col].piece_occupying = prev_move.piece_taken;
         uint64_t mask = 1ULL;
         int from_square = (7 - captured_row) * 8 + (prev_move.prev_col);
-        bitboards.bitboards[opposing_turn][0] |= (mask << from_square);
+        bitboards.bitboards[opposing_turn][pawn] |= (mask << from_square);
     }
     int castling_row = ((prev_move.turn == black) ? 0 : 7);
     if (prev_move.special_move == castling) {
@@ -137,7 +137,7 @@ void undo_game_move(Game& game) {
         Move prev_prev_move = game.move_record[game.move_record.size() - 2];
         game.castling_rights = prev_prev_move.castling_rights;
     }
-    std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
+    // std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
     //std::cout << "here now\n";
     //std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
     if (game.board_record.size() > 0) {
@@ -211,7 +211,7 @@ void make_game_move(Game& game, Bitboards& bitboards, Chessboard& board, int res
         move.piece_taken = board[captured_row][move.new_col].piece_occupying;
         board[captured_row][move.new_col].piece_occupying.piece_type = none;
         board[captured_row][move.new_col].piece_occupying.colour = none;
-        bitboards.bitboards[opposing_turn][0] &= (~mask);
+        bitboards.bitboards[opposing_turn][pawn] &= (~mask);
         game.board_record.clear();
     } 
     update_castling_flags(game, bitboards, move);
@@ -712,30 +712,26 @@ int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& mov
     //std::cout << move.new_row << ' ' << move.new_col << '\n';
     //std::cout << std::boolalpha << (move.prev_row != move.new_row) || (move.prev_col != move.new_col) << '\n';
     if ((move.prev_row != move.new_row || move.prev_col != move.new_col) && 
-        (board[move.new_row][move.new_col].piece_occupying.piece_type != none || 
+        (board[move.new_row][move.new_col].piece_occupying.piece_type == none || 
         board[move.new_row][move.new_col].piece_occupying.colour != move.turn)) {
         
-        int piece = move.piece;
-        if (piece == pawn) {
+        if (move.piece == pawn) {
             result = validate_move_pawn(game, bitboards, move);
-        } else if (piece == knight) {
+        } else if (move.piece == knight) {
             result = validate_move_knight(bitboards, move);
-        } else if (piece == bishop) {
+        } else if (move.piece == bishop) {
             result = validate_move_bishop(bitboards, move);
-        } else if (piece == rook) {
+        } else if (move.piece == rook) {
             result = validate_move_rook(bitboards, move);
-        } else if (piece == queen) {
+        } else if (move.piece == queen) {
             result = validate_move_queen(bitboards, move);
-        } else if (piece == king) {
+        } else if (move.piece == king) {
             result = validate_move_king(game, bitboards, move);
         } else {
             return 0;
         }
         if (result >= 0 && !only_checking_checks) {
-
-            Chessboard copy = game.board;
-            Bitboards bitboard_copy = game.bitboards;
-            if (check_checks(game, bitboard_copy, copy, move) == 0) {
+            if (check_checks(game, bitboards, board, move) == 0) {
                 return result;
             }
             return -1;
