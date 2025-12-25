@@ -284,11 +284,7 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
             game.promoting_pawn = false;
             return;
     }
-    /*
-    int result;
-    if (move.special_move == castling) {
-        result = test_castling(game, bitboards, move);
-    }*/
+
     //std::cout << "just before moving piece\n";
     if (move.prev_row != move.new_row || move.prev_col != move.new_col ) {
         move_piece(game, bitboards, board, move);
@@ -302,20 +298,6 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
             Move rook_move { row, 0, row, 3, move.turn, rook };
             move_piece(game, bitboards, board, rook_move);
         }
-        /*
-        if (result == 1 && move.turn == white) { 
-            Move move { 7, 7, 7, 5, white, rook };
-            move_piece(game, bitboards, board, move);
-        } else if (result == 2 && move.turn == white) {
-            Move move { 7, 0, 7, 3, white, rook };
-            move_piece(game, bitboards, board, move);
-        } else if (result == 1 && move.turn == black) {
-            Move move { 0, 7, 0, 5, black, rook };
-            move_piece(game, bitboards, board, move);
-        } else if (result == 2 && move.turn == black) {
-            Move move { 0, 0, 0, 3, black, rook };
-            move_piece(game, bitboards, board, move);
-        }*/
     }
 
     if (move.special_move == en_passant) {
@@ -340,20 +322,8 @@ void generate_computer_move(Game& game) {
         return;
     }
     thinking_in_progress = true;
-
     
     Bitboards bitboards_copy = game.bitboards;
-    /*
-    auto copy = std::make_unique<Chessboard>();
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-            if (game.board[i][j].piece_occupying) {
-                (*copy)[i][j].piece_occupying = std::make_unique<Piece>(*game.board[i][j].piece_occupying);
-            } else {
-                (*copy)[i][j].piece_occupying = nullptr;
-            }
-        }
-    }*/
     Chessboard copy = game.board;
     positions_searched = 0;
     Game game_copy = game;
@@ -545,13 +515,18 @@ int evaluate(Bitboards& bitboards) {
     eval += positional_eval(bitboards.bitboards[white][bishop], bishop_table);
     eval += positional_eval(bitboards.bitboards[white][rook], rook_table);
     eval += positional_eval(bitboards.bitboards[white][queen], queen_table);
-    eval += positional_eval(bitboards.bitboards[white][king], king_table_beginning_white);
     eval -= positional_eval(bitboards.bitboards[black][pawn], black_pawn_square_table);
     eval -= positional_eval(bitboards.bitboards[black][knight], knights_table);
     eval -= positional_eval(bitboards.bitboards[black][bishop], bishop_table);
     eval -= positional_eval(bitboards.bitboards[black][rook], rook_table);
     eval -= positional_eval(bitboards.bitboards[black][queen], queen_table);
-    eval -= positional_eval(bitboards.bitboards[black][king], king_table_beginning_black);
+    if (bitboards.bitboards[black][queen] != 0 && bitboards.bitboards[white][queen] != 0) {
+        eval += positional_eval(bitboards.bitboards[white][king], king_table_beginning_white);
+        eval -= positional_eval(bitboards.bitboards[black][king], king_table_beginning_black);
+    } else {
+        eval += positional_eval(bitboards.bitboards[white][king], king_table_endgame_white);
+        eval -= positional_eval(bitboards.bitboards[black][king], king_table_endgame_black);
+    }
   
     return eval;
 }
@@ -584,17 +559,6 @@ void is_game_over(Game& game) {
     record_board(game);
     
     Bitboards bitboards_copy = game.bitboards;
-    /*
-    auto copy = std::make_unique<Chessboard>();
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-            if (game.board[i][j].piece_occupying.piece_type != none) {
-                (*copy)[i][j].piece_occupying = std::make_unique<Piece>(*game.board[i][j].piece_occupying);
-            } else {
-                (*copy)[i][j].piece_occupying = nullptr;
-            }
-        }
-    }*/
     Chessboard copy = game.board;
     Game game_copy = game;
     std::vector<Move> moves = determine_possible_moves(game_copy, bitboards_copy, copy, game.turn);
@@ -711,11 +675,8 @@ void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move,
     int piece = move.piece;
     
     int captured { -1 };
-    if (board[move.new_row][move.new_col].piece_occupying.piece_type != none) {
-        captured = board[move.new_row][move.new_col].piece_occupying.piece_type;
-    }
+    captured = board[move.new_row][move.new_col].piece_occupying.piece_type;
 
-    board[move.new_row][move.new_col].piece_occupying = { none, none };
     board[move.new_row][move.new_col].piece_occupying = board[move.prev_row][move.prev_col].piece_occupying;
     board[move.prev_row][move.prev_col].piece_occupying = { none, none };
 
@@ -773,17 +734,7 @@ int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& mov
             return 0;
         }
         if (result >= 0 && !only_checking_checks) {
-            /*
-            Chessboard copy {};
-            for (int i { 0 }; i < 8; i++) {
-                for (int j { 0 }; j < 8; j++) {
-                    if (board[i][j].piece_occupying) {
-                        copy[i][j].piece_occupying = std::make_unique<Piece>(*board[i][j].piece_occupying);
-                    } else {
-                        copy[i][j].piece_occupying = nullptr;
-                    }
-                }
-            }*/
+
             Chessboard copy = game.board;
             Bitboards bitboard_copy = game.bitboards;
             if (check_checks(game, bitboard_copy, copy, move) == 0) {
@@ -933,17 +884,7 @@ int validate_move_king(Game &game, Bitboards& bitboards, Move& move) {
 }
 
 int check_checks(Game& game, Bitboards& bitboards, Chessboard& board_copy, Move& move) {
-    /*
-    Chessboard copy {};
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-            if (board_copy[i][j].piece_occupying) {
-                copy[i][j].piece_occupying = std::make_unique<Piece>(*board_copy[i][j].piece_occupying);
-            } else {
-                copy[i][j].piece_occupying = nullptr;
-            }
-        }
-    }*/
+
     Chessboard copy = board_copy;
     Bitboards bitboard_copy = bitboards;
     
