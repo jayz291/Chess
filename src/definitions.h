@@ -10,6 +10,28 @@
 
 constexpr int SQUARE_SIZE = 95;
 
+enum {
+    white = 0,
+    black = 1
+};
+
+enum {
+    none = -1,
+    pawn = 0,
+    knight = 1,
+    bishop = 2,
+    rook = 3,
+    queen = 4,
+    king = 5
+};
+
+enum {
+    quiet = 0,
+    en_passant = 1,
+    castling = 2,
+    promotion = 3
+};
+
 struct Piece;
 
 struct Piece {
@@ -19,7 +41,7 @@ struct Piece {
 
 struct Cell {
     std::string colour {};
-    std::shared_ptr<Piece> piece_occupying { nullptr };
+    Piece piece_occupying { none, none };
     bool selected { false };
 };
 
@@ -37,26 +59,12 @@ struct Move {
     int new_col { 0 };
     int turn {};
     int piece {};
-    std::shared_ptr<Piece> piece_taken { nullptr };
-    std::string special_move { "No" };
+    Piece piece_taken { none, none };
+    int special_move { quiet };
     uint8_t castling_rights {};
 };
 
-enum {
-    white = 0,
-    black = 1
-};
-
-enum {
-    pawn = 0,
-    knight = 1,
-    bishop = 2,
-    rook = 3,
-    queen = 4,
-    king = 5
-};
-
-const int piece_values[5] = { 100, 300, 300, 500, 900 };
+const int piece_values[6] = { 100, 300, 300, 500, 900, 20000 };
 
 const int white_pawn_square_table[64] = { 
     0, 0, 0, 0, 0, 0, 0, 0,

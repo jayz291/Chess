@@ -466,9 +466,9 @@ int select_square(int x, int y, Game& game) {
     if (game.selected.row > -1 && game.selected.col > -1) {
 
         Move move { game.selected.row, game.selected.col, row, col, game.turn, 
-            game.board[game.selected.row][game.selected.col].piece_occupying->piece_type };
+            game.board[game.selected.row][game.selected.col].piece_occupying.piece_type };
 
-        if (game.board[row][col].piece_occupying) {
+        if (game.board[row][col].piece_occupying.piece_type != none) {
             move.piece_taken = game.board[row][col].piece_occupying;
         }
         int result = validate_move(game, game.bitboards, game.board, move);

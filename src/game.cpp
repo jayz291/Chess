@@ -27,7 +27,7 @@ void Game::initialise() {
     castling_rights = 0b00001111;
     for (int i { 0 }; i < 8; i++) {
         for (int j { 0 }; j < 8; j++) {
-        board[i][j].piece_occupying = nullptr;
+        board[i][j].piece_occupying = { none, none };
             if ((i + j) % 2 == 0) {
                 board[i][j].colour = "yellow";
             } else {
@@ -36,27 +36,27 @@ void Game::initialise() {
         }
     }
     for (int i { 0 }; i < 8; i++) {
-        board[1][i].piece_occupying = std::make_unique<Piece> (pawn, black);
+        board[1][i].piece_occupying = { pawn, black };
     }
     for (int i { 0 }; i < 8; i++) {
-        board[6][i].piece_occupying = std::make_unique<Piece> (pawn, white);
+        board[6][i].piece_occupying = { pawn, white };
     }
-    board[0][0].piece_occupying = std::make_unique<Piece> (rook, black);
-    board[0][1].piece_occupying = std::make_unique<Piece> (knight, black);
-    board[0][2].piece_occupying = std::make_unique<Piece> (bishop, black);
-    board[0][3].piece_occupying = std::make_unique<Piece> (queen, black);
-    board[0][4].piece_occupying = std::make_unique<Piece> (king, black);
-    board[0][5].piece_occupying = std::make_unique<Piece> (bishop, black);
-    board[0][6].piece_occupying = std::make_unique<Piece> (knight, black);
-    board[0][7].piece_occupying = std::make_unique<Piece> (rook, black);
-    board[7][0].piece_occupying = std::make_unique<Piece> (rook, white);
-    board[7][1].piece_occupying = std::make_unique<Piece> (knight, white);
-    board[7][2].piece_occupying = std::make_unique<Piece> (bishop, white);
-    board[7][3].piece_occupying = std::make_unique<Piece> (queen, white);
-    board[7][4].piece_occupying = std::make_unique<Piece> (king, white);
-    board[7][5].piece_occupying = std::make_unique<Piece> (bishop, white);
-    board[7][6].piece_occupying = std::make_unique<Piece> (knight, white);
-    board[7][7].piece_occupying = std::make_unique<Piece> (rook, white);
+    board[0][0].piece_occupying = { rook, black };
+    board[0][1].piece_occupying = { knight, black };
+    board[0][2].piece_occupying = { bishop, black };
+    board[0][3].piece_occupying = { queen, black };
+    board[0][4].piece_occupying = { king, black };
+    board[0][5].piece_occupying = { bishop, black };
+    board[0][6].piece_occupying = { knight, black };
+    board[0][7].piece_occupying = { rook, black };
+    board[7][0].piece_occupying = { rook, white };
+    board[7][1].piece_occupying = { knight, white };
+    board[7][2].piece_occupying = { bishop, white };
+    board[7][3].piece_occupying = { queen, white };
+    board[7][4].piece_occupying = { king, white };
+    board[7][5].piece_occupying = { bishop, white };
+    board[7][6].piece_occupying = { knight, white };
+    board[7][7].piece_occupying = { rook, white };
 }
 
 
