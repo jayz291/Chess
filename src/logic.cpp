@@ -79,24 +79,24 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
     }
     move_piece(game, bitboards, board, prev_move, true);
     prev_move.piece = original_piece;
-    switch_move(prev_move);
+
     if (prev_move.special_move != en_passant && prev_move.piece_taken.piece_type != none) {
-        board[prev_move.new_row][prev_move.new_col].piece_occupying = prev_move.piece_taken;
-        int from_square = (7 - prev_move.new_row) * 8 + (prev_move.new_col);
+        board[prev_move.prev_row][prev_move.prev_col].piece_occupying = prev_move.piece_taken;
+        int from_square = (7 - prev_move.prev_row) * 8 + (prev_move.prev_col);
         uint64_t mask = 1ULL;
         bitboards.bitboards[opposing_turn][prev_move.piece_taken.piece_type] |= (mask << from_square);
         bitboards.update_occupied();
     }
-    int captured_row = ((turn == black) ? prev_move.new_row + 1 : prev_move.new_row - 1);
+    int captured_row = ((turn == black) ? prev_move.prev_row + 1 : prev_move.prev_row - 1);
     if (prev_move.special_move == en_passant) {
-        board[captured_row][prev_move.new_col].piece_occupying = prev_move.piece_taken;
+        board[captured_row][prev_move.prev_col].piece_occupying = prev_move.piece_taken;
         uint64_t mask = 1ULL;
-        int from_square = (7 - captured_row) * 8 + (prev_move.new_col);
+        int from_square = (7 - captured_row) * 8 + (prev_move.prev_col);
         bitboards.bitboards[opposing_turn][0] |= (mask << from_square);
     }
     int castling_row = ((prev_move.turn == black) ? 0 : 7);
     if (prev_move.special_move == castling) {
-        if (prev_move.new_col - prev_move.prev_col == 2) {
+        if (prev_move.prev_col - prev_move.new_col == 2) {
             Move move { castling_row, 5, castling_row, 7, prev_move.turn, rook };
             move_piece(game, bitboards, board, move, true);
         } else {
@@ -106,13 +106,12 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
     }
     if (prev_move.special_move == promotion) {
         uint64_t mask = 1ULL;
-        int from_square = (7 - prev_move.prev_row) * 8 + (prev_move.prev_col);
-        //int to_square = (7 - prev_move.new_row) * 8 + (prev_move.new_col);
-        int piece = board[prev_move.prev_row][prev_move.prev_col].piece_occupying.piece_type;
-        int player = prev_move.turn;
-        bitboards.bitboards[player][promoted_piece] &= ~(mask << from_square);
-        bitboards.bitboards[player][pawn] |= (mask << from_square);
-        board[prev_move.prev_row][prev_move.prev_col].piece_occupying.piece_type = pawn;
+        int to_square = (7 - prev_move.new_row) * 8 + (prev_move.new_col);
+        int piece = board[prev_move.new_row][prev_move.new_col].piece_occupying.piece_type;
+        int colour = prev_move.turn;
+        bitboards.bitboards[colour][promoted_piece] &= ~(mask << to_square);
+        bitboards.bitboards[colour][pawn] |= (mask << to_square);
+        board[prev_move.new_row][prev_move.new_col].piece_occupying.piece_type = pawn;
 
         bitboards.update_occupied();
     }
@@ -415,8 +414,7 @@ Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth
     return best_move;
 }
 
-int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta, bool maximising) {
-       
+int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta, bool maximising) { 
 
     //std::cout << "minimaxing\n";
     if (depth == 0) {
@@ -606,12 +604,12 @@ void handle_pawn_promotion(Game& game, Bitboards& bitboards, Chessboard& board, 
     if (board[move.new_row][move.new_col].piece_occupying.piece_type == none) {
         std::cout << "something went wrong\n";
     }
-    bitboards.bitboards[game.turn][0] &= (~square);
+    bitboards.bitboards[game.turn][pawn] &= (~square);
     bitboards.bitboards[game.turn][game.piece_selected] |= (square);
     bitboards.update_occupied();
     update_castling_flags(game, game.bitboards, move);
     game.move_record.push_back(move);
-    game.piece_selected = -1;
+    game.piece_selected = none;
     game.promoting_pawn = false;
 
 }
