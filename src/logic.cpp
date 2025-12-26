@@ -391,6 +391,7 @@ Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth
         bool maximising = ((turn == white) ? true : false);
         
         int move_eval = minimax(game, bitboards, copy, depth - 1, -500000, 500000, !maximising);
+        move_eval += (std::rand() % 5) - 2;
         std::cout << "e: " << move_eval << ' ' << turn << '\n';
         if (turn == white) {
             if (move_eval > best_score) {
@@ -525,7 +526,6 @@ int evaluate(Bitboards& bitboards) {
         eval += positional_eval(bitboards.bitboards[white][king], king_table_endgame_white);
         eval -= positional_eval(bitboards.bitboards[black][king], king_table_endgame_black);
     }
-  
     return eval;
 }
 

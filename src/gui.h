@@ -2,6 +2,13 @@
 #include <SFML/Graphics.hpp>
 #include "game.h"
 
+enum class Colours {
+    white = 0,
+    black = 1,
+    red = 2,
+    blue = 3
+};
+
 void render(Game& game, sf::RenderWindow& window);
 void draw_intro_screen(sf::RenderWindow& window, Game& game);
 void draw_board(Game& game, sf::RenderWindow& window);
@@ -13,8 +20,8 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window);
 void draw_return_to_home_button(sf::RenderWindow& window);
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
-    int size, const std::string& colour);
-sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, const std::string& colour);
+    int size, Colours colour);
+sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, Colours colour);
 
 void handle_input(Game& game, sf::RenderWindow& window);
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos);

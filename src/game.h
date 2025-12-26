@@ -2,6 +2,8 @@
 #include "definitions.h"
 #include <atomic>
 #include <SFML/Graphics.hpp>
+#include <cstdlib> 
+#include <ctime>
 
 extern Move calculated_move;
 extern std::atomic<bool> computer_turn;

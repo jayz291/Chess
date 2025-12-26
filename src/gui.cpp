@@ -86,18 +86,18 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
         return;
     }
    
-    sf::RectangleShape play_button = make_rectangle({330, 330}, {350, 160}, "white");
+    sf::RectangleShape play_button = make_rectangle({330, 330}, {350, 160}, Colours::white);
  
-    sf::Text text = configure_text(font, "Chess", {200, 20}, 210, "black");
-    sf::Text text2 = configure_text(font, "Play", {450, 380}, 60, "black");
+    sf::Text text = configure_text(font, "Chess", {200, 20}, 210, Colours::black);
+    sf::Text text2 = configure_text(font, "Play", {450, 380}, 60, Colours::black);
  
-    sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, "white");
-    sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, "white");
-    sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, "white");
+    sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, Colours::white);
+    sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, Colours::white);
+    sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, Colours::white);
 
-    sf::Text choice1_text = configure_text(font, "Play CPU as\n white", {130, 540}, 30, "black");
-    sf::Text choice2_text = configure_text(font, "Play CPU as\n black", {420, 540}, 30, "black");
-    sf::Text choice3_text = configure_text(font, "Two player", {710, 540}, 30, "black");
+    sf::Text choice1_text = configure_text(font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
+    sf::Text choice2_text = configure_text(font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
+    sf::Text choice3_text = configure_text(font, "Two player", {710, 540}, 30, Colours::black);
 
     if (game.mode == Gamemode::CPUblack) {
         choice1_button.setOutlineThickness(-5.0f);
@@ -121,27 +121,27 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
 }
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
-    int size, const std::string& colour) {
+    int size, Colours colour) {
     sf::Text text(font);
     text.setString(string);
     text.setPosition(pos);
-    if (colour == "black") {
+    if (colour == Colours::black) {
         text.setFillColor(sf::Color::Black);
-    } else if (colour == "red") {
+    } else if (colour == Colours::red) {
         text.setFillColor(sf::Color::Red);
     }
     text.setCharacterSize(size);
     return text;
 }
 
-sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, const std::string& colour) {
+sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, Colours colour) {
     sf::RectangleShape rectangle(size);
     rectangle.setPosition(pos);
-    if (colour == "white") {
+    if (colour == Colours::white) {
         rectangle.setFillColor(sf::Color::White);
-    } else if (colour == "black") {
+    } else if (colour == Colours::black) {
         rectangle.setFillColor(sf::Color::Black);
-    } else if (colour == "blue") {
+    } else if (colour == Colours::blue) {
         rectangle.setFillColor(sf::Color::Blue);
     }
     return rectangle;
@@ -256,13 +256,13 @@ void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
 
 void draw_reset_button(sf::RenderWindow& window) {
 
-    sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, "white");
+    sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, Colours::white);
     
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text = configure_text(font, "Reset", {13, 13}, 15, "red");
+    sf::Text text = configure_text(font, "Reset", {13, 13}, 15, Colours::red);
 
     window.draw(reset_button);
     window.draw(text);
@@ -270,13 +270,13 @@ void draw_reset_button(sf::RenderWindow& window) {
 
 void draw_undo_button(sf::RenderWindow& window) {
 
-    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, "white");
+    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, Colours::white);
 
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text = configure_text(font, "Undo", {953, 13}, 15, "red");
+    sf::Text text = configure_text(font, "Undo", {953, 13}, 15, Colours::red);
 
     window.draw(undo_button);
     window.draw(text);
@@ -284,13 +284,13 @@ void draw_undo_button(sf::RenderWindow& window) {
 
 void draw_return_to_home_button(sf::RenderWindow& window) {
 
-    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, "white");
+    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, Colours::white);
 
     sf::Font font;
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
     }
-    sf::Text text = configure_text(font, "Back to Home", {13, 58}, 15, "red");
+    sf::Text text = configure_text(font, "Back to Home", {13, 58}, 15, Colours::red);
 
     window.draw(return_button);
     window.draw(text);
@@ -433,7 +433,7 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
         text.setString("Draw by the 50-move rule\n-----------------------------\nClick anywhere to \ncontinue");
     }
 
-    sf::RectangleShape end_screen = make_rectangle({250, 250}, {500, 300}, "black");
+    sf::RectangleShape end_screen = make_rectangle({250, 250}, {500, 300}, Colours::black);
 
     window.draw(end_screen);
     window.draw(text);
@@ -441,7 +441,7 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
 
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
 
-    sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, "blue");
+    sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, Colours::blue);
 
     window.draw(pawn_promotion_screen);
     int rank = ((game.view == white) ? 4 : 3);
