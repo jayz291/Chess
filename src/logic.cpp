@@ -160,7 +160,7 @@ void undo_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& p
         game.castling_rights = prev_prev_move.castling_rights;
     }
 
-    //game.turn = ((game.turn == black) ? white : black);
+    game.turn = ((game.turn == black) ? white : black);
     //std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
 }
 
@@ -262,26 +262,27 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
     if ((move.turn == black && board[row][col].piece_occupying.piece_type == pawn && row == 6) || 
         (move.turn == white && board[row][col].piece_occupying.piece_type == pawn && row == 1) &&
         std::abs(move.new_row - move.prev_row) == 1) {
-            //std::cout << "promoting pawn\n";
-            game.promoting_pawn = true;
-            move_piece(game, bitboards, board, move);
-            u_int64_t mask = 1ULL;
-            int shift = 56 - move.new_row * 8 + move.new_col;
-            u_int64_t square = mask << shift;
-            move.special_move = promotion;
+        //std::cout << "promoting pawn\n";
+        game.promoting_pawn = true;
+        move_piece(game, bitboards, board, move);
+        u_int64_t mask = 1ULL;
+        int shift = 56 - move.new_row * 8 + move.new_col;
+        u_int64_t square = mask << shift;
+        move.special_move = promotion;
 
-            board[move.new_row][move.new_col].piece_occupying.piece_type = queen;
-            if (board[move.new_row][move.new_col].piece_occupying.piece_type == none) {
-                std::cout << "something went wrong\n";
-            }
-            bitboards.bitboards[move.turn][pawn] &= (~square);
-            bitboards.bitboards[move.turn][queen] |= (square);
-            bitboards.update_occupied();
-            update_castling_flags(game, bitboards, move);
-            game.move_record.push_back(move);
-            game.piece_selected = -1;
-            game.promoting_pawn = false;
-            return;
+        board[move.new_row][move.new_col].piece_occupying.piece_type = queen;
+        if (board[move.new_row][move.new_col].piece_occupying.piece_type == none) {
+            std::cout << "something went wrong\n";
+        }
+        bitboards.bitboards[move.turn][pawn] &= (~square);
+        bitboards.bitboards[move.turn][queen] |= (square);
+        bitboards.update_occupied();
+        update_castling_flags(game, bitboards, move);
+        game.move_record.push_back(move);
+        game.piece_selected = -1;
+        game.promoting_pawn = false;
+        game.turn = ((game.turn == white) ? black : white);
+        return;
     }
 
     //std::cout << "just before moving piece\n";
@@ -311,7 +312,7 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
     } 
     update_castling_flags(game, bitboards, move);
     game.move_record.push_back(move);
-    
+    game.turn = ((game.turn == white) ? black : white);
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
@@ -366,7 +367,7 @@ void update_computer_move(Game& game) {
 }
 
 Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth) {
-    int best_score = (game.turn == white) ? -500000 : 500000;
+    int best_score = -500000;
     Move best_move {};
     int turn = game.turn;
     //std::cout << "generating\n";
@@ -382,28 +383,24 @@ Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth
         //std::cout << "testing possible moves\n";
        
         make_test_move(game, bitboards, copy, move);
-        int king_square = __builtin_ctzll(bitboards.bitboards[turn][king]);
-        if (is_square_attacked(bitboards, king_square, turn)) {
+        int mover = (game.turn == white) ? black : white;
+        int king_square = __builtin_ctzll(bitboards.bitboards[mover][king]);
+        if (is_square_attacked(bitboards, king_square, mover)) {
             undo_test_move(game, bitboards, copy, move);
             continue;
         }
         //std::cout << "here3\n";
-        bool maximising = ((turn == white) ? true : false);
         
-        int move_eval = minimax(game, bitboards, copy, depth - 1, -500000, 500000, !maximising);
+        int move_eval = -negamax(game, bitboards, copy, depth - 1, -500000, 500000);
         move_eval += (std::rand() % 5) - 2;
+
         std::cout << "e: " << move_eval << ' ' << turn << '\n';
-        if (turn == white) {
-            if (move_eval > best_score) {
-                best_score = move_eval;
-                best_move = move;
-            }
-        } else {
-            if (move_eval < best_score) {
-                best_score = move_eval;
-                best_move = move;
-            }
+       
+        if (move_eval > best_score) {
+            best_score = move_eval;
+            best_move = move;
         }
+    
         if (best_move.new_row == best_move.prev_row && best_move.new_col == best_move.prev_col) {
             best_move = move;
         }
@@ -415,85 +412,54 @@ Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth
     return best_move;
 }
 
-int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta, bool maximising) { 
+int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta) { 
 
     //std::cout << "minimaxing\n";
     if (depth == 0) {
         //std::cout << "reached depth 0\n";
         positions_searched++;
-        return evaluate(bitboards);
+        int perspective = (game.turn == white) ? 1 : -1;
+        return perspective * evaluate(bitboards);
     }
-    //std::cout << "depth: " << depth << '\n';
-    int turn = ((maximising == true) ? white : black);
 
-    std::vector<Move> possible_moves = determine_possible_moves(game, bitboards, board, turn, true);
+    std::vector<Move> possible_moves = determine_possible_moves(game, bitboards, board, game.turn, true);
     std::sort(possible_moves.begin(), possible_moves.end(), [&](Move& move1, Move& move2) {
         return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
     });
     //std::cout << "size: " << possible_moves.size() << '\n';
     if (possible_moves.size() == 0) {
-        Move default_move { 0, 0, 0, 0, turn, -1 };
+        Move default_move { 0, 0, 0, 0, game.turn, -1 };
         int in_check = check_checks(game, bitboards, board, default_move);
         if (in_check) {
-            return maximising ? -400000 : 400000;
+            return -400000;
         } else {
             return 0;
         }
     }
-    if (maximising) {
-        if (turn != white) {
-            std::cout << "a bug occurred\n";
-        }
-        int max_eval = -600000;
+ 
+    int max_eval = -600000;
+    for (Move possible_move: possible_moves) {
         
-        for (Move possible_move: possible_moves) {
-           
-            make_test_move(game, bitboards, board, possible_move);
-            int king_square = __builtin_ctzll(bitboards.bitboards[turn][king]);
-            if (is_square_attacked(bitboards, king_square, turn)) {
-                undo_test_move(game, bitboards, board, possible_move);
-                continue;
-            }
-
-            int eval = minimax(game, bitboards, board, depth - 1, alpha, beta, false);
+        make_test_move(game, bitboards, board, possible_move);
+        int mover = (game.turn == white) ? black : white;
+        int king_square = __builtin_ctzll(bitboards.bitboards[mover][king]);
+        if (is_square_attacked(bitboards, king_square, mover)) {
             undo_test_move(game, bitboards, board, possible_move);
-            alpha = std::max(eval, alpha);
-            //compare_bitboards(saved_bitboards, bitboards);
-            //verify_board_sync(game);
-            max_eval = std::max(eval, max_eval);
-            if (beta <= alpha) {
-                break;
-            }
-            
+            continue;
         }
-        return max_eval;
-    } else {
-        if (turn != black) {
-            std::cout << "a bug occurred\n";
+
+        int eval = -negamax(game, bitboards, board, depth - 1, -beta, -alpha);
+        undo_test_move(game, bitboards, board, possible_move);
+        alpha = std::max(eval, alpha);
+        //compare_bitboards(saved_bitboards, bitboards);
+        //verify_board_sync(game);
+        max_eval = std::max(eval, max_eval);
+        if (beta <= alpha) {
+            break;
         }
-        int min_eval = 600000;
-        for (Move possible_move: possible_moves) {
-          
-            make_test_move(game, bitboards, board, possible_move);
-            int king_square = __builtin_ctzll(bitboards.bitboards[turn][king]);
-            if (is_square_attacked(bitboards, king_square, turn)) {
-                undo_test_move(game, bitboards, board, possible_move);
-                continue;
-            }
-
-            int eval = minimax(game, bitboards, board, depth - 1, alpha, beta, true);
-            undo_test_move(game, bitboards, board, possible_move);
-            //compare_bitboards(saved_bitboards, bitboards);
-            //verify_board_sync(game);
-            beta = std::min(eval, beta);
-            min_eval = std::min(eval, min_eval);                
-
-            if (beta <= alpha) {
-                break;
-            }    
-        } 
-        return min_eval;    
-    } 
+        
+    }
+    return max_eval;
 }
 
 int evaluate(Bitboards& bitboards) {

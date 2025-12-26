@@ -43,7 +43,7 @@ void record_piece_points(Game& game, int piece_type, int piece_colour);
 void generate_computer_move(Game& game);
 void update_computer_move(Game& game);
 Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth);
-int minimax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta, bool maximising);
+int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta);
 int evaluate(Bitboards& bitboards);
 int sort_moves_by_priority(Move& move);
 int positional_eval(uint64_t bitboard, const int table[]);

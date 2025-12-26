@@ -5,6 +5,7 @@
 void run_game_loop();
 
 int main() {
+    std::srand(std::time(nullptr));
     run_game_loop();
 }
 
