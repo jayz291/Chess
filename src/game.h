@@ -1,6 +1,7 @@
 #pragma once
 #include "definitions.h"
 #include <atomic>
+#include <SFML/Graphics.hpp>
 
 extern Move calculated_move;
 extern std::atomic<bool> computer_turn;
@@ -39,6 +40,9 @@ class Game {
         Move calculated_move {};
         bool move_ready { false };
         uint8_t castling_rights;
+        bool is_dragging { false };
+        int dragged_piece = none;
+        sf::Vector2f current_mouse_pos;
         Game();
         void initialise();
 };
