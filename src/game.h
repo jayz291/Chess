@@ -18,7 +18,7 @@ class Game {
         Gamemode mode { Gamemode::Twoplayer };
         Chessboard board {};
         Bitboards bitboards {};
-        Coords selected {};
+        int selected_square {};
         int turn {};
         bool white_in_check {};
         bool black_in_check {};

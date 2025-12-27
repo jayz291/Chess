@@ -46,7 +46,7 @@ struct Cell {
     bool selected { false };
 };
 
-using Chessboard = std::array<std::array<Cell, 8>, 8>;
+using Chessboard = std::array<Cell, 64>;
 
 struct Coords {
     int row { -1 };
@@ -54,10 +54,8 @@ struct Coords {
 };
 
 struct Move {
-    int prev_row { 0 };
-    int prev_col { 0 };
-    int new_row { 0 };
-    int new_col { 0 };
+    int prev_square { 0 };
+    int new_square { 0 };
     int turn {};
     int piece {};
     Piece piece_taken { none, none };

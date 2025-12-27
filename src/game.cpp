@@ -22,48 +22,47 @@ void Game::initialise() {
     white_in_check = black_in_check = game_over = false;
     turn = white;
     checkmate = stalemate = repetition = insufficient_material = promoting_pawn = false;
-    selected.col = selected.row = -1;
+    selected_square = -1;
     bitboards = {};
     castling_rights = 0b00001111;
-    for (int i { 0 }; i < 8; i++) {
-        for (int j { 0 }; j < 8; j++) {
-        board[i][j].piece_occupying = { none, none };
-            if ((i + j) % 2 == 0) {
-                board[i][j].colour = "yellow";
-            } else {
-                board[i][j].colour = "brown";
-            }
+    for (int i { 0 }; i < 64; i++) {
+        board[i].piece_occupying = { none, none };
+        int row = i / 8;
+        int col = i % 8;
+        if ((row + col) % 2 == 0) {
+            board[i].colour = "yellow";
+        } else {
+            board[i].colour = "brown";
         }
     }
-    for (int i { 0 }; i < 8; i++) {
-        board[1][i].piece_occupying = { pawn, black };
+    for (int i { 48 }; i < 56; i++) {
+        board[i].piece_occupying = { pawn, black };
     }
-    for (int i { 0 }; i < 8; i++) {
-        board[6][i].piece_occupying = { pawn, white };
+    for (int i { 8 }; i < 16; i++) {
+        board[i].piece_occupying = { pawn, white };
     }
-    board[0][0].piece_occupying = { rook, black };
-    board[0][1].piece_occupying = { knight, black };
-    board[0][2].piece_occupying = { bishop, black };
-    board[0][3].piece_occupying = { queen, black };
-    board[0][4].piece_occupying = { king, black };
-    board[0][5].piece_occupying = { bishop, black };
-    board[0][6].piece_occupying = { knight, black };
-    board[0][7].piece_occupying = { rook, black };
-    board[7][0].piece_occupying = { rook, white };
-    board[7][1].piece_occupying = { knight, white };
-    board[7][2].piece_occupying = { bishop, white };
-    board[7][3].piece_occupying = { queen, white };
-    board[7][4].piece_occupying = { king, white };
-    board[7][5].piece_occupying = { bishop, white };
-    board[7][6].piece_occupying = { knight, white };
-    board[7][7].piece_occupying = { rook, white };
+    board[56].piece_occupying = { rook, black };
+    board[57].piece_occupying = { knight, black };
+    board[58].piece_occupying = { bishop, black };
+    board[59].piece_occupying = { queen, black };
+    board[60].piece_occupying = { king, black };
+    board[61].piece_occupying = { bishop, black };
+    board[62].piece_occupying = { knight, black };
+    board[63].piece_occupying = { rook, black };
+    board[0].piece_occupying = { rook, white };
+    board[1].piece_occupying = { knight, white };
+    board[2].piece_occupying = { bishop, white };
+    board[3].piece_occupying = { queen, white };
+    board[4].piece_occupying = { king, white };
+    board[5].piece_occupying = { bishop, white };
+    board[6].piece_occupying = { knight, white };
+    board[7].piece_occupying = { rook, white };
 }
 
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
     os << "Piece: " << move.piece << '\n';
-    os << "Prev row and col: " << move.prev_row << ' ' << move.prev_col << '\n';
-    os << "New row and col: " << move.new_row << ' ' << move.new_col << '\n';
+    os << "Prev row and col: " << move.prev_square << ' ' << move.new_square << '\n';
     return os;
 }
 

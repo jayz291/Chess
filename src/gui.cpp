@@ -16,14 +16,14 @@ void handle_input(Game& game, sf::RenderWindow& window) {
             //std::cout << "clicked\n";
             if (game.state == Gamestate::Intro) {
                 handle_clicks_intro(game, window, mouse_press->position);
-            } else if (game.state == Gamestate::Playing /*&& game.mode == Gamemode::Twoplayer*/) {
+            } else if (game.state == Gamestate::Playing) {
                 if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && game.turn == black) ||
                     game.mode == Gamemode::CPUblack && game.turn == white) {
                     handle_clicks_playing(game, window, mouse_press->position);
-                    if (game.selected.row != -1 && game.selected.col != -1) {
+                    if (game.selected_square != -1) {
                         game.is_dragging = true;
                         game.current_mouse_pos = window.mapPixelToCoords(mouse_press->position);
-                        game.dragged_piece = game.board[game.selected.row][game.selected.col].piece_occupying.piece_type;
+                        game.dragged_piece = game.board[game.selected_square].piece_occupying.piece_type;
                     }
                     handle_clicks_undoing(game, mouse_press->position);
                 }
@@ -190,20 +190,21 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
              
     int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
+    int square = 56 - 8 * row + col;
     if (game.mode == Gamemode::CPUwhite) {
-        row = 7 - row;
+        square = square ^ 56;
     }
-    if (row != game.selected.row || col != game.selected.col) {
-        Move move { game.selected.row, game.selected.col, row, col, game.turn, game.dragged_piece };
-        if (game.board[row][col].piece_occupying.piece_type != none) {
-            move.piece_taken = game.board[row][col].piece_occupying;
+    if (square != game.selected_square) {
+        Move move { game.selected_square, square, game.turn, game.dragged_piece };
+        if (game.board[square].piece_occupying.piece_type != none) {
+            move.piece_taken = game.board[square].piece_occupying;
         }
 
         int result = validate_move(game, game.bitboards, game.board, move);
         if (result >= 0) {
             game.current_move = move;
-            game.board[game.selected.row][game.selected.col].selected = false;
-            game.selected.row = game.selected.col = -1;
+            game.board[game.selected_square].selected = false;
+            game.selected_square = -1;
             make_game_move(game, game.bitboards, game.board, result, game.current_move);  
         }
         if (game.promoting_pawn) {
@@ -300,13 +301,13 @@ void draw_board(Game& game, sf::RenderWindow& window) {
     float x_offset {}, y_offset {};
 
     bool prev_move_available { false };
-    Move prev_move { -1, -1, -1, -1 };
+    Move prev_move { -1, -1 };
     if (game.move_record.size() > 0) {
         prev_move_available = true;
         prev_move = game.move_record.back();
         if (game.view == black) {
-            prev_move.new_row = 7 - prev_move.new_row;
-            prev_move.prev_row = 7 - prev_move.prev_row;
+            prev_move.new_square = prev_move.new_square ^ 56;
+            prev_move.prev_square = prev_move.prev_square ^ 56;
         }
     }
     
@@ -315,18 +316,18 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             sf::RectangleShape cell({SQUARE_SIZE, SQUARE_SIZE});
             x_offset = 120 + j * (SQUARE_SIZE);
             y_offset = 20 + i * (SQUARE_SIZE);
-            
-            if (game.board[i][j].colour == "brown") {
+            int square = 56 - 8 * i + j;
+            if (game.board[square].colour == "brown") {
                 if (game.view == white) {
-                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
-                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                    if (prev_move_available && (square == prev_move.prev_square) ||
+                        (square == prev_move.new_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));
                     }
                 } else {
-                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
-                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                    if (prev_move_available && (square == prev_move.prev_square) ||
+                        (square == prev_move.new_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
@@ -334,27 +335,27 @@ void draw_board(Game& game, sf::RenderWindow& window) {
                 }
             } else {
                 if (game.view == white) {
-                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
-                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                    if (prev_move_available && (square == prev_move.prev_square) ||
+                        (square == prev_move.new_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
                     }
                 } else {
-                    if (prev_move_available && (i == prev_move.prev_row && j == prev_move.prev_col) ||
-                        (i == prev_move.new_row && j == prev_move.new_col)) {
+                    if (prev_move_available && (square == prev_move.prev_square) ||
+                        (square == prev_move.new_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));
                     }
                 }
             }
-            if (game.board[i][j].selected && game.view == white) {
+            if (game.board[square].selected && game.view == white) {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
-            } else if (game.board[7 - i][j].selected && game.view == black) {
+            } else if (game.board[square ^ 56].selected && game.view == black) {
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);             
             }
@@ -368,7 +369,7 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             
             uint64_t mask = 1ULL << square;
             
-            if (!game.is_dragging || rank != game.selected.row || file != game.selected.col) {
+            if (!game.is_dragging || square != game.selected_square) {
                 if (game.bitboards.bitboards[white][pawn] & mask) {
                     draw_piece(game, window, rank, file, pawn, white);
                 } else if (game.bitboards.bitboards[black][pawn] & mask) {
@@ -400,9 +401,9 @@ void draw_board(Game& game, sf::RenderWindow& window) {
         }
     }
     if (game.is_dragging) {
-        draw_piece(game, window, game.selected.row, game.selected.col, 
-            game.board[game.selected.row][game.selected.col].piece_occupying.piece_type,
-            game.board[game.selected.row][game.selected.col].piece_occupying.colour, true);
+        draw_piece(game, window, 7 - game.selected_square / 8, game.selected_square % 8, 
+            game.board[game.selected_square].piece_occupying.piece_type,
+            game.board[game.selected_square].piece_occupying.colour, true);
     }
 }
 
@@ -552,17 +553,17 @@ int select_square(int x, int y, Game& game) {
         return -2;
     }
     //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
-    if (game.selected.row > -1 && game.selected.col > -1) {
+    if (game.selected_square != -1) {
+        
+        Move move { game.selected_square, square, game.turn, 
+            game.board[game.selected_square].piece_occupying.piece_type };
 
-        Move move { game.selected.row, game.selected.col, row, col, game.turn, 
-            game.board[game.selected.row][game.selected.col].piece_occupying.piece_type };
-
-        if (game.board[row][col].piece_occupying.piece_type != none) {
-            move.piece_taken = game.board[row][col].piece_occupying;
+        if (game.board[square].piece_occupying.piece_type != none) {
+            move.piece_taken = game.board[square].piece_occupying;
         }
         int result = validate_move(game, game.bitboards, game.board, move);
-        game.board[game.selected.row][game.selected.col].selected = false;
-        game.selected.row = game.selected.col = -1; 
+        game.board[game.selected_square].selected = false;
+        game.selected_square = -1; 
   
         if (result >= 0) {
             game.current_move = move;
@@ -571,9 +572,8 @@ int select_square(int x, int y, Game& game) {
         return -1;
     } else if (((mask & game.bitboards.white_occupied) && game.turn == white) || 
         ((mask & game.bitboards.black_occupied) && game.turn == black)) {
-        game.board[row][col].selected = true;
-        game.selected.row = row;
-        game.selected.col = col;
+        game.board[square].selected = true;
+        game.selected_square = 56 - 8 * row + col;
         return -1;
   
     } 
