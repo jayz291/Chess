@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <bitset>
 #include <algorithm>
+#include <assert.h>
 
 constexpr int SQUARE_SIZE = 95;
 
@@ -62,6 +63,7 @@ struct Move {
     Piece piece_taken { none, none };
     int special_move { quiet };
     uint8_t castling_rights {};
+    int promoted_piece { none };
 };
 
 const int piece_values[6] = { 100, 300, 300, 500, 900, 20000 };
