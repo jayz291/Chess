@@ -33,8 +33,6 @@ enum {
     promotion = 3
 };
 
-struct Piece;
-
 struct Piece {
     int piece_type {};
     int colour {};
@@ -47,11 +45,6 @@ struct Cell {
 };
 
 using Chessboard = std::array<Cell, 64>;
-
-struct Coords {
-    int row { -1 };
-    int col { -1 };
-};
 
 struct Move {
     int prev_square { 0 };

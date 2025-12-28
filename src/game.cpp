@@ -18,11 +18,11 @@ void Game::initialise() {
     pawns_on_board = true;
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
-    winner = piece_selected = -1;
+    winner = piece_selected = none;
     white_in_check = black_in_check = game_over = false;
     turn = white;
     checkmate = stalemate = repetition = insufficient_material = promoting_pawn = false;
-    selected_square = -1;
+    selected_square = none;
     bitboards = {};
     castling_rights = 0b00001111;
     for (int i { 0 }; i < 64; i++) {
