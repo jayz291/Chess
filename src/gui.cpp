@@ -40,10 +40,13 @@ void handle_input(Game& game, sf::RenderWindow& window) {
             }
         }
         if (const auto* key_event = event->getIf<sf::Event::KeyPressed>()) {
-            if (game.state == Gamestate::Intro) {
+            if (game.state == Gamestate::Intro && game.typing) {
                 if (key_event->system) {
                     if (key_event->code == sf::Keyboard::Key::V) {
-                        game.fen_string += sf::Clipboard::getString();
+                        std::cout << (game.fen_string + sf::Clipboard::getString()).getSize() << '\n';
+                        if ((game.fen_string + sf::Clipboard::getString()).getSize() <= 105) {
+                            game.fen_string += sf::Clipboard::getString();
+                        }
                     } else if (key_event->code == sf::Keyboard::Key::C) {
                         sf::Clipboard::setString(game.fen_string);
                     }
@@ -51,7 +54,7 @@ void handle_input(Game& game, sf::RenderWindow& window) {
             }
         }
         if (const auto* text_event = event->getIf<sf::Event::TextEntered>()) {
-            if (game.state == Gamestate::Intro) {
+            if (game.state == Gamestate::Intro && game.typing) {
                 if (text_event->unicode < 32 && text_event->unicode != 8) {
                     continue;
                 }
@@ -59,7 +62,7 @@ void handle_input(Game& game, sf::RenderWindow& window) {
                     if (!game.fen_string.isEmpty()) {
                         game.fen_string.erase(game.fen_string.getSize() - 1, 1);
                     }
-                } else if (text_event->unicode < 128) {
+                } else if (text_event->unicode < 128 && game.fen_string.getSize() <= 110) {
                     game.fen_string += text_event->unicode;
                     
                 }
@@ -120,12 +123,12 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, Colours::white);
-    sf::RectangleShape text_box = make_rectangle({200, 690}, {700, 50}, Colours::white);
+    sf::RectangleShape text_box = make_rectangle({100, 690}, {820, 50}, Colours::white);
 
     sf::Text choice1_text = configure_text(font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
     sf::Text choice2_text = configure_text(font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
     sf::Text choice3_text = configure_text(font, "Two player", {710, 540}, 30, Colours::black);
-    sf::Text entered_fen = configure_text(font, game.fen_string.toAnsiString(), {210, 700}, 30, Colours::black);
+    sf::Text entered_fen = configure_text(font, game.fen_string.toAnsiString(), {110, 700}, 15, Colours::black);
     //std::cout << game.fen_string.toAnsiString() << '\n';
 
     if (game.mode == Gamemode::CPUblack) {
@@ -137,6 +140,10 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     } else {
         choice3_button.setOutlineThickness(-5.0f);
         choice3_button.setOutlineColor(sf::Color::Black);       
+    }
+    if (game.typing) {
+        text_box.setOutlineThickness(-5.0f);
+        text_box.setOutlineColor(sf::Color::Black);
     }
     window.draw(choice1_button);
     window.draw(choice2_button);
@@ -184,6 +191,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     if (330 <= x && x <= 680 && 160 <= y && y <= 490) {
         game.state = Gamestate::Playing;
         game.initialise();
+        handle_fen_string(game);
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
         game.view = white;
@@ -194,6 +202,11 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     } else if (690 <= x && x <= 940 && 530 <= y && y <= 640) {
         game.view = white;
         game.mode = Gamemode::Twoplayer;
+    }
+    if (100 <= x && x <= 920 && 690 <= y && y <= 740) {
+        game.typing = true;
+    } else {
+        game.typing = false;
     }
 }
 

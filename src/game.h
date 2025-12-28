@@ -5,6 +5,7 @@
 #include <SFML/Window/Clipboard.hpp>
 #include <cstdlib> 
 #include <ctime>
+#include <cstring>
 
 extern Move calculated_move;
 extern std::atomic<bool> computer_turn;
@@ -47,9 +48,12 @@ class Game {
         int dragged_piece = none;
         sf::Vector2f current_mouse_pos;
         sf::String fen_string;
+        std::string en_passant_square;
+        bool typing { false };
         Game();
         void initialise();
 };
 
+void handle_fen_string(Game& game);
 void print_bitboard(uint64_t bitboard);
 void print_all_bitboards(Bitboards& bitboards);
