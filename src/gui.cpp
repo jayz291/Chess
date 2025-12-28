@@ -39,6 +39,32 @@ void handle_input(Game& game, sf::RenderWindow& window) {
                 handle_clicks_returning(game, mouse_press->position);
             }
         }
+        if (const auto* key_event = event->getIf<sf::Event::KeyPressed>()) {
+            if (game.state == Gamestate::Intro) {
+                if (key_event->system) {
+                    if (key_event->code == sf::Keyboard::Key::V) {
+                        game.fen_string += sf::Clipboard::getString();
+                    } else if (key_event->code == sf::Keyboard::Key::C) {
+                        sf::Clipboard::setString(game.fen_string);
+                    }
+                }
+            }
+        }
+        if (const auto* text_event = event->getIf<sf::Event::TextEntered>()) {
+            if (game.state == Gamestate::Intro) {
+                if (text_event->unicode < 32 && text_event->unicode != 8) {
+                    continue;
+                }
+                if (text_event->unicode == 8) {
+                    if (!game.fen_string.isEmpty()) {
+                        game.fen_string.erase(game.fen_string.getSize() - 1, 1);
+                    }
+                } else if (text_event->unicode < 128) {
+                    game.fen_string += text_event->unicode;
+                    
+                }
+            }
+        }
             
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
             sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
@@ -94,10 +120,13 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, Colours::white);
+    sf::RectangleShape text_box = make_rectangle({200, 690}, {700, 50}, Colours::white);
 
     sf::Text choice1_text = configure_text(font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
     sf::Text choice2_text = configure_text(font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
     sf::Text choice3_text = configure_text(font, "Two player", {710, 540}, 30, Colours::black);
+    sf::Text entered_fen = configure_text(font, game.fen_string.toAnsiString(), {210, 700}, 30, Colours::black);
+    //std::cout << game.fen_string.toAnsiString() << '\n';
 
     if (game.mode == Gamemode::CPUblack) {
         choice1_button.setOutlineThickness(-5.0f);
@@ -118,6 +147,8 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game) {
     window.draw(choice1_text);
     window.draw(choice2_text);
     window.draw(choice3_text);
+    window.draw(text_box);
+    window.draw(entered_fen);
 }
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 

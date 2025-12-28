@@ -429,7 +429,7 @@ int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         Move default_move { 0, 0, game.turn, -1 };
         int in_check = check_checks(game, bitboards, board, default_move);
         if (in_check) {
-            return -400000;
+            return -400000 + depth * 50;
         } else {
             return 0;
         }

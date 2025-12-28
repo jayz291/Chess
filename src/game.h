@@ -2,6 +2,7 @@
 #include "definitions.h"
 #include <atomic>
 #include <SFML/Graphics.hpp>
+#include <SFML/Window/Clipboard.hpp>
 #include <cstdlib> 
 #include <ctime>
 
@@ -45,6 +46,7 @@ class Game {
         bool is_dragging { false };
         int dragged_piece = none;
         sf::Vector2f current_mouse_pos;
+        sf::String fen_string;
         Game();
         void initialise();
 };
