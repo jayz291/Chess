@@ -3,7 +3,7 @@
 #include "logic.h"
 #include "gui.h"
 
-void handle_input(Game& game, sf::RenderWindow& window) {
+void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
             window.close();
@@ -19,7 +19,7 @@ void handle_input(Game& game, sf::RenderWindow& window) {
             } else if (game.state == Gamestate::Playing) {
                 if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && game.turn == black) ||
                     game.mode == Gamemode::CPUblack && game.turn == white) {
-                    handle_clicks_playing(game, window, mouse_press->position);
+                    handle_clicks_playing(game, window, mouse_press->position, assets);
                     if (game.selected_square != -1) {
                         game.is_dragging = true;
                         game.current_mouse_pos = window.mapPixelToCoords(mouse_press->position);
@@ -76,7 +76,7 @@ void handle_input(Game& game, sf::RenderWindow& window) {
         if (const auto* mouse_release = event->getIf<sf::Event::MouseButtonReleased>()) {
             if (game.is_dragging) {
                 sf::Vector2i mouse_pos = mouse_release->position;
-                handle_drag_release(game, window, mouse_pos);
+                handle_drag_release(game, window, mouse_pos, assets);
             }
 
             game.is_dragging = false;
@@ -84,51 +84,47 @@ void handle_input(Game& game, sf::RenderWindow& window) {
     }
 }
 
-void render(Game& game, sf::RenderWindow& window) {
+void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     
     window.clear(sf::Color::Blue);
     sf::RectangleShape board({760, 760});
     if (game.state == Gamestate::Intro) {
-        draw_intro_screen(window, game);
+        draw_intro_screen(window, game, assets);
     }
     if (game.state != Gamestate::Intro) {
-        draw_board(game, window);
-        draw_return_to_home_button(window);
+        draw_board(game, window, assets);
+        draw_return_to_home_button(window, assets);
     }
     if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting && game.state != Gamestate::Intro) {
-        draw_undo_button(window);
+        draw_undo_button(window, assets);
     }
     if (game.state == Gamestate::Gameover) {
-        draw_end_screen(game, window);
+        draw_end_screen(game, window, assets);
     } else if (game.state == Gamestate::Resetting) {
-        draw_reset_button(window);
+        draw_reset_button(window, assets);
     }
     if (game.state == Gamestate::Promoting_pawn) {
-        draw_pawn_promotion_screen(game, window);
+        draw_pawn_promotion_screen(game, window, assets);
     }
     window.display();
 }
 
-void draw_intro_screen(sf::RenderWindow& window, Game& game) {
-    sf::Font font;
-    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
-        return;
-    }
+void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
    
     sf::RectangleShape play_button = make_rectangle({330, 330}, {350, 160}, Colours::white);
  
-    sf::Text text = configure_text(font, "Chess", {200, 20}, 210, Colours::black);
-    sf::Text text2 = configure_text(font, "Play", {450, 380}, 60, Colours::black);
+    sf::Text text = configure_text(assets.font, "Chess", {200, 20}, 210, Colours::black);
+    sf::Text text2 = configure_text(assets.font, "Play", {450, 380}, 60, Colours::black);
  
     sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, Colours::white);
     sf::RectangleShape text_box = make_rectangle({100, 690}, {820, 50}, Colours::white);
 
-    sf::Text choice1_text = configure_text(font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
-    sf::Text choice2_text = configure_text(font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
-    sf::Text choice3_text = configure_text(font, "Two player", {710, 540}, 30, Colours::black);
-    sf::Text entered_fen = configure_text(font, game.fen_string.toAnsiString(), {110, 700}, 15, Colours::black);
+    sf::Text choice1_text = configure_text(assets.font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
+    sf::Text choice2_text = configure_text(assets.font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
+    sf::Text choice3_text = configure_text(assets.font, "Two player", {710, 540}, 30, Colours::black);
+    sf::Text entered_fen = configure_text(assets.font, game.fen_string.toAnsiString(), {110, 700}, 15, Colours::black);
     //std::cout << game.fen_string.toAnsiString() << '\n';
 
     if (game.mode == Gamemode::CPUblack) {
@@ -210,7 +206,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     }
 }
 
-void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
     int result = select_square(mouse_pos.x, mouse_pos.y, game);
 
     if (result >= 0) {
@@ -219,7 +215,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         make_game_move(game, game.bitboards, game.board, result, game.current_move);  
     }
     if (game.promoting_pawn) {
-        draw_pawn_promotion_screen(game, window);
+        draw_pawn_promotion_screen(game, window, assets);
         game.state = Gamestate::Promoting_pawn;
         return;
     }
@@ -230,7 +226,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     }
 }
 
-void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
              
     int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
@@ -252,7 +248,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             make_game_move(game, game.bitboards, game.board, result, game.current_move);  
         }
         if (game.promoting_pawn) {
-            draw_pawn_promotion_screen(game, window);
+            draw_pawn_promotion_screen(game, window, assets);
             game.state = Gamestate::Promoting_pawn;
             return;
         }
@@ -299,49 +295,34 @@ void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
     }
 }
 
-void draw_reset_button(sf::RenderWindow& window) {
+void draw_reset_button(sf::RenderWindow& window, Assets& assets) {
 
     sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, Colours::white);
-    
-    sf::Font font;
-    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
-        return;
-    }
-    sf::Text text = configure_text(font, "Reset", {13, 13}, 15, Colours::red);
+    sf::Text text = configure_text(assets.font, "Reset", {13, 13}, 15, Colours::red);
 
     window.draw(reset_button);
     window.draw(text);
 }
 
-void draw_undo_button(sf::RenderWindow& window) {
+void draw_undo_button(sf::RenderWindow& window, Assets& assets) {
 
     sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, Colours::white);
-
-    sf::Font font;
-    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
-        return;
-    }
-    sf::Text text = configure_text(font, "Undo", {953, 13}, 15, Colours::red);
+    sf::Text text = configure_text(assets.font, "Undo", {953, 13}, 15, Colours::red);
 
     window.draw(undo_button);
     window.draw(text);
 }
 
-void draw_return_to_home_button(sf::RenderWindow& window) {
+void draw_return_to_home_button(sf::RenderWindow& window, Assets& assets) {
 
     sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, Colours::white);
-
-    sf::Font font;
-    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
-        return;
-    }
-    sf::Text text = configure_text(font, "Back to Home", {13, 58}, 15, Colours::red);
+    sf::Text text = configure_text(assets.font, "Back to Home", {13, 58}, 15, Colours::red);
 
     window.draw(return_button);
     window.draw(text);
 }
 
-void draw_board(Game& game, sf::RenderWindow& window) {
+void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     float x_offset {}, y_offset {};
 
     bool prev_move_available { false };
@@ -415,29 +396,29 @@ void draw_board(Game& game, sf::RenderWindow& window) {
             
             if (!game.is_dragging || square != game.selected_square) {
                 if (game.bitboards.bitboards[white][pawn] & mask) {
-                    draw_piece(game, window, rank, file, pawn, white);
+                    draw_piece(game, window, assets, rank, file, pawn, white);
                 } else if (game.bitboards.bitboards[black][pawn] & mask) {
-                    draw_piece(game, window, rank, file, pawn, black);
+                    draw_piece(game, window, assets, rank, file, pawn, black);
                 } else if (game.bitboards.bitboards[white][knight] & mask) {
-                    draw_piece(game, window, rank, file, knight, white);
+                    draw_piece(game, window, assets, rank, file, knight, white);
                 } else if (game.bitboards.bitboards[black][knight] & mask) {
-                    draw_piece(game, window, rank, file, knight, black);
+                    draw_piece(game, window, assets, rank, file, knight, black);
                 } else if (game.bitboards.bitboards[white][bishop] & mask) {
-                    draw_piece(game, window, rank, file, bishop, white);
+                    draw_piece(game, window, assets, rank, file, bishop, white);
                 } else if (game.bitboards.bitboards[black][bishop] & mask) {
-                    draw_piece(game, window, rank, file, bishop, black);
+                    draw_piece(game, window, assets, rank, file, bishop, black);
                 } else if (game.bitboards.bitboards[white][rook] & mask) {
-                    draw_piece(game, window, rank, file, rook, white);
+                    draw_piece(game, window, assets, rank, file, rook, white);
                 } else if (game.bitboards.bitboards[black][rook] & mask) {
-                    draw_piece(game, window, rank, file, rook, black);
+                    draw_piece(game, window, assets, rank, file, rook, black);
                 } else if (game.bitboards.bitboards[white][queen] & mask) {
-                    draw_piece(game, window, rank, file, queen, white);
+                    draw_piece(game, window, assets, rank, file, queen, white);
                 } else if (game.bitboards.bitboards[black][queen] & mask) {
-                    draw_piece(game, window, rank, file, queen, black);
+                    draw_piece(game, window, assets, rank, file, queen, black);
                 } else if (game.bitboards.bitboards[white][king] & mask) {
-                    draw_piece(game, window, rank, file, king, white);
+                    draw_piece(game, window, assets, rank, file, king, white);
                 } else if (game.bitboards.bitboards[black][king] & mask) {
-                    draw_piece(game, window, rank, file, king, black);
+                    draw_piece(game, window, assets, rank, file, king, black);
                 }
             } else {
                 continue;
@@ -445,19 +426,16 @@ void draw_board(Game& game, sf::RenderWindow& window) {
         }
     }
     if (game.is_dragging) {
-        draw_piece(game, window, 7 - game.selected_square / 8, game.selected_square % 8, 
+        //std::cout << "here\n";
+        draw_piece(game, window, assets, 7 - game.selected_square / 8, game.selected_square % 8, 
             game.board[game.selected_square].piece_occupying.piece_type,
             game.board[game.selected_square].piece_occupying.colour, true);
     }
 }
 
-void draw_end_screen(Game& game, sf::RenderWindow& window) {
+void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
    
-    sf::Font font;
-    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
-        return;
-    }
-    sf::Text text(font);
+    sf::Text text(assets.font);
     text.setFillColor(sf::Color::Red);
     text.setCharacterSize(40);
     text.setPosition({280, 280}); 
@@ -484,73 +462,24 @@ void draw_end_screen(Game& game, sf::RenderWindow& window) {
     window.draw(text);
 }
 
-void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window) {
+void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
     sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, Colours::blue);
 
     window.draw(pawn_promotion_screen);
     int rank = ((game.view == white) ? 4 : 3);
-    draw_piece(game, window, rank, 2, rook, game.turn);
-    draw_piece(game, window, rank, 3, knight, game.turn);
-    draw_piece(game, window, rank, 4, bishop, game.turn);
-    draw_piece(game, window, rank, 5, queen, game.turn);
+    draw_piece(game, window, assets, rank, 2, rook, game.turn);
+    draw_piece(game, window, assets, rank, 3, knight, game.turn);
+    draw_piece(game, window, assets, rank, 4, bishop, game.turn);
+    draw_piece(game, window, assets, rank, 5, queen, game.turn);
  
     window.display();
 }
 
-void draw_piece(Game& game, sf::RenderWindow& window, int x, int y, int piece, int colour, bool dragging) {
+void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, 
+    int x, int y, int piece, int colour, bool dragging) {
     //std::string piece_type = piece->piece_type;
-    sf::Texture texture;
-
-    if (piece == pawn && colour == black) {
-        if (!texture.loadFromFile("./assets/images/Chess_pdt45.png")) {
-            return;
-        }
-    } else if (piece == pawn && colour == white) {
-        if (!texture.loadFromFile("./assets/images/Chess_plt45.png")) {
-            return;
-        }
-    } else if (piece == knight && colour == black) {
-        if (!texture.loadFromFile("./assets/images/Chess_ndt45.png")) {
-            return;
-        }
-    } else if (piece == knight && colour == white) {
-        if (!texture.loadFromFile("./assets/images/Chess_nlt45.png")) {
-            return;
-        }
-    }  else if (piece == bishop && colour == black) {
-        if (!texture.loadFromFile("./assets/images/Chess_bdt45.png")) {
-            return;
-        }
-    } else if (piece == bishop && colour == white) {
-        if (!texture.loadFromFile("./assets/images/Chess_blt45.png")) {
-            return;
-        }
-    } else if (piece == rook && colour == black) {
-        if (!texture.loadFromFile("./assets/images/Chess_rdt45.png")) {
-            return;
-        }
-    } else if (piece == rook && colour == white) {
-        if (!texture.loadFromFile("./assets/images/Chess_rlt45.png")) {
-            return;
-        }
-    } else if (piece == queen && colour == black) {
-        if (!texture.loadFromFile("./assets/images/Chess_qdt45.png")) {
-            return;
-        }
-    } else if (piece == queen && colour == white) {
-        if (!texture.loadFromFile("./assets/images/Chess_qlt45.png")) {
-            return;
-        }
-    } else if (piece == king && colour == black) {
-        if (!texture.loadFromFile("./assets/images/Chess_kdt45.png")) {
-            return;
-        }
-    } else if (piece == king && colour == white) {
-        if (!texture.loadFromFile("./assets/images/Chess_klt45.png")) {
-            return;
-        }
-    }
+    sf::Texture texture = assets.array[colour][piece];
 
     sf::Sprite sprite(texture);
     sprite.setScale({0.1f, 0.1f});

@@ -11,6 +11,7 @@ int main() {
 
 void run_game_loop() {
     Game game {};
+    Assets assets {};
     game.state = Gamestate::Intro;
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
     while (window.isOpen()) {
@@ -24,8 +25,8 @@ void run_game_loop() {
                 update_computer_move(game);
             }
         } 
-        handle_input(game, window);
-        render(game, window);
+        handle_input(game, window, assets);
+        render(game, window, assets);
     }
 }
 

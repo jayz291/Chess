@@ -524,6 +524,7 @@ void is_game_over(Game& game) {
     Game game_copy = game;
     std::vector<Move> moves = determine_possible_moves(game_copy, bitboards_copy, copy, game.turn);
     std::cout << moves.size() << '\n';
+    std::cout << "plys to 100: " << game.plys_to_100 << '\n';
     if (moves.size() > 0) {
         std::cout << moves[0].piece << '\n';
     }

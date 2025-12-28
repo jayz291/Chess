@@ -138,7 +138,7 @@ void handle_fen_string(Game& game) {
             std::cout << "added\n";
         }
     }
-    game.bitboards.update_occupied();
+    proposed_game.bitboards.update_occupied();
  
     if (split_fen[1] == "b") {
         proposed_game.turn = black;
@@ -150,24 +150,26 @@ void handle_fen_string(Game& game) {
     
     for (char letter: split_fen[2]) {    
         if (letter == 'K') {
-            proposed_game.castling_rights |= (mask << 2);
-        } else if (letter == 'Q') {
             proposed_game.castling_rights |= (mask << 3);
+        } else if (letter == 'Q') {
+            proposed_game.castling_rights |= (mask << 2);
         } else if (letter == 'k') {
-            proposed_game.castling_rights |= mask;
-        } else if (letter == 'q') {
             proposed_game.castling_rights |= (mask << 1);
+        } else if (letter == 'q') {
+            proposed_game.castling_rights |= mask;
         } else if (letter == '-') {
             proposed_game.castling_rights = 0b00000000;
         } else {
             return;
         }  
     }
-    game.en_passant_square = split_fen[3];
-    game.plys_to_100 = std::stoi(split_fen[4]);
+    proposed_game.en_passant_square = split_fen[3];
+    proposed_game.plys_to_100 = std::stoi(split_fen[4]);
+    std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
     int move_num = std::stoi(split_fen[5]);
     proposed_game.board = board;
     game = proposed_game;
+    std::cout << std::bitset<8>(game.castling_rights) << '\n';
     for (int i { 0 }; i < 64; i++) {
         int row = i / 8;
         int col = i % 8;
