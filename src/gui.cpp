@@ -9,34 +9,38 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             window.close();
         }
         if (const auto* mouse_move = event->getIf<sf::Event::MouseMoved>()) {
-            game.current_mouse_pos = window.mapPixelToCoords(mouse_move->position);
+            sf::Vector2f world_pos = window.mapPixelToCoords(mouse_move->position);
+            sf::Vector2f game_pos = {world_pos.x, world_pos.y};
+            game.current_mouse_pos = game_pos;
         }
    
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
+            sf::Vector2f world_pos = window.mapPixelToCoords(mouse_press->position);
+            sf::Vector2i game_pos = {(int)world_pos.x, (int)world_pos.y};
             //std::cout << "clicked\n";
             if (game.state == Gamestate::Intro) {
-                handle_clicks_intro(game, window, assets, mouse_press->position);
+                handle_clicks_intro(game, window, assets, game_pos);
             } else if (game.state == Gamestate::Playing) {
                 if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && game.turn == black) ||
                     game.mode == Gamemode::CPUblack && game.turn == white) {
-                    handle_clicks_playing(game, window, mouse_press->position, assets);
+                    handle_clicks_playing(game, window, game_pos, assets);
                     if (game.selected_square != -1) {
                         game.is_dragging = true;
-                        game.current_mouse_pos = window.mapPixelToCoords(mouse_press->position);
+                        game.current_mouse_pos = world_pos;
                         game.dragged_piece = game.board[game.selected_square].piece_occupying.piece_type;
                     }
-                    handle_clicks_undoing(game, mouse_press->position);
+                    handle_clicks_undoing(game, game_pos);
                 }
 
             } else if (game.state == Gamestate::Promoting_pawn) {
-                handle_clicks_promoting(game, mouse_press->position);
+                handle_clicks_promoting(game, game_pos);
             } else if (game.state == Gamestate::Gameover) {
                 game.state = Gamestate::Resetting;
             } else if (game.state == Gamestate::Resetting) {
-                handle_clicks_resetting(game, mouse_press->position);
+                handle_clicks_resetting(game, game_pos);
             }
             if (game.state != Gamestate::Intro) {
-                handle_clicks_returning(game, mouse_press->position);
+                handle_clicks_returning(game, game_pos);
             }
         }
         if (const auto* key_event = event->getIf<sf::Event::KeyPressed>()) {
@@ -82,12 +86,15 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
             sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
-            window.setView(sf::View(visibleArea));
+            sf::View view(visibleArea); 
+            view.setCenter({500.f, 400.f});
+            window.setView(view);
         }
         if (const auto* mouse_release = event->getIf<sf::Event::MouseButtonReleased>()) {
             if (game.is_dragging) {
-                sf::Vector2i mouse_pos = mouse_release->position;
-                handle_drag_release(game, window, mouse_pos, assets);
+                sf::Vector2f world_pos = window.mapPixelToCoords(mouse_release->position);
+                sf::Vector2i game_pos = { (int)world_pos.x, (int)world_pos.y};
+                handle_drag_release(game, window, game_pos, assets);
             }
 
             game.is_dragging = false;
@@ -177,6 +184,10 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
             assets.cursor_clock.restart();
         }
     }
+    if (game.invalid_fen_position) {
+        sf::Text error_text = configure_text(assets.font, "Invalid FEN position", {70, 750}, 16, sf::Color::Red);
+        window.draw(error_text);
+    }
 }
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
@@ -213,9 +224,15 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
     int x = mouse_pos.x;
     int y = mouse_pos.y;
     if (330 <= x && x <= 680 && 160 <= y && y <= 490) {
-        game.state = Gamestate::Playing;
         game.initialise();
-        handle_fen_string(game);
+        int result = handle_fen_string(game);
+        if (result == 0) {
+            std::cout << "passed\n";
+            game.invalid_fen_position = false;
+            game.state = Gamestate::Playing;
+        } else {
+            game.invalid_fen_position = true;
+        }
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
         game.view = white;
@@ -303,7 +320,15 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
 
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
     if (10 <= mouse_pos.x && mouse_pos.x <= 54 && 10 <= mouse_pos.y && mouse_pos.y <= 45) {
+        std::string fen_string = game.fen_string;
+        bool default_position = game.default_position;
         game.initialise();
+        if (!default_position) {
+            game.default_position = default_position;
+            game.fen_string = fen_string;
+            handle_fen_string(game);
+        }
+        game.state = Gamestate::Playing;
         return;
     }
 }

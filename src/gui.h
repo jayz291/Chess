@@ -44,7 +44,7 @@ struct Assets {
             return;
         }
         if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
-        return;
+            return;
         }
     }
 };

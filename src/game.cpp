@@ -1,4 +1,5 @@
 #include "game.h"
+#include "logic.h"
 
 Move calculated_move;
 std::atomic<bool> computer_turn { false };
@@ -11,7 +12,7 @@ Game::Game() {
 }
 
 void Game::initialise() {
-    state = Gamestate::Playing;
+    //state = Gamestate::Playing;
     current_move = {};
     move_record.clear();
     board_record.clear();
@@ -59,12 +60,12 @@ void Game::initialise() {
     board[7].piece_occupying = { rook, white };
 }
 
-void handle_fen_string(Game& game) {
+int handle_fen_string(Game& game) {
     std::string fen_string = game.fen_string.toAnsiString();
     std::cout << fen_string << '\n';
     std::vector<std::string> split_fen;
     if (fen_string.size() == 0) {
-        return;
+        return 0;
     }
     std::stringstream ss(fen_string);
     std::string section;
@@ -72,82 +73,29 @@ void handle_fen_string(Game& game) {
         split_fen.push_back(section);
     }
     if (split_fen.size() != 6) {
-        return;
+        return -1;
     }
-    int curr_square = 56;
+
     Game proposed_game;
     proposed_game.castling_rights = 0b10000000;
-    Chessboard board;
-    memset(proposed_game.bitboards.bitboards, 0, sizeof(proposed_game.bitboards.bitboards));
-    uint64_t mask = 1ULL;
-    for (char letter: split_fen[0]) {
-        if (letter == 'r') {
-            board[curr_square].piece_occupying = { rook, black };
-            proposed_game.bitboards.bitboards[black][rook] |= mask << curr_square;
-        } else if (letter == 'n') {
-            board[curr_square].piece_occupying = { knight, black };
-            proposed_game.bitboards.bitboards[black][knight] |= mask << curr_square;
-        } else if (letter == 'b') {
-            board[curr_square].piece_occupying = { bishop, black };
-            proposed_game.bitboards.bitboards[black][bishop] |= mask << curr_square;
-        } else if (letter == 'q') {
-            board[curr_square].piece_occupying = { queen, black };
-            proposed_game.bitboards.bitboards[black][queen] |= mask << curr_square;
-        } else if (letter == 'k') {
-            board[curr_square].piece_occupying = { king, black };
-            proposed_game.bitboards.bitboards[black][king] |= mask << curr_square;
-        } else if (letter == 'p') {
-            board[curr_square].piece_occupying = { pawn, black };
-            proposed_game.bitboards.bitboards[black][pawn] |= mask << curr_square;          
-        } else if (letter == 'R') {
-            board[curr_square].piece_occupying = { rook, white };
-            proposed_game.bitboards.bitboards[white][rook] |= mask << curr_square;
-        } else if (letter == 'N') { 
-            board[curr_square].piece_occupying = { knight, white };
-            proposed_game.bitboards.bitboards[white][knight] |= mask << curr_square;
-        } else if (letter == 'B') {
-            board[curr_square].piece_occupying = { bishop, white };
-            proposed_game.bitboards.bitboards[white][bishop] |= mask << curr_square;
-        } else if (letter == 'Q') {
-            board[curr_square].piece_occupying = { queen, white };
-            proposed_game.bitboards.bitboards[white][queen] |= mask << curr_square;
-        } else if (letter == 'K') {
-            board[curr_square].piece_occupying = { king, white };
-            proposed_game.bitboards.bitboards[white][king] |= mask << curr_square;
-        } else if (letter == 'P') {
-            board[curr_square].piece_occupying = { pawn, white };
-            proposed_game.bitboards.bitboards[white][pawn] |= mask << curr_square;          
-        } 
-        std::cout << curr_square << '\n';
-        if (curr_square >= 65) {
-            std::cout << "here\n";
-            return;
-        }
-        if (letter >= 49 && letter <= 56) {
-            int empty_squares = letter - '0';
-            curr_square += empty_squares;
-        }
-        if (letter == '/') {
-            std::cout << "next row\n";
-            int row = curr_square / 8;
-            curr_square = 8 * (row - 2);
-            std::cout << "new curr square: " << curr_square << '\n';
-        }  
-        if (letter > 57) {
-            curr_square++;
-            std::cout << "added\n";
-        }
+    for (auto cell: proposed_game.board) {
+        cell.piece_occupying = { none, none };
     }
-    proposed_game.bitboards.update_occupied();
- 
+    memset(proposed_game.bitboards.bitboards, 0, sizeof(proposed_game.bitboards.bitboards));
+
+    if (fill_board(proposed_game, split_fen[0]) == -1) {
+        return -1;
+    }
+    
     if (split_fen[1] == "b") {
         proposed_game.turn = black;
     } else if (split_fen[1] == "w") {
         proposed_game.turn = white;
     } else {
-        return;
+        return -1;
     }
     
+    uint64_t mask = 1ULL;
     for (char letter: split_fen[2]) {    
         if (letter == 'K') {
             proposed_game.castling_rights |= (mask << 3);
@@ -160,27 +108,128 @@ void handle_fen_string(Game& game) {
         } else if (letter == '-') {
             proposed_game.castling_rights = 0b00000000;
         } else {
-            return;
+            return -1;
         }  
     }
     proposed_game.en_passant_square = split_fen[3];
     proposed_game.plys_to_100 = std::stoi(split_fen[4]);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
     int move_num = std::stoi(split_fen[5]);
-    proposed_game.board = board;
     proposed_game.view = game.view;
     proposed_game.mode = game.mode;
+    proposed_game.fen_string = game.fen_string;
+
+    if (check_position_validity(proposed_game) == -1) {
+        return -1;
+    }
+
     game = proposed_game;
-    //std::cout << std::bitset<8>(game.castling_rights) << '\n';
-    for (int i { 0 }; i < 64; i++) {
-        int row = i / 8;
-        int col = i % 8;
-        if ((row + col) % 2 == 0) {
-            game.board[i].colour = "yellow";
-        } else {
-            game.board[i].colour = "brown";
+    game.default_position = false;
+    return 0;
+}
+
+int fill_board(Game& proposed_game, std::string& fen_board_section) {
+    int curr_square = 56;
+    int ranks = 1;
+    int row_squares_recorded = 0;
+    uint64_t mask = 1ULL;
+
+    for (char letter: fen_board_section) {
+        if (letter == 'r') {
+            proposed_game.board[curr_square].piece_occupying = { rook, black };
+            proposed_game.bitboards.bitboards[black][rook] |= mask << curr_square;
+        } else if (letter == 'n') {
+            proposed_game.board[curr_square].piece_occupying = { knight, black };
+            proposed_game.bitboards.bitboards[black][knight] |= mask << curr_square;
+        } else if (letter == 'b') {
+            proposed_game.board[curr_square].piece_occupying = { bishop, black };
+            proposed_game.bitboards.bitboards[black][bishop] |= mask << curr_square;
+        } else if (letter == 'q') {
+            proposed_game.board[curr_square].piece_occupying = { queen, black };
+            proposed_game.bitboards.bitboards[black][queen] |= mask << curr_square;
+        } else if (letter == 'k') {
+            proposed_game.board[curr_square].piece_occupying = { king, black };
+            proposed_game.bitboards.bitboards[black][king] |= mask << curr_square;
+        } else if (letter == 'p') {
+            proposed_game.board[curr_square].piece_occupying = { pawn, black };
+            proposed_game.bitboards.bitboards[black][pawn] |= mask << curr_square;          
+        } else if (letter == 'R') {
+            proposed_game.board[curr_square].piece_occupying = { rook, white };
+            proposed_game.bitboards.bitboards[white][rook] |= mask << curr_square;
+        } else if (letter == 'N') { 
+            proposed_game.board[curr_square].piece_occupying = { knight, white };
+            proposed_game.bitboards.bitboards[white][knight] |= mask << curr_square;
+        } else if (letter == 'B') {
+            proposed_game.board[curr_square].piece_occupying = { bishop, white };
+            proposed_game.bitboards.bitboards[white][bishop] |= mask << curr_square;
+        } else if (letter == 'Q') {
+            proposed_game.board[curr_square].piece_occupying = { queen, white };
+            proposed_game.bitboards.bitboards[white][queen] |= mask << curr_square;
+        } else if (letter == 'K') {
+            proposed_game.board[curr_square].piece_occupying = { king, white };
+            proposed_game.bitboards.bitboards[white][king] |= mask << curr_square;
+        } else if (letter == 'P') {
+            proposed_game.board[curr_square].piece_occupying = { pawn, white };
+            proposed_game.bitboards.bitboards[white][pawn] |= mask << curr_square;          
+        } 
+        //std::cout << curr_square << '\n';
+        if (curr_square >= 65) {
+            std::cout << "here\n";
+            return -1;
+        }
+
+        if (letter >= 49 && letter <= 56) {
+            int empty_squares = letter - '0';
+            curr_square += empty_squares;
+            row_squares_recorded += empty_squares;
+        }
+
+        if (letter == '/') {
+            ranks++;
+            if (row_squares_recorded != 8) {
+                return -1;
+            }
+            int row = curr_square / 8;
+            curr_square = 8 * (row - 2);
+            row_squares_recorded = 0;
+        }  
+
+        if (letter > 57) {
+            curr_square++;
+            row_squares_recorded++;
+            //std::cout << "added\n";
         }
     }
+    if (row_squares_recorded != 8 || ranks != 8) {
+        return -1;
+    }
+    proposed_game.bitboards.update_occupied();
+    return 0;
+}
+
+
+int check_position_validity(Game& proposed_game) {
+    if (proposed_game.bitboards.bitboards[black][king] == 0 || 
+        (proposed_game.bitboards.bitboards[black][king] & (proposed_game.bitboards.bitboards[black][king] - 1)) != 0 ||
+        proposed_game.bitboards.bitboards[white][king] == 0 || 
+        ((proposed_game.bitboards.bitboards[white][king] & (proposed_game.bitboards.bitboards[white][king] - 1)) != 0)) {
+        return -1;
+    }
+
+    int black_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[black][king]);
+    int white_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[white][king]);
+
+    if (is_square_attacked(proposed_game.bitboards, white_king_square, white)) {
+        proposed_game.white_in_check = true;
+    }
+    if (is_square_attacked(proposed_game.bitboards, black_king_square, black)) {
+        proposed_game.black_in_check = true;
+    }
+    if ((proposed_game.black_in_check && proposed_game.turn == white) || 
+        (proposed_game.white_in_check && proposed_game.turn == black)) {
+        return -1;
+    }
+    return 0;
 }
 
 

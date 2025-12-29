@@ -51,10 +51,14 @@ class Game {
         std::string en_passant_square;
         bool typing { false };
         std::size_t cursor_index;
+        bool default_position { true };
+        bool invalid_fen_position { false };
         Game();
         void initialise();
 };
 
-void handle_fen_string(Game& game);
+int handle_fen_string(Game& game);
+int fill_board(Game& proposed_game, std::string& fen_board_section);
+int check_position_validity(Game& proposed_game);
 void print_bitboard(uint64_t bitboard);
 void print_all_bitboards(Bitboards& bitboards);
