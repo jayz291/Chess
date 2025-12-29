@@ -122,20 +122,20 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
    
-    sf::RectangleShape play_button = make_rectangle({330, 330}, {350, 160}, Colours::white);
+    sf::RectangleShape play_button = make_rectangle({330, 330}, {350, 160}, sf::Color::White);
  
-    sf::Text text = configure_text(assets.font, "Chess", {200, 20}, 210, Colours::black);
-    sf::Text text2 = configure_text(assets.font, "Play", {450, 380}, 60, Colours::black);
+    sf::Text text = configure_text(assets.font, "Chess", {200, 20}, 210, sf::Color::Black);
+    sf::Text text2 = configure_text(assets.font, "Play", {450, 380}, 60, sf::Color::Black);
  
-    sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, Colours::white);
-    sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, Colours::white);
-    sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, Colours::white);
-    sf::RectangleShape text_box = make_rectangle({60, 690}, {870, 50}, Colours::white);
+    sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, sf::Color::White);
+    sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, sf::Color::White);
+    sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, sf::Color::White);
+    sf::RectangleShape text_box = make_rectangle({60, 690}, {870, 50}, sf::Color::White);
 
-    sf::Text choice1_text = configure_text(assets.font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
-    sf::Text choice2_text = configure_text(assets.font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
-    sf::Text choice3_text = configure_text(assets.font, "Two player", {710, 540}, 30, Colours::black);
-    sf::Text entered_fen = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, Colours::black);
+    sf::Text choice1_text = configure_text(assets.font, "Play CPU as\n white", {130, 540}, 30, sf::Color::Black);
+    sf::Text choice2_text = configure_text(assets.font, "Play CPU as\n black", {420, 540}, 30, sf::Color::Black);
+    sf::Text choice3_text = configure_text(assets.font, "Two player", {710, 540}, 30, sf::Color::Black);
+    sf::Text entered_fen = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, sf::Color::Black);
     //std::cout << game.fen_string.toAnsiString() << '\n';
 
     if (game.mode == Gamemode::CPUblack) {
@@ -165,13 +165,13 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
     window.draw(entered_fen);
     if (!game.typing && game.fen_string.getSize() == 0) {
         sf::Text fen_instruction_text = configure_text(assets.font, "Enter FEN here for a custom position\n", 
-            {70, 700}, 16, Colours::grey);
+            {70, 700}, 16, sf::Color(142, 142, 142));
         window.draw(fen_instruction_text);
     }
     if (game.typing) {
         if (assets.cursor_clock.getElapsedTime().asSeconds() < 0.5f) {
             sf::Vector2f cursor_pos = entered_fen.findCharacterPos(game.cursor_index);
-            sf::RectangleShape cursor_shape = make_rectangle({cursor_pos.x, cursor_pos.y }, {2, 15}, Colours::black);
+            sf::RectangleShape cursor_shape = make_rectangle({cursor_pos.x, cursor_pos.y}, {2, 15}, sf::Color::Black);
             window.draw(cursor_shape);
         } else if (assets.cursor_clock.getElapsedTime().asSeconds() > 1.0f) {
             assets.cursor_clock.restart();
@@ -180,31 +180,19 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
 }
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
-    int size, Colours colour) {
+    int size, sf::Color colour) {
     sf::Text text(font);
     text.setString(string);
     text.setPosition(pos);
-    if (colour == Colours::black) {
-        text.setFillColor(sf::Color::Black);
-    } else if (colour == Colours::red) {
-        text.setFillColor(sf::Color::Red);
-    } else if (colour == Colours::grey) {
-        text.setFillColor(sf::Color(211, 211, 211));
-    }
+    text.setFillColor(colour);
     text.setCharacterSize(size);
     return text;
 }
 
-sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, Colours colour) {
+sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour) {
     sf::RectangleShape rectangle(size);
     rectangle.setPosition(pos);
-    if (colour == Colours::white) {
-        rectangle.setFillColor(sf::Color::White);
-    } else if (colour == Colours::black) {
-        rectangle.setFillColor(sf::Color::Black);
-    } else if (colour == Colours::blue) {
-        rectangle.setFillColor(sf::Color::Blue);
-    }
+    rectangle.setFillColor(colour);
     return rectangle;
 }
 
@@ -241,7 +229,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
     }
     if (100 <= x && x <= 920 && 690 <= y && y <= 740) {
         game.typing = true;
-        sf::Text text_copy = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, Colours::black);
+        sf::Text text_copy = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, sf::Color::Black);
         game.cursor_index = get_cursor_index_from_click(text_copy, (float) mouse_pos.x);
     } else {
         game.typing = false;
@@ -339,8 +327,8 @@ void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
 
 void draw_reset_button(sf::RenderWindow& window, Assets& assets) {
 
-    sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, Colours::white);
-    sf::Text text = configure_text(assets.font, "Reset", {13, 13}, 15, Colours::red);
+    sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, sf::Color::White);
+    sf::Text text = configure_text(assets.font, "Reset", {13, 13}, 15, sf::Color::Red);
 
     window.draw(reset_button);
     window.draw(text);
@@ -348,8 +336,8 @@ void draw_reset_button(sf::RenderWindow& window, Assets& assets) {
 
 void draw_undo_button(sf::RenderWindow& window, Assets& assets) {
 
-    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, Colours::white);
-    sf::Text text = configure_text(assets.font, "Undo", {953, 13}, 15, Colours::red);
+    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, sf::Color::White);
+    sf::Text text = configure_text(assets.font, "Undo", {953, 13}, 15, sf::Color::Red);
 
     window.draw(undo_button);
     window.draw(text);
@@ -357,8 +345,8 @@ void draw_undo_button(sf::RenderWindow& window, Assets& assets) {
 
 void draw_return_to_home_button(sf::RenderWindow& window, Assets& assets) {
 
-    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, Colours::white);
-    sf::Text text = configure_text(assets.font, "Back to Home", {13, 58}, 15, Colours::red);
+    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, sf::Color::White);
+    sf::Text text = configure_text(assets.font, "Back to Home", {13, 58}, 15, sf::Color::Red);
 
     window.draw(return_button);
     window.draw(text);
@@ -498,7 +486,7 @@ void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
         text.setString("Draw by the 50-move rule\n-----------------------------\nClick anywhere to \ncontinue");
     }
 
-    sf::RectangleShape end_screen = make_rectangle({250, 250}, {500, 300}, Colours::black);
+    sf::RectangleShape end_screen = make_rectangle({250, 250}, {500, 300}, sf::Color::Black);
 
     window.draw(end_screen);
     window.draw(text);
@@ -506,7 +494,7 @@ void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
-    sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, Colours::blue);
+    sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, sf::Color::Blue);
 
     window.draw(pawn_promotion_screen);
     int rank = ((game.view == white) ? 4 : 3);

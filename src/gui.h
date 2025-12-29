@@ -2,14 +2,6 @@
 #include <SFML/Graphics.hpp>
 #include "game.h"
 
-enum class Colours {
-    white = 0,
-    black = 1,
-    red = 2,
-    blue = 3,
-    grey = 4
-};
-
 struct Assets {
     sf::Font font;
     sf::Texture array[2][6];
@@ -69,8 +61,8 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& as
 void draw_return_to_home_button(sf::RenderWindow& window, Assets& assets);
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
-    int size, Colours colour);
-sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, Colours colour);
+    int size, sf::Color colour);
+sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour);
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos);
