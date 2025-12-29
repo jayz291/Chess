@@ -230,6 +230,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
             std::cout << "passed\n";
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
+            is_game_over(game);
         } else {
             game.invalid_fen_position = true;
         }
@@ -255,7 +256,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
 
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
     int result = select_square(mouse_pos.x, mouse_pos.y, game);
-
+    //std::cout << result << '\n';
     if (result >= 0) {
         /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
         ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
@@ -329,6 +330,7 @@ void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
             handle_fen_string(game);
         }
         game.state = Gamestate::Playing;
+        is_game_over(game);
         return;
     }
 }

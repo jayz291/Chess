@@ -78,8 +78,8 @@ int handle_fen_string(Game& game) {
 
     Game proposed_game;
     proposed_game.castling_rights = 0b10000000;
-    for (auto cell: proposed_game.board) {
-        cell.piece_occupying = { none, none };
+    for (int i { 0 }; i < 64; i++) {
+        proposed_game.board[i].piece_occupying = { none, none };
     }
     memset(proposed_game.bitboards.bitboards, 0, sizeof(proposed_game.bitboards.bitboards));
 
@@ -206,6 +206,9 @@ int fill_board(Game& proposed_game, std::string& fen_board_section) {
         return -1;
     }
     proposed_game.bitboards.update_occupied();
+    for (auto cell: proposed_game.board) {
+        std::cout << cell.piece_occupying.piece_type << ' ';
+    }
     return 0;
 }
 
