@@ -50,6 +50,7 @@ class Game {
         sf::String fen_string;
         std::string en_passant_square;
         bool typing { false };
+        std::size_t cursor_index;
         Game();
         void initialise();
 };

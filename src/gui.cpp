@@ -15,7 +15,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             //std::cout << "clicked\n";
             if (game.state == Gamestate::Intro) {
-                handle_clicks_intro(game, window, mouse_press->position);
+                handle_clicks_intro(game, window, assets, mouse_press->position);
             } else if (game.state == Gamestate::Playing) {
                 if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && game.turn == black) ||
                     game.mode == Gamemode::CPUblack && game.turn == white) {
@@ -45,10 +45,20 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                     if (key_event->code == sf::Keyboard::Key::V) {
                         std::cout << (game.fen_string + sf::Clipboard::getString()).getSize() << '\n';
                         if ((game.fen_string + sf::Clipboard::getString()).getSize() <= 105) {
-                            game.fen_string += sf::Clipboard::getString();
+                            game.fen_string.insert(game.cursor_index, sf::Clipboard::getString());
+                            game.cursor_index += sf::Clipboard::getString().getSize();
                         }
                     } else if (key_event->code == sf::Keyboard::Key::C) {
                         sf::Clipboard::setString(game.fen_string);
+                    }
+                }
+                if (key_event->code == sf::Keyboard::Key::Left) {
+                    if (game.fen_string.getSize() > 0) {
+                        game.cursor_index--;
+                    }
+                } else if (key_event->code == sf::Keyboard::Key::Right) {
+                    if (game.cursor_index < game.fen_string.getSize()) {
+                        game.cursor_index++;
                     }
                 }
             }
@@ -59,12 +69,13 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                     continue;
                 }
                 if (text_event->unicode == 8) {
-                    if (!game.fen_string.isEmpty()) {
-                        game.fen_string.erase(game.fen_string.getSize() - 1, 1);
+                    if (!game.fen_string.isEmpty() && game.cursor_index > 0) {
+                        game.fen_string.erase(game.cursor_index - 1, 1);
+                        game.cursor_index--;
                     }
                 } else if (text_event->unicode < 128 && game.fen_string.getSize() <= 110) {
-                    game.fen_string += text_event->unicode;
-                    
+                    game.fen_string.insert(game.cursor_index, text_event->unicode);
+                    game.cursor_index++;
                 }
             }
         }
@@ -119,12 +130,12 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
     sf::RectangleShape choice1_button = make_rectangle({110, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice2_button = make_rectangle({400, 530}, {250, 110}, Colours::white);
     sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, Colours::white);
-    sf::RectangleShape text_box = make_rectangle({100, 690}, {820, 50}, Colours::white);
+    sf::RectangleShape text_box = make_rectangle({60, 690}, {870, 50}, Colours::white);
 
     sf::Text choice1_text = configure_text(assets.font, "Play CPU as\n white", {130, 540}, 30, Colours::black);
     sf::Text choice2_text = configure_text(assets.font, "Play CPU as\n black", {420, 540}, 30, Colours::black);
     sf::Text choice3_text = configure_text(assets.font, "Two player", {710, 540}, 30, Colours::black);
-    sf::Text entered_fen = configure_text(assets.font, game.fen_string.toAnsiString(), {110, 700}, 15, Colours::black);
+    sf::Text entered_fen = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, Colours::black);
     //std::cout << game.fen_string.toAnsiString() << '\n';
 
     if (game.mode == Gamemode::CPUblack) {
@@ -152,6 +163,20 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
     window.draw(choice3_text);
     window.draw(text_box);
     window.draw(entered_fen);
+    if (!game.typing && game.fen_string.getSize() == 0) {
+        sf::Text fen_instruction_text = configure_text(assets.font, "Enter FEN here for a custom position\n", 
+            {70, 700}, 16, Colours::grey);
+        window.draw(fen_instruction_text);
+    }
+    if (game.typing) {
+        if (assets.cursor_clock.getElapsedTime().asSeconds() < 0.5f) {
+            sf::Vector2f cursor_pos = entered_fen.findCharacterPos(game.cursor_index);
+            sf::RectangleShape cursor_shape = make_rectangle({cursor_pos.x, cursor_pos.y }, {2, 15}, Colours::black);
+            window.draw(cursor_shape);
+        } else if (assets.cursor_clock.getElapsedTime().asSeconds() > 1.0f) {
+            assets.cursor_clock.restart();
+        }
+    }
 }
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
@@ -163,6 +188,8 @@ sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vec
         text.setFillColor(sf::Color::Black);
     } else if (colour == Colours::red) {
         text.setFillColor(sf::Color::Red);
+    } else if (colour == Colours::grey) {
+        text.setFillColor(sf::Color(211, 211, 211));
     }
     text.setCharacterSize(size);
     return text;
@@ -181,7 +208,20 @@ sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, Colours c
     return rectangle;
 }
 
-void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+std::size_t get_cursor_index_from_click(const sf::Text& fen_string, float mouse_x) {
+    sf::String string = fen_string.getString();
+    for (std::size_t i = 0; i < string.getSize(); i++) {
+        sf::Vector2f char_pos = fen_string.findCharacterPos(i);
+        sf::Vector2f next_char_pos = fen_string.findCharacterPos(i + 1);
+        float mid_point = char_pos.x + (next_char_pos.x - char_pos.x) / 2.f;
+        if (mouse_x < mid_point) {
+            return i;
+        }
+    }
+    return string.getSize();
+}
+
+void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos) {
     int x = mouse_pos.x;
     int y = mouse_pos.y;
     if (330 <= x && x <= 680 && 160 <= y && y <= 490) {
@@ -201,6 +241,8 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     }
     if (100 <= x && x <= 920 && 690 <= y && y <= 740) {
         game.typing = true;
+        sf::Text text_copy = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, Colours::black);
+        game.cursor_index = get_cursor_index_from_click(text_copy, (float) mouse_pos.x);
     } else {
         game.typing = false;
     }

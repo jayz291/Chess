@@ -165,11 +165,13 @@ void handle_fen_string(Game& game) {
     }
     proposed_game.en_passant_square = split_fen[3];
     proposed_game.plys_to_100 = std::stoi(split_fen[4]);
-    std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
+    //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
     int move_num = std::stoi(split_fen[5]);
     proposed_game.board = board;
+    proposed_game.view = game.view;
+    proposed_game.mode = game.mode;
     game = proposed_game;
-    std::cout << std::bitset<8>(game.castling_rights) << '\n';
+    //std::cout << std::bitset<8>(game.castling_rights) << '\n';
     for (int i { 0 }; i < 64; i++) {
         int row = i / 8;
         int col = i % 8;
