@@ -111,7 +111,9 @@ int handle_fen_string(Game& game) {
             return -1;
         }  
     }
-    proposed_game.en_passant_square = split_fen[3];
+    if (process_en_passant_square(proposed_game, split_fen[3]) == -1) {
+        return -1;
+    }
     proposed_game.plys_to_100 = std::stoi(split_fen[4]);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
     int move_num = std::stoi(split_fen[5]);
@@ -207,6 +209,41 @@ int fill_board(Game& proposed_game, std::string& fen_board_section) {
     return 0;
 }
 
+int process_en_passant_square(Game& proposed_game, std::string& en_passant_square) {
+
+    if (en_passant_square == "-") {
+        proposed_game.en_passant_square = -1;
+        return 0;
+    }
+    int col = en_passant_square[0] - 'a';
+    int row = '8' - en_passant_square[1];
+    int square = 56 - 8 * row + col;
+    std::cout << square << '\n';
+    if (square < 16 || (square > 23 && square < 40) || square > 47) {
+        return -1;
+    }
+    uint64_t mask = 1ULL;
+    if (mask << square & proposed_game.bitboards.occupied) {
+        return -1;
+    }
+    
+    if (square >= 16 && square <= 23) {
+        if ((proposed_game.bitboards.bitboards[white][pawn] & (mask << (square + 8))) &&
+            ~proposed_game.bitboards.occupied & mask << (square - 8) && proposed_game.turn == black) {
+            proposed_game.move_record.push_back({square - 8, square + 8, white, pawn, { none, none }, quiet,
+            proposed_game.castling_rights, none });
+            return 0;
+        }
+    } else if (square >= 40 && square <= 47) {
+        if ((proposed_game.bitboards.bitboards[black][pawn] & (mask << (square - 8))) &&
+            ~proposed_game.bitboards.occupied & mask << (square + 8) && proposed_game.turn == white) {
+            proposed_game.move_record.push_back({square + 8, square - 8, black, pawn, { none, none }, quiet,
+            proposed_game.castling_rights, none });
+            return 0;
+        }
+    }
+    return -1;
+}
 
 int check_position_validity(Game& proposed_game) {
     if (proposed_game.bitboards.bitboards[black][king] == 0 || 
