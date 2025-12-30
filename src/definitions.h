@@ -57,6 +57,11 @@ struct Move {
     int promoted_piece { none };
 };
 
+struct Move_list {
+    std::array<Move, 300> list {};
+    int num_moves {};
+};
+
 const int piece_values[6] = { 100, 300, 300, 500, 900, 20000 };
 
 const int white_pawn_square_table[64] = { 

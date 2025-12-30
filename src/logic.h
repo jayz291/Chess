@@ -32,7 +32,8 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
 void handle_pawn_promotion(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
 void switch_move(Move& move);
 
-std::vector<Move> determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard& board, int turn, bool CPU = false);
+Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard& board, 
+    int turn, bool CPU = false);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
 void end_game(Game& game);

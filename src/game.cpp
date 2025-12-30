@@ -111,6 +111,7 @@ int handle_fen_string(Game& game) {
             return -1;
         }  
     }
+    //std::cout << std::bitset<8>(proposed_game.castling_rights);
     if (process_en_passant_square(proposed_game, split_fen[3]) == -1) {
         return -1;
     }
@@ -206,9 +207,6 @@ int fill_board(Game& proposed_game, std::string& fen_board_section) {
         return -1;
     }
     proposed_game.bitboards.update_occupied();
-    for (auto cell: proposed_game.board) {
-        std::cout << cell.piece_occupying.piece_type << ' ';
-    }
     return 0;
 }
 

@@ -47,10 +47,17 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             if (game.state == Gamestate::Intro && game.typing) {
                 if (key_event->system) {
                     if (key_event->code == sf::Keyboard::Key::V) {
+                        sf::String raw_text = sf::Clipboard::getString();
+                        sf::String filtered_text = "";
+                        for (auto& letter: raw_text) {
+                            if (letter != 10 && letter != 13) {
+                                filtered_text += letter;
+                            }
+                        }
                         std::cout << (game.fen_string + sf::Clipboard::getString()).getSize() << '\n';
-                        if ((game.fen_string + sf::Clipboard::getString()).getSize() <= 105) {
-                            game.fen_string.insert(game.cursor_index, sf::Clipboard::getString());
-                            game.cursor_index += sf::Clipboard::getString().getSize();
+                        if ((game.fen_string + filtered_text).getSize() <= 105) {
+                            game.fen_string.insert(game.cursor_index, filtered_text);
+                            game.cursor_index += filtered_text.getSize();
                         }
                     } else if (key_event->code == sf::Keyboard::Key::C) {
                         sf::Clipboard::setString(game.fen_string);
