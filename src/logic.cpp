@@ -497,17 +497,10 @@ int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
     });
     //std::cout << "size: " << possible_moves.size() << '\n';
-    if (possible_moves.num_moves == 0) {
-        Move default_move { 0, 0, game.turn, -1 };
-        int in_check = check_checks(game, bitboards, board, default_move);
-        if (in_check) {
-            return -400000 + depth * 50;
-        } else {
-            return 0;
-        }
-    }
  
     int max_eval = -600000;
+    bool has_legal_moves { false };
+
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
         make_test_move(game, bitboards, board, possible_move);
@@ -517,7 +510,7 @@ int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
             undo_test_move(game, bitboards, board, possible_move);
             continue;
         }
-
+        has_legal_moves = true;
         int eval = -negamax(game, bitboards, board, depth - 1, -beta, -alpha);
         undo_test_move(game, bitboards, board, possible_move);
         alpha = std::max(eval, alpha);
@@ -527,6 +520,15 @@ int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
         if (beta <= alpha) {
             break;
         } 
+    }
+    if (!has_legal_moves) {
+        Move default_move { 0, 0, game.turn, -1 };
+        int in_check = check_checks(game, bitboards, board, default_move);
+        if (in_check) {
+            return -400000 - depth * 50;
+        } else {
+            return 0;
+        }
     }
     return max_eval;
 }
