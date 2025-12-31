@@ -406,7 +406,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             x_offset = 120 + j * (SQUARE_SIZE);
             y_offset = 20 + i * (SQUARE_SIZE);
             int square = 56 - 8 * i + j;
-            if (game.board[square].colour == "brown") {
+            if (game.board[square].colour == brown) {
                 if (game.view == white) {
                     if (prev_move_available && (square == prev_move.prev_square) ||
                         (square == prev_move.new_square)) {

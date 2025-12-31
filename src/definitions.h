@@ -25,6 +25,11 @@ enum {
 };
 
 enum {
+    yellow = 0,
+    brown = 1,
+};
+
+enum {
     none = -1,
     pawn = 0,
     knight = 1,
@@ -47,7 +52,7 @@ struct Piece {
 };
 
 struct Cell {
-    std::string colour {};
+    int colour {};
     Piece piece_occupying { none, none };
     bool selected { false };
 };
@@ -66,7 +71,7 @@ struct Move {
 };
 
 struct Move_list {
-    std::array<Move, 300> list {};
+    std::array<Move, 300> list;
     int num_moves {};
 };
 
@@ -380,7 +385,7 @@ struct Bitboards {
         }
     }
 
-    void fill_attack_square(int square, int m, int piece) {
+    void fill_attack_square(int square, int piece) {
         uint64_t mask = (piece == bishop) ? get_bishop_mask(square) : get_rook_mask(square);
         int num_bits = __builtin_popcountll(mask);
         
@@ -392,14 +397,12 @@ struct Bitboards {
 
         if (piece == bishop) {
             for (int i = 0; i < (1 << num_bits); i++) {
-                int magic_index = (int)((blocker[i] * bishop_magic_nums[square]) >> (64 - m));
-                //std::cout << magic_index << '\n';
-                //std::cout << m << '\n';
+                int magic_index = (int)((blocker[i] * bishop_magic_nums[square]) >> (64 - bishop_shifts[square]));
                 bishop_attack_table[square][magic_index] = attack[i];
             }
         } else {
             for (int i = 0; i < (1 << num_bits); i++) {
-                int magic_index = (int)((blocker[i] * rook_magic_nums[square]) >> (64 - m));
+                int magic_index = (int)((blocker[i] * rook_magic_nums[square]) >> (64 - rook_shifts[square]));
                 rook_attack_table[square][magic_index] = attack[i];
             }
         }
@@ -407,19 +410,12 @@ struct Bitboards {
     void fill_attack_tables() {
         std::cout << "initialising magic bitboards\n";
         for (int square { 0 }; square < 64; square++) {
-            //rook_shifts[square] = 12;
-            fill_attack_square(square, rook_shifts[square], rook);
-            //if (square % 8 == 0) std::cout << "  Processing Rank " << (square / 8) + 1 << "...\n";
-        
-            //bishop_shifts[square] = 9;
-            fill_attack_square(square, bishop_shifts[square], bishop);
+            fill_attack_square(square, rook);
+            fill_attack_square(square, bishop);
         }
         std::cout << "done\n";
     }
 };
-
-
-
 
 enum class Gamestate {
     Intro,

@@ -982,7 +982,7 @@ int test_castling(Game &game, Bitboards& bitboard_copy, Move& move) {
 
 Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard& board, int turn, bool CPU) {
     //std::string board_positions {};
-    Move_list moves {};
+    Move_list moves;
     uint64_t mask = 1ULL;
     uint64_t current_pieces = bitboards.occupied_tables[turn];
     

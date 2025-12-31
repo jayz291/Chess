@@ -31,9 +31,9 @@ void Game::initialise() {
         int row = i / 8;
         int col = i % 8;
         if ((row + col) % 2 == 0) {
-            board[i].colour = "yellow";
+            board[i].colour = yellow;
         } else {
-            board[i].colour = "brown";
+            board[i].colour = brown;
         }
     }
     for (int i { 48 }; i < 56; i++) {
