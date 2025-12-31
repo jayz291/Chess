@@ -8,8 +8,6 @@ uint64_t Bitboards::pawn_moves[2][64];
 uint64_t Bitboards::between_table[64][64];
 uint64_t Bitboards::rook_attack_table[64][4096];
 uint64_t Bitboards::bishop_attack_table[64][512];
-uint64_t Bitboards::rook_magic_nums[64];
-uint64_t Bitboards::bishop_magic_nums[64];
 bool Bitboards::initialised = false;
 
 uint64_t FILE_H = 0x8080808080808080ULL;

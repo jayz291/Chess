@@ -199,8 +199,42 @@ struct Bitboards {
     static uint64_t between_table[64][64];
     static uint64_t rook_attack_table[64][4096];
     static uint64_t bishop_attack_table[64][512];
-    static uint64_t rook_magic_nums[64];
-    static uint64_t bishop_magic_nums[64];
+    inline static uint64_t rook_magic_nums[64] = {
+        0x80102040008000, 0x40004020001000, 0x8801000800c2001, 0x1200082004401200, 
+        0x3200200200040910, 0x200011450120028, 0x880008002000100, 0x4200008100402402, 
+        0x20800080400020, 0x81003100400080, 0x2000801000200080, 0x6800801000800806, 
+        0x800800040082, 0x1c1000400030008, 0x860808001000200, 0x102001108804224, 
+        0x410020800104, 0x1860004040100020, 0x4021010010402000, 0x811010024100008, 
+        0x40850008001100, 0x3811010008040002, 0x4040008011002, 0x20000804104, 
+        0x8d40400080003080, 0x200810100204004, 0x200300180200081, 0x4000100080800800, 
+        0xc000080080800400, 0x4004020080800400, 0x4001020080800100, 0x800480068000d100, 
+        0x100400221800090, 0x4110004000402000, 0x6400200182801000, 0x8010010100200, 
+        0x4000800800480, 0x110800400800201, 0x40080204001001, 0x74041042000881, 
+        0x1180022000414000, 0x2010002003444004, 0x5000804200120020, 0x10500100021000c, 
+        0x1043000800050010, 0x1000020004008080, 0x8080106228040001, 0x800884102000c, 
+        0xc00420804a010200, 0x804000200480, 0xa101002000401100, 0x400081001002300, 
+        0x20208008000c0180, 0xe12c004100020040, 0x12250880400, 0x1181048041240e00, 
+        0x800102042008102, 0x2a04344001810621, 0x20601802010e842, 0x4050008201001, 
+        0x2c02010844502002, 0x20a001124383002, 0x240221008008144, 0x100502240b8842
+    };
+    inline static uint64_t bishop_magic_nums[64] = {
+        0xb0a0021000488088, 0x4940410420000, 0x81080224042040a8, 0x8080a0020000044, 
+        0x101104100042108, 0x4444108c0101600, 0x40840420060114, 0x3c402801105080, 
+        0x1000242008012b06, 0x10040800a020, 0x4200108102002000, 0x4001109092000800, 
+        0x421104001c400, 0x2000020190080008, 0x20210040480, 0x8006420100a80444, 
+        0x84091010100120, 0xa4049204444400, 0x1008208010100, 0x404080a122004, 
+        0x24000088a00040, 0x2802044101008200, 0x8414d1c0b088800, 0x6082818704012100, 
+        0x8204041440100, 0x8024101102108129, 0x680808040bc010, 0x1202008008008002, 
+        0x1001001004000, 0x82220102880100, 0xa000841081040200, 0x40411840840103, 
+        0x4001202001114488, 0x20180218800a0880, 0x8082003202040804, 0x20280380080, 
+        0x40404000cd010, 0x10100440002400, 0x2480042010401, 0x400800435c028200, 
+        0xa22010006108, 0x6008220002800, 0x130c0402000400, 0x640008a011068804, 
+        0x1400810418200, 0x1224180a007020, 0x8008410102006401, 0x88808400400082, 
+        0x880402201002, 0xc09088201206010, 0x85202404120082, 0x249100020880947, 
+        0x240014208221000, 0x2008401002208a00, 0x4028821808011080, 0x40b004029410c000, 
+        0xa08e030100908400, 0x1000452882482002, 0x400242042064100, 0x100a0420200, 
+        0x2002020412020210, 0x402a44bd02, 0x10400860010a0221, 0x4091012028301
+    };
     inline static int rook_shifts[64] = {
     12, 11, 11, 11, 11, 11, 11, 12,
     11, 10, 10, 10, 10, 10, 10, 11,
@@ -241,7 +275,7 @@ struct Bitboards {
             find_valid_king_moves();
             make_between_table();
             find_pawn_attacks();
-            init_magic_bitboards();
+            fill_attack_tables();
             initialised = true;
         }
     }
@@ -345,77 +379,40 @@ struct Bitboards {
             pawn_moves[black][cell] = non_capture_moves;
         }
     }
-    uint64_t random_u64() {
-        uint64_t u1, u2, u3, u4;
-        u1 = (uint64_t)(rand()) & 0xFFFF; u2 = (uint64_t)(rand()) & 0xFFFF;
-        u3 = (uint64_t)(rand()) & 0xFFFF; u4 = (uint64_t)(rand()) & 0xFFFF;
-        return u1 | (u2 << 16) | (u3 << 32) | (u4 << 48);
-    }
-    uint64_t random_u64_fewbits() {
-        return random_u64() & random_u64() & random_u64();
-    }
-    uint64_t find_magic_number(int square, int m, int piece) {
+
+    void fill_attack_square(int square, int m, int piece) {
         uint64_t mask = (piece == bishop) ? get_bishop_mask(square) : get_rook_mask(square);
         int num_bits = __builtin_popcountll(mask);
+        
         uint64_t blocker[4096], attack[4096], used[4096];
         for (int i { 0 }; i < (1 << num_bits); i++) {
             blocker[i] = set_occupancy(i, num_bits, mask);
             attack[i] = (piece == bishop) ? find_bishop_attacks(square, blocker[i]) : find_rook_attacks(square, blocker[i]);
         }
-        for (int k { 0 }; k < 100000000; k++) {
-            uint64_t magic = random_u64_fewbits();
-            //std::cout << std::hex << magic << '\n';
-            
-            if (__builtin_popcountll((mask * magic) & 0xFF00000000000000ULL) < 6) {
-                continue;
+
+        if (piece == bishop) {
+            for (int i = 0; i < (1 << num_bits); i++) {
+                int magic_index = (int)((blocker[i] * bishop_magic_nums[square]) >> (64 - m));
+                //std::cout << magic_index << '\n';
+                //std::cout << m << '\n';
+                bishop_attack_table[square][magic_index] = attack[i];
             }
-            for (int i { 0 }; i < 4096; i++) {
-                used[i] = 0ULL; 
-            }
-            bool failed { false };
-            //std::cout << k << '\n';
-            for (int f { 0 }; f < (1 << num_bits) && !failed; f++) {
-                int magic_index = (int)((blocker[f] * magic) >> (64 - m));
-                if (used[magic_index] == 0ULL) {
-                    used[magic_index] = attack[f];
-                } else if (used[magic_index] != attack[f]) {
-                    failed = true;
-                    //std::cout << "failed\n";
-                }
-            }
-            //std::cout << "here now\n";
-            if (!failed) {
-                //std::cout << '\n';
-                if (piece == bishop) {
-                    for (int i = 0; i < (1 << num_bits); i++) {
-                        int magic_index = (int)((blocker[i] * magic) >> (64 - m));
-                        //std::cout << magic_index << '\n';
-                        //std::cout << m << '\n';
-                        bishop_attack_table[square][magic_index] = attack[i];
-                    }
-                } else {
-                    for (int i = 0; i < (1 << num_bits); i++) {
-                        int magic_index = (int)((blocker[i] * magic) >> (64 - m));
-                        rook_attack_table[square][magic_index] = attack[i];
-                    }
-                }
-                //std::cout << std::hex << magic << '\n';
-                //std::cout << '\n';
-                return magic;
+        } else {
+            for (int i = 0; i < (1 << num_bits); i++) {
+                int magic_index = (int)((blocker[i] * rook_magic_nums[square]) >> (64 - m));
+                rook_attack_table[square][magic_index] = attack[i];
             }
         }
-        std::cout << "Magic generation failed for square " << square << "\n";
-        return 0ULL;
     }
-    void init_magic_bitboards() {
+    void fill_attack_tables() {
         std::cout << "initialising magic bitboards\n";
         for (int square { 0 }; square < 64; square++) {
             //rook_shifts[square] = 12;
-            rook_magic_nums[square] = find_magic_number(square, rook_shifts[square], rook);
-            if (square % 8 == 0) std::cout << "  Processing Rank " << (square / 8) + 1 << "...\n";
+            fill_attack_square(square, rook_shifts[square], rook);
+            //if (square % 8 == 0) std::cout << "  Processing Rank " << (square / 8) + 1 << "...\n";
         
             //bishop_shifts[square] = 9;
-            bishop_magic_nums[square] = find_magic_number(square, bishop_shifts[square], bishop);
+            fill_attack_square(square, bishop_shifts[square], bishop);
         }
         std::cout << "done\n";
     }
