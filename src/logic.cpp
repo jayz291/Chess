@@ -1,6 +1,17 @@
 #include "logic.h"
 #include <iostream>
 
+uint64_t Bitboards::knight_attacks[64];
+uint64_t Bitboards::king_moves[64];
+uint64_t Bitboards::pawn_attacks[2][64];
+uint64_t Bitboards::pawn_moves[2][64];
+uint64_t Bitboards::between_table[64][64];
+uint64_t Bitboards::rook_attack_table[64][4096];
+uint64_t Bitboards::bishop_attack_table[64][512];
+uint64_t Bitboards::rook_magic_nums[64];
+uint64_t Bitboards::bishop_magic_nums[64];
+bool Bitboards::initialised = false;
+
 uint64_t FILE_H = 0x8080808080808080ULL;
 uint64_t FILE_A = 0x0101010101010101ULL;
 uint64_t FILE_B = 0x0202020202020202ULL;
@@ -12,7 +23,7 @@ uint64_t RANK_7 = 0x00FF000000000000ULL;
 uint64_t RANK_4 = 0x00000000FF000000ULL;
 uint64_t RANK_5 = 0x000000FF00000000ULL;
 
-uint64_t find_rook_attacks(int square, Bitboards& bitboards) {
+uint64_t find_rook_attacks(int square, uint64_t& occupied) {
     int directions[4] = {-1, 1, 8, -8};
     int curr = square;
     uint64_t attacks = 0ULL;
@@ -23,7 +34,7 @@ uint64_t find_rook_attacks(int square, Bitboards& bitboards) {
             curr += direction;
             uint64_t mask = 1ULL << curr;
             attacks |= mask;
-            if (bitboards.occupied & mask) {
+            if (occupied & mask) {
                 break;
             }
         }
@@ -31,7 +42,7 @@ uint64_t find_rook_attacks(int square, Bitboards& bitboards) {
     return attacks;
 }
 
-uint64_t find_bishop_attacks(int square, Bitboards& bitboards) {
+uint64_t find_bishop_attacks(int square, uint64_t& occupied) {
     int directions[4] = {7, -7, 9, -9};
     int curr = square;
     uint64_t attacks = 0ULL;
@@ -42,12 +53,77 @@ uint64_t find_bishop_attacks(int square, Bitboards& bitboards) {
             curr += direction;
             uint64_t mask = 1ULL << curr;
             attacks |= mask;
-            if (bitboards.occupied & mask) {
+            if (occupied & mask) {
                 break;
             }
         }
     }
     return attacks;
+}
+
+uint64_t get_rook_mask(int square) {
+    uint64_t attacks = 0ULL;
+    int row = 7 - square / 8;
+    int col = square % 8;
+    for (int i = row + 1; i < 7; i++) {
+        attacks |= (1ULL << (56 - 8 * i + col));
+    }
+    for (int i = row - 1; i > 0; i--) {
+        attacks |= (1ULL << (56 - 8 * i + col));
+    }
+    for (int i = col + 1; i < 7; i++) {
+        attacks |= (1ULL << (56 - 8 * row + i));
+    }
+    for (int i = col - 1; i > 0; i--) {
+        attacks |= (1ULL << (56 - 8 * row + i));
+    }
+    return attacks;
+}
+
+uint64_t get_bishop_mask(int square) {
+    uint64_t attacks = 0ULL;
+    int row = 7 - square / 8;
+    int col = square % 8;
+    for (int i = row + 1, j = col + 1; i < 7 && j < 7; i++, j++) {
+        attacks |= (1ULL << (56 - 8 * i + j));
+    }
+    for (int i = row + 1, j = col - 1; i < 7 && j > 0; i++, j--) {
+        attacks |= (1ULL << (56 - 8 * i + j));
+    }
+    for (int i = row - 1, j = col + 1; i > 0 && j < 7; i--, j++) {
+        attacks |= (1ULL << (56 - 8 * i + j));
+    }
+    for (int i = row - 1, j = col - 1; i > 0 && j > 0; i--, j--) {
+        attacks |= (1ULL << (56 - 8 * i + j));
+    }
+    return attacks;
+}
+
+uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask) {
+    uint64_t occupancy = 0ULL;
+    for (int i { 0 }; i < num_bits; i++) {
+        int square = __builtin_ctzll(attack_mask);
+        attack_mask &= attack_mask - 1;  // remove bit
+
+        if (index & (1ULL << i)) {
+            occupancy |= (1ULL << square);
+        }
+    }
+    return occupancy;
+}
+
+uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards) {
+    occupancy &= get_rook_mask(square);
+    occupancy *= bitboards.rook_magic_nums[square];
+    occupancy >>= (64 - bitboards.rook_shifts[square]);
+    return bitboards.rook_attack_table[square][occupancy];
+}
+
+uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards) {
+    occupancy &= get_bishop_mask(square);
+    occupancy *= bitboards.bishop_magic_nums[square];
+    occupancy >>= (64 - bitboards.bishop_shifts[square]);
+    return bitboards.bishop_attack_table[square][occupancy];
 }
 
 bool determine_square_validity(int square, int direction) {
@@ -850,8 +926,8 @@ int is_square_attacked(Bitboards& bitboard_copy, int square, int turn) {
     if (bitboard_copy.king_moves[square] & bitboard_copy.bitboards[opposing_colour][king]) {
         return 1;
     }
-    uint64_t bishop_attacks = find_bishop_attacks(square, bitboard_copy);
-    uint64_t rook_attacks = find_rook_attacks(square, bitboard_copy);
+    uint64_t bishop_attacks = get_bishop_attacks(square, bitboard_copy.occupied, bitboard_copy);
+    uint64_t rook_attacks = get_rook_attacks(square, bitboard_copy.occupied, bitboard_copy);
     if ((bishop_attacks & bitboard_copy.bitboards[opposing_colour][bishop]) || 
         (bishop_attacks & bitboard_copy.bitboards[opposing_colour][queen])) {
         return 1;
@@ -1050,7 +1126,8 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             }
         }
         if (mask << from_square & bitboards.bitboards[turn][bishop]) {
-            uint64_t bishop_attacks = find_bishop_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
+            uint64_t bishop_attacks = get_bishop_attacks(from_square, bitboards.occupied, bitboards) 
+            & ~bitboards.occupied_tables[turn];
             while (bishop_attacks) {
                 int to_square = __builtin_ctzll(bishop_attacks);
                 Move move { from_square, to_square, turn, bishop, board[to_square].piece_occupying };
@@ -1066,7 +1143,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             }
         }
         if (mask << from_square & bitboards.bitboards[turn][rook]) {
-            uint64_t rook_attacks = find_rook_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
+            uint64_t rook_attacks = get_rook_attacks(from_square, bitboards.occupied, bitboards) & ~bitboards.occupied_tables[turn];
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
                 Move move { from_square, to_square, turn, rook, board[to_square].piece_occupying };
@@ -1082,7 +1159,8 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             }
         }
         if (mask << from_square & bitboards.bitboards[turn][queen]) {
-            uint64_t bishop_attacks = find_bishop_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
+            uint64_t bishop_attacks = get_bishop_attacks(from_square, bitboards.occupied, bitboards) & 
+            ~bitboards.occupied_tables[turn];
             while (bishop_attacks) {
                 int to_square = __builtin_ctzll(bishop_attacks);
                 Move move { from_square, to_square, turn, queen, board[to_square].piece_occupying };
@@ -1096,7 +1174,8 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                 }
                 bishop_attacks &= bishop_attacks - 1;
             }
-            uint64_t rook_attacks = find_rook_attacks(from_square, bitboards) & ~bitboards.occupied_tables[turn];
+            uint64_t rook_attacks = get_rook_attacks(from_square, bitboards.occupied, bitboards) & 
+            ~bitboards.occupied_tables[turn];
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
                 Move move { from_square, to_square, turn, queen, board[to_square].piece_occupying };

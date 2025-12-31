@@ -9,6 +9,14 @@
 #include <algorithm>
 #include <assert.h>
 
+uint64_t find_rook_attacks(int square, uint64_t& bitboards);
+uint64_t find_bishop_attacks(int square, uint64_t& bitboards);
+bool determine_square_validity(int square, int direction);
+uint64_t get_rook_mask(int square);
+uint64_t get_bishop_mask(int square);
+uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask);
+
+
 constexpr int SQUARE_SIZE = 95;
 
 enum {
@@ -184,11 +192,36 @@ struct Bitboards {
     uint64_t white_occupied;
     uint64_t black_occupied;
     uint64_t occupied;
-    uint64_t knight_attacks[64];
-    uint64_t king_moves[64];
-    uint64_t pawn_attacks[2][64];
-    uint64_t pawn_moves[2][64];
-    uint64_t between_table[64][64];
+    static uint64_t knight_attacks[64];
+    static uint64_t king_moves[64];
+    static uint64_t pawn_attacks[2][64];
+    static uint64_t pawn_moves[2][64];
+    static uint64_t between_table[64][64];
+    static uint64_t rook_attack_table[64][4096];
+    static uint64_t bishop_attack_table[64][512];
+    static uint64_t rook_magic_nums[64];
+    static uint64_t bishop_magic_nums[64];
+    inline static int rook_shifts[64] = {
+    12, 11, 11, 11, 11, 11, 11, 12,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    11, 10, 10, 10, 10, 10, 10, 11,
+    12, 11, 11, 11, 11, 11, 11, 12
+    };
+    inline static int bishop_shifts[64] = {
+    6, 5, 5, 5, 5, 5, 5, 6,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    5, 5, 7, 7, 7, 7, 5, 5,
+    5, 5, 7, 9, 9, 7, 5, 5,
+    5, 5, 7, 9, 9, 7, 5, 5,
+    5, 5, 7, 7, 7, 7, 5, 5,
+    5, 5, 5, 5, 5, 5, 5, 5,
+    6, 5, 5, 5, 5, 5, 5, 6
+    };
+    static bool initialised;
     Bitboards() {
         bitboards[white][pawn] = 0x000000000000FF00ULL;
         bitboards[white][knight] = 0x0000000000000042ULL;
@@ -203,10 +236,14 @@ struct Bitboards {
         bitboards[black][queen] = 0x0800000000000000ULL;
         bitboards[black][king] = 0x1000000000000000ULL;
         update_occupied();
-        find_valid_knight_moves();
-        find_valid_king_moves();
-        make_between_table();
-        find_pawn_attacks();
+        if (!initialised) {
+            find_valid_knight_moves();
+            find_valid_king_moves();
+            make_between_table();
+            find_pawn_attacks();
+            init_magic_bitboards();
+            initialised = true;
+        }
     }
     void update_occupied() {
         white_occupied = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
@@ -308,7 +345,83 @@ struct Bitboards {
             pawn_moves[black][cell] = non_capture_moves;
         }
     }
+    uint64_t random_u64() {
+        uint64_t u1, u2, u3, u4;
+        u1 = (uint64_t)(rand()) & 0xFFFF; u2 = (uint64_t)(rand()) & 0xFFFF;
+        u3 = (uint64_t)(rand()) & 0xFFFF; u4 = (uint64_t)(rand()) & 0xFFFF;
+        return u1 | (u2 << 16) | (u3 << 32) | (u4 << 48);
+    }
+    uint64_t random_u64_fewbits() {
+        return random_u64() & random_u64() & random_u64();
+    }
+    uint64_t find_magic_number(int square, int m, int piece) {
+        uint64_t mask = (piece == bishop) ? get_bishop_mask(square) : get_rook_mask(square);
+        int num_bits = __builtin_popcountll(mask);
+        uint64_t blocker[4096], attack[4096], used[4096];
+        for (int i { 0 }; i < (1 << num_bits); i++) {
+            blocker[i] = set_occupancy(i, num_bits, mask);
+            attack[i] = (piece == bishop) ? find_bishop_attacks(square, blocker[i]) : find_rook_attacks(square, blocker[i]);
+        }
+        for (int k { 0 }; k < 100000000; k++) {
+            uint64_t magic = random_u64_fewbits();
+            //std::cout << std::hex << magic << '\n';
+            
+            if (__builtin_popcountll((mask * magic) & 0xFF00000000000000ULL) < 6) {
+                continue;
+            }
+            for (int i { 0 }; i < 4096; i++) {
+                used[i] = 0ULL; 
+            }
+            bool failed { false };
+            //std::cout << k << '\n';
+            for (int f { 0 }; f < (1 << num_bits) && !failed; f++) {
+                int magic_index = (int)((blocker[f] * magic) >> (64 - m));
+                if (used[magic_index] == 0ULL) {
+                    used[magic_index] = attack[f];
+                } else if (used[magic_index] != attack[f]) {
+                    failed = true;
+                    //std::cout << "failed\n";
+                }
+            }
+            //std::cout << "here now\n";
+            if (!failed) {
+                //std::cout << '\n';
+                if (piece == bishop) {
+                    for (int i = 0; i < (1 << num_bits); i++) {
+                        int magic_index = (int)((blocker[i] * magic) >> (64 - m));
+                        //std::cout << magic_index << '\n';
+                        //std::cout << m << '\n';
+                        bishop_attack_table[square][magic_index] = attack[i];
+                    }
+                } else {
+                    for (int i = 0; i < (1 << num_bits); i++) {
+                        int magic_index = (int)((blocker[i] * magic) >> (64 - m));
+                        rook_attack_table[square][magic_index] = attack[i];
+                    }
+                }
+                //std::cout << std::hex << magic << '\n';
+                //std::cout << '\n';
+                return magic;
+            }
+        }
+        std::cout << "Magic generation failed for square " << square << "\n";
+        return 0ULL;
+    }
+    void init_magic_bitboards() {
+        std::cout << "initialising magic bitboards\n";
+        for (int square { 0 }; square < 64; square++) {
+            //rook_shifts[square] = 12;
+            rook_magic_nums[square] = find_magic_number(square, rook_shifts[square], rook);
+            if (square % 8 == 0) std::cout << "  Processing Rank " << (square / 8) + 1 << "...\n";
+        
+            //bishop_shifts[square] = 9;
+            bishop_magic_nums[square] = find_magic_number(square, bishop_shifts[square], bishop);
+        }
+        std::cout << "done\n";
+    }
 };
+
+
 
 
 enum class Gamestate {
@@ -327,7 +440,8 @@ enum class Gamemode {
 
 std::ostream& operator<<(std::ostream& os, const Move& move);
 
-
+uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards);
+uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards);
 
 
 
