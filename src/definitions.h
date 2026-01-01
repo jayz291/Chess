@@ -84,7 +84,7 @@ const int white_pawn_square_table[64] = {
     5, 5, 10, 25, 25, 10, 5, 5,
     0, 0, 0, 20, 20, 0, 0, 0,
     5, -5, -10, 0, 0, -10, -5, 5, 
-    5, 10, 10, -20, -20, 10, 10, 5,
+    5, 20, 20, -20, -20, 20, 20, 5,
     0, 0, 0, 0, 0, 0, 0, 0 
 };
 const int black_pawn_square_table[64] = { 
@@ -194,8 +194,6 @@ extern uint64_t RANK_7;
 struct Bitboards {
     uint64_t bitboards[2][6];
     uint64_t occupied_tables[2];
-    uint64_t white_occupied;
-    uint64_t black_occupied;
     uint64_t occupied;
     static uint64_t knight_attacks[64];
     static uint64_t king_moves[64];
@@ -204,6 +202,8 @@ struct Bitboards {
     static uint64_t between_table[64][64];
     static uint64_t rook_attack_table[64][4096];
     static uint64_t bishop_attack_table[64][512];
+    static uint64_t rook_masks[64];
+    static uint64_t bishop_masks[64];
     inline static uint64_t rook_magic_nums[64] = {
         0x80102040008000, 0x40004020001000, 0x8801000800c2001, 0x1200082004401200, 
         0x3200200200040910, 0x200011450120028, 0x880008002000100, 0x4200008100402402, 
@@ -285,13 +285,11 @@ struct Bitboards {
         }
     }
     void update_occupied() {
-        white_occupied = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
+        occupied_tables[white] = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
         bitboards[0][5];
-        black_occupied = bitboards[1][0] | bitboards[1][1] | bitboards[1][2] | bitboards[1][3] | bitboards[1][4] |
+        occupied_tables[black] = bitboards[1][0] | bitboards[1][1] | bitboards[1][2] | bitboards[1][3] | bitboards[1][4] |
         bitboards[1][5];
-        occupied_tables[0] = white_occupied;
-        occupied_tables[1] = black_occupied;
-        occupied = white_occupied | black_occupied;
+        occupied = occupied_tables[white] | occupied_tables[black];
     }
     void find_valid_knight_moves() {
         for (int cell { 0 }; cell < 64; cell++) {
@@ -387,6 +385,11 @@ struct Bitboards {
 
     void fill_attack_square(int square, int piece) {
         uint64_t mask = (piece == bishop) ? get_bishop_mask(square) : get_rook_mask(square);
+        if (piece == bishop) {
+            bishop_masks[square] = mask;
+        } else {
+            rook_masks[square] = mask;
+        }
         int num_bits = __builtin_popcountll(mask);
         
         uint64_t blocker[4096], attack[4096], used[4096];

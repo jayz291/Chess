@@ -8,6 +8,8 @@ uint64_t Bitboards::pawn_moves[2][64];
 uint64_t Bitboards::between_table[64][64];
 uint64_t Bitboards::rook_attack_table[64][4096];
 uint64_t Bitboards::bishop_attack_table[64][512];
+uint64_t Bitboards::rook_masks[64];
+uint64_t Bitboards::bishop_masks[64];
 bool Bitboards::initialised = false;
 
 uint64_t FILE_H = 0x8080808080808080ULL;
@@ -111,14 +113,14 @@ uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask) {
 }
 
 uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards) {
-    occupancy &= get_rook_mask(square);
+    occupancy &= bitboards.rook_masks[square];
     occupancy *= bitboards.rook_magic_nums[square];
     occupancy >>= (64 - bitboards.rook_shifts[square]);
     return bitboards.rook_attack_table[square][occupancy];
 }
 
 uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards) {
-    occupancy &= get_bishop_mask(square);
+    occupancy &= bitboards.bishop_masks[square];
     occupancy *= bitboards.bishop_magic_nums[square];
     occupancy >>= (64 - bitboards.bishop_shifts[square]);
     return bitboards.bishop_attack_table[square][occupancy];
@@ -141,25 +143,26 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
     int mover = prev_move.turn;
     int opposing_turn = ((mover == white) ? black : white);
     switch_move(prev_move);
+
     int promoted_piece = queen;
     int original_piece = prev_move.piece; 
     if (prev_move.special_move == promotion) {
-        if (board[prev_move.prev_square].piece_occupying.piece_type != none) {
-            promoted_piece = board[prev_move.prev_square].piece_occupying.piece_type;
-            prev_move.piece = promoted_piece;
-        } else {
-            std::cout << "an error occurred\n";
-        }
+        assert(board[prev_move.prev_square].piece_occupying.piece_type != none);
+        promoted_piece = board[prev_move.prev_square].piece_occupying.piece_type;
+        prev_move.piece = promoted_piece;
     }
+
     move_piece(game, bitboards, board, prev_move, true);
     prev_move.piece = original_piece;
 
     if (prev_move.special_move != en_passant && prev_move.piece_taken.piece_type != none) {
         board[prev_move.prev_square].piece_occupying = prev_move.piece_taken;
         int from_square = prev_move.prev_square;
-        uint64_t mask = 1ULL;
-        bitboards.bitboards[opposing_turn][prev_move.piece_taken.piece_type] |= (mask << from_square);
-        bitboards.update_occupied();
+        uint64_t mask = (1ULL << from_square);
+        bitboards.bitboards[opposing_turn][prev_move.piece_taken.piece_type] |= mask;
+        bitboards.occupied_tables[opposing_turn] |= mask;
+        bitboards.occupied |= mask;
+        //bitboards.update_occupied();
     }
     //int captured_row = ((turn == black) ? prev_move.prev_row + 1 : prev_move.prev_row - 1);
     if (prev_move.special_move == en_passant) {
@@ -167,9 +170,11 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
         board[captured_square].piece_occupying = prev_move.piece_taken;
         assert(prev_move.piece_taken.piece_type == pawn);
         uint64_t mask = 1ULL;
-        int from_square = captured_square;
-        bitboards.bitboards[opposing_turn][pawn] |= (mask << from_square);
-        bitboards.update_occupied();
+        //int from_square = captured_square;
+        bitboards.bitboards[opposing_turn][pawn] |= (mask << captured_square);
+        bitboards.occupied_tables[opposing_turn] |= (mask << captured_square);
+        bitboards.occupied |= (mask << captured_square);
+        //bitboards.update_occupied();
     }
     int castling_row = ((prev_move.turn == black) ? 0 : 7);
     if (prev_move.special_move == castling) {
@@ -185,13 +190,13 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
         uint64_t mask = 1ULL;
         int to_square = prev_move.new_square;
         int piece = board[to_square].piece_occupying.piece_type;
-        int colour = prev_move.turn;
-        bitboards.bitboards[colour][promoted_piece] &= ~(mask << to_square);
-        bitboards.bitboards[colour][pawn] |= (mask << to_square);
+        bitboards.bitboards[prev_move.turn][promoted_piece] &= ~(mask << to_square);
+        bitboards.bitboards[prev_move.turn][pawn] |= (mask << to_square);
         board[prev_move.new_square].piece_occupying.piece_type = pawn;
 
-        bitboards.update_occupied();
+        //bitboards.update_occupied();
     }
+    switch_move(prev_move);
 }
 
 
@@ -214,7 +219,6 @@ void undo_game_move(Game& game) {
     game.castling_rights = prev_move.castling_rights;
     
     // std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
-    //std::cout << "here now\n";
     //std::cout << game.board[prev_move.prev_row][prev_move.prev_col].piece_occupying->piece_type << '\n';
     if (game.board_record.size() > 0) {
         game.board_record.pop_back();
@@ -320,12 +324,13 @@ void update_castling_flags(Game& game, Bitboards& bitboards, Move& move) {
 
 void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& move) {
 
+    /*
     if (board[move.prev_square].piece_occupying.piece_type == none) {
         std::cout << move << '\n';
-    }
+    }*/
+    assert(board[move.prev_square].piece_occupying.piece_type != none);
     //std::cout << "processing move\n";
-    //std::cout << "moving\n";
-    //std::cout << "moving\n";
+
     if (move.piece == pawn || board[move.new_square].piece_occupying.piece_type != none) {
         game.plys_to_100 = 0;
     } else {
@@ -339,27 +344,25 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
         u_int64_t mask = 1ULL;
         int shift = move.new_square;
         u_int64_t square = mask << shift;
-        //move.special_move = promotion;
 
         board[move.new_square].piece_occupying.piece_type = move.promoted_piece;
-        if (board[move.new_square].piece_occupying.piece_type == none) {
-            std::cout << "something went wrong\n";
-        }
+        assert(board[move.new_square].piece_occupying.piece_type != none);
+
         bitboards.bitboards[move.turn][pawn] &= (~square);
         bitboards.bitboards[move.turn][move.promoted_piece] |= (square);
-        bitboards.update_occupied();
+        //bitboards.update_occupied();
         update_castling_flags(game, bitboards, move);
         game.move_record.push_back(move);
         game.piece_selected = -1;
         game.promoting_pawn = false;
-        game.turn = ((game.turn == white) ? black : white);
+        game.turn = white + black - game.turn; // flip the turn
         return;
     }
 
     //std::cout << "just before moving piece\n";
-    if (move.prev_square != move.new_square) {
-        move_piece(game, bitboards, board, move);
-    }   
+    assert(move.prev_square != move.new_square);
+    move_piece(game, bitboards, board, move);
+
     if (move.special_move == castling) {
         int row = 7 - move.new_square / 8;
         if (move.new_square - move.prev_square == 2) {
@@ -379,7 +382,9 @@ void make_test_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& m
         move.piece_taken = board[captured_square].piece_occupying;
         board[captured_square].piece_occupying = { none, none};
         bitboards.bitboards[opposing_turn][pawn] &= (~mask);
-        bitboards.update_occupied();
+        bitboards.occupied_tables[opposing_turn] &= (~mask);
+        bitboards.occupied &= (~mask);
+        //bitboards.update_occupied();
     } 
     update_castling_flags(game, bitboards, move);
     game.move_record.push_back(move);
@@ -445,20 +450,10 @@ Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth
         return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
     });
 
-    //std::cout << possible_moves.size() << '\n';
-    //std::cout << "here2\n";
-
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         //std::cout << "testing possible moves\n";
         auto& move = possible_moves.list[i];
         make_test_move(game, bitboards, copy, move);
-        int mover = (game.turn == white) ? black : white;
-        int king_square = __builtin_ctzll(bitboards.bitboards[mover][king]);
-        if (is_square_attacked(bitboards, king_square, mover)) {
-            undo_test_move(game, bitboards, copy, move);
-            continue;
-        }
-        //std::cout << "here3\n";
         
         int move_eval = -negamax(game, bitboards, copy, depth - 1, -500000, 500000);
         move_eval += (std::rand() % 5) - 2;
@@ -492,6 +487,14 @@ int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
     }
     
     Move_list possible_moves = determine_possible_moves(game, bitboards, board, game.turn, true);
+    if (possible_moves.num_moves == 0) {
+        int king_square = __builtin_ctzll(bitboards.bitboards[game.turn][king]);
+        if (is_square_attacked(bitboards, king_square, game.turn)) {
+            return -400000 - depth * 50;
+        } else {
+            return 0;
+        }
+    }
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
         return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
@@ -499,36 +502,19 @@ int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int 
     //std::cout << "size: " << possible_moves.size() << '\n';
  
     int max_eval = -600000;
-    bool has_legal_moves { false };
 
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
+        
         make_test_move(game, bitboards, board, possible_move);
-        int mover = (game.turn == white) ? black : white;
-        int king_square = __builtin_ctzll(bitboards.bitboards[mover][king]);
-        if (is_square_attacked(bitboards, king_square, mover)) {
-            undo_test_move(game, bitboards, board, possible_move);
-            continue;
-        }
-        has_legal_moves = true;
         int eval = -negamax(game, bitboards, board, depth - 1, -beta, -alpha);
         undo_test_move(game, bitboards, board, possible_move);
+
         alpha = std::max(eval, alpha);
-        //compare_bitboards(saved_bitboards, bitboards);
-        //verify_board_sync(game);
         max_eval = std::max(eval, max_eval);
         if (beta <= alpha) {
             break;
         } 
-    }
-    if (!has_legal_moves) {
-        Move default_move { 0, 0, game.turn, -1 };
-        int in_check = check_checks(game, bitboards, board, default_move);
-        if (in_check) {
-            return -400000 - depth * 50;
-        } else {
-            return 0;
-        }
     }
     return max_eval;
 }
@@ -577,16 +563,17 @@ int positional_eval(uint64_t bitboard, const int table[]) {
 }
 
 int sort_moves_by_priority(Move& move) {
+    int move_score_guess = 0;
     if (move.piece_taken.piece_type != none) {
-        return 10000 + piece_values[move.piece_taken.piece_type] - piece_values[move.piece];
+        move_score_guess += (40 * piece_values[move.piece_taken.piece_type] - piece_values[move.piece]);
     }
     if (move.special_move == promotion) {
-        return 9000;
+        move_score_guess += 70 * piece_values[move.promoted_piece];
     }
     if (move.special_move == castling) {
-        return 4000;
+        move_score_guess += 100;
     }
-    return 0;
+    return move_score_guess;
 }
 
 void is_game_over(Game& game) {
@@ -703,7 +690,7 @@ void switch_move(Move& move) {
 
 void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool undo) {
 
-    int piece = move.piece;
+    //int piece = move.piece;
     int captured { -1 };
     captured = board[move.new_square].piece_occupying.piece_type;
 
@@ -714,21 +701,27 @@ void move_piece(Game& game, Bitboards& bitboards, Chessboard& board, Move& move,
     uint64_t to_bit = 1ULL << move.new_square;
     int opposing_turn = ((move.turn == white) ? black : white);
 
-    bitboards.bitboards[move.turn][piece] &= ~from_bit;
-    bitboards.bitboards[move.turn][piece] |= to_bit;
+    bitboards.bitboards[move.turn][move.piece] ^= (from_bit | to_bit);
+    bitboards.occupied_tables[move.turn] ^= (from_bit | to_bit);
+ 
+    /*&= ~from_bit;
+    bitboards.bitboards[move.turn][piece] |= to_bit;*/
     if (captured != -1) {
         bitboards.bitboards[opposing_turn][captured] &= ~to_bit;
+        bitboards.occupied_tables[opposing_turn] &= ~to_bit;
     }
     
-    bitboards.update_occupied();
+    bitboards.occupied = bitboards.occupied_tables[black] | bitboards.occupied_tables[white];
+    //bitboards.update_occupied();
     //print_bitboard(bitboards.occupied);
-
+    assert(board[move.new_square].piece_occupying.piece_type != none);
+    /*
     if (board[move.new_square].piece_occupying.piece_type == none) {
         //print_all_bitboards(bitboards);
         std::cout << move << '\n';
         std::cout << "failed\n";
         return;
-    }
+    }*/
 }
 
 
@@ -806,7 +799,7 @@ int validate_move_pawn(Game& game, Bitboards& bitboards, Move& move) {
                 return 0;
             }
         } else if (to - from == 7 || to - from == 9) {
-            if (mask << to & bitboards.black_occupied) {
+            if (mask << to & bitboards.occupied_tables[black]) {
                 return 0;
             }
         }
@@ -822,7 +815,7 @@ int validate_move_pawn(Game& game, Bitboards& bitboards, Move& move) {
                 return 0;
             }
         } else if (to - from == -7 || to - from == -9) {
-            if (mask << to & bitboards.white_occupied) {
+            if (mask << to & bitboards.occupied_tables[white]) {
                 return 0;
             }
         }
@@ -899,7 +892,6 @@ int validate_move_king(Game &game, Bitboards& bitboards, Move& move) {
 }
 
 int check_checks(Game& game, Bitboards& bitboards, Chessboard& board_copy, Move& move) {
-
     Chessboard copy = board_copy;
     Bitboards bitboard_copy = bitboards;
     
@@ -911,7 +903,6 @@ int check_checks(Game& game, Bitboards& bitboards, Chessboard& board_copy, Move&
     
     int square = __builtin_ctzll(bitboard_copy.bitboards[move.turn][king]);
     return is_square_attacked(bitboard_copy, square, move.turn);
-    
 }
 
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn) {
@@ -982,6 +973,15 @@ int test_castling(Game &game, Bitboards& bitboard_copy, Move& move) {
     return -1;
 }
 
+int is_in_check(Game& game, Bitboards& bitboards, Chessboard& board, Move& move) {
+    int mover = game.turn;
+    make_test_move(game, bitboards, board, move); 
+    int king_square = __builtin_ctzll(bitboards.bitboards[mover][king]);
+    int in_check = is_square_attacked(bitboards, king_square, mover);
+    undo_test_move(game, bitboards, board, move);
+    return in_check;
+}
+
 Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard& board, int turn, bool CPU) {
     //std::string board_positions {};
     Move_list moves;
@@ -1004,23 +1004,14 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                             Move move { from_square, to_square, turn, pawn, board[to_square].piece_occupying };
                             move.special_move = promotion;
                             move.promoted_piece = piece;
-                            if (!CPU) {
-                                if (check_checks(game, bitboards, board, move) != 1) {
-                                    moves.list[moves.num_moves++] = move;
-                                    return moves;
-                                }
-                            } else {
+
+                            if (!is_in_check(game, bitboards, board, move)) {
                                 moves.list[moves.num_moves++] = move;
                             }
                         }
                     } else {
                         Move move { from_square, to_square, turn, pawn, board[to_square].piece_occupying };
-                        if (!CPU) {
-                            if (check_checks(game, bitboards, board, move) != 1) {
-                                moves.list[moves.num_moves++] = move;
-                                return moves;
-                            }
-                        } else {
+                        if (!is_in_check(game, bitboards, board, move)) {
                             moves.list[moves.num_moves++] = move;
                         }
                     }
@@ -1034,13 +1025,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                             Move move { from_square, to_square, turn, pawn, board[to_square - 8].piece_occupying };
                             assert(board[to_square - 8].piece_occupying.piece_type != none);
                             move.special_move = en_passant;
-                            if (!CPU) {
-                                if (check_checks(game, bitboards, board, move) != 1) {
-                                    moves.list[moves.num_moves++] = move;
-                                    return moves;
-                                }
-                            } else {
-                                //std::cout << "move pushed\n";
+                            if (!is_in_check(game, bitboards, board, move)) {
                                 moves.list[moves.num_moves++] = move;
                             }
                         } 
@@ -1052,12 +1037,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                         if (to_square - prev_move.new_square == -8) {
                             Move move { from_square, to_square, turn, pawn, board[to_square + 8].piece_occupying };
                             move.special_move = en_passant;
-                            if (!CPU) {
-                                if (check_checks(game, bitboards, board, move) != 1) {
-                                    moves.list[moves.num_moves++] = move;
-                                    return moves;
-                                }
-                            } else {
+                            if (!is_in_check(game, bitboards, board, move)) {
                                 moves.list[moves.num_moves++] = move;
                             }
                         } 
@@ -1075,31 +1055,24 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                             Move move { from_square, to_square, turn, pawn, board[to_square].piece_occupying };
                             move.special_move = promotion;
                             move.promoted_piece = piece;
-                            if (!CPU) {
-                                if (check_checks(game, bitboards, board, move) != 1) {
-                                    moves.list[moves.num_moves++] = move;
-                                    return moves;
-                                }
-                            } else {
+                            if (!is_in_check(game, bitboards, board, move)) {
                                 moves.list[moves.num_moves++] = move;
                             }
                         }
                     } else {
                         Move move { from_square, to_square, turn, pawn, board[to_square].piece_occupying  };
-                        if (!CPU) {
-                            if (check_checks(game, bitboards, board, move) != 1) {
+                        
+                        if (!is_in_check(game, bitboards, board, move)) {
+                            if (std::abs(from_square - to_square) == 8) {
                                 moves.list[moves.num_moves++] = move;
-                                return moves;
-                            }
-                        } else if (std::abs(from_square - to_square) == 8) {
-                            moves.list[moves.num_moves++] = move;
-                        } else if (std::abs(from_square - to_square) == 16) {
-                            if ((turn == white && mask << to_square & ~bitboards.occupied) && 
-                            (mask << (to_square - 8) & ~bitboards.occupied) && mask << from_square & RANK_2) {
-                                moves.list[moves.num_moves++] = move;
-                            } else if ((turn == black && mask << to_square & ~bitboards.occupied) && 
-                            (mask << (to_square + 8) & ~bitboards.occupied) && mask << from_square & RANK_7) {
-                                moves.list[moves.num_moves++] = move;
+                            } else if (std::abs(from_square - to_square) == 16) {
+                                if ((turn == white && mask << to_square & ~bitboards.occupied) && 
+                                (mask << (to_square - 8) & ~bitboards.occupied) && mask << from_square & RANK_2) {
+                                    moves.list[moves.num_moves++] = move;
+                                } else if ((turn == black && mask << to_square & ~bitboards.occupied) && 
+                                (mask << (to_square + 8) & ~bitboards.occupied) && mask << from_square & RANK_7) {
+                                    moves.list[moves.num_moves++] = move;
+                                }
                             }
                         }
                     }
@@ -1113,12 +1086,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                 int to_square = __builtin_ctzll(knight_moves);
                 if (mask << to_square & ~bitboards.occupied_tables[turn]) {
                     Move move { from_square, to_square, turn, knight, board[to_square].piece_occupying };
-                    if (!CPU) {
-                        if (check_checks(game, bitboards, board, move) != 1) {
-                            moves.list[moves.num_moves++] = move;
-                            return moves;
-                        }
-                    } else {
+                    if (!is_in_check(game, bitboards, board, move)) {
                         moves.list[moves.num_moves++] = move;
                     }
                 }
@@ -1131,12 +1099,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             while (bishop_attacks) {
                 int to_square = __builtin_ctzll(bishop_attacks);
                 Move move { from_square, to_square, turn, bishop, board[to_square].piece_occupying };
-                if (!CPU) {
-                    if (check_checks(game, bitboards, board, move) != 1) {
-                        moves.list[moves.num_moves++] = move;
-                        return moves;
-                    }
-                } else {
+                if (!is_in_check(game, bitboards, board, move)) {
                     moves.list[moves.num_moves++] = move;
                 }
                 bishop_attacks &= bishop_attacks - 1;
@@ -1147,12 +1110,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
                 Move move { from_square, to_square, turn, rook, board[to_square].piece_occupying };
-                if (!CPU) {
-                    if (check_checks(game, bitboards, board, move) != 1) {
-                        moves.list[moves.num_moves++] = move;
-                        return moves;
-                    }
-                } else {
+                if (!is_in_check(game, bitboards, board, move)) {
                     moves.list[moves.num_moves++] = move;
                 }
                 rook_attacks &= rook_attacks - 1;
@@ -1164,12 +1122,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             while (bishop_attacks) {
                 int to_square = __builtin_ctzll(bishop_attacks);
                 Move move { from_square, to_square, turn, queen, board[to_square].piece_occupying };
-                if (!CPU) {
-                    if (check_checks(game, bitboards, board, move) != 1) {
-                        moves.list[moves.num_moves++] = move;
-                        return moves;
-                    }
-                } else {
+                if (!is_in_check(game, bitboards, board, move)) {
                     moves.list[moves.num_moves++] = move;
                 }
                 bishop_attacks &= bishop_attacks - 1;
@@ -1179,16 +1132,9 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
                 Move move { from_square, to_square, turn, queen, board[to_square].piece_occupying };
-                if (!CPU) {
-                    if (check_checks(game, bitboards, board, move) != 1) {
-                        std::cout << "here\n";
-                        moves.list[moves.num_moves++] = move;
-                        return moves;
-                    }
-                } else {
+                if (!is_in_check(game, bitboards, board, move)) {
                     moves.list[moves.num_moves++] = move;
                 }
-                
                 rook_attacks &= rook_attacks - 1;
             }
         }
@@ -1199,12 +1145,7 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
                 if (mask << to_square & ~bitboards.occupied_tables[turn]) {
                     //print_bitboard(bitboards.occupied_tables[turn]);
                     Move move { from_square, to_square, turn, king, board[to_square].piece_occupying };
-                    if (!CPU) {
-                        if (check_checks(game, bitboards, board, move) != 1) {
-                            moves.list[moves.num_moves++] = move;
-                            return moves;
-                        }
-                    } else {
+                    if (!is_in_check(game, bitboards, board, move)) {
                         moves.list[moves.num_moves++] = move;
                     }
                 }
@@ -1232,6 +1173,9 @@ Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard&
             }
         }
         current_pieces &= current_pieces - 1;
+        if (!CPU && moves.num_moves > 0) {
+            return moves;
+        }
     }
     //std::cout << "here now\n";
     return moves;
@@ -1254,7 +1198,7 @@ void record_board(Game& game) {
                 record_piece_points(game, game.board[i].piece_occupying.piece_type, 
                     game.board[i].piece_occupying.colour);
             }   
-            if (/*game.board[i][j].piece_occupying &&*/ game.board[i].piece_occupying.piece_type == pawn) {
+            if (game.board[i].piece_occupying.piece_type == pawn) {
                 if (56 - i / 8 == 3 && !white_en_passant) {
                     Move move1 { i, i + 7, white, pawn };
                     Move move2 { i, i + 9, white, pawn };
@@ -1272,7 +1216,7 @@ void record_board(Game& game) {
                     }                   
                 }
             }
-            if (/*game.board[i][j].piece_occupying &&*/ game.board[i].piece_occupying.piece_type == king) {
+            if (game.board[i].piece_occupying.piece_type == king) {
                 if (i == 4 && !white_castling) {
                     Move move1 { i, 6, white, king };
                     Move move2 { i, 2, white, king };

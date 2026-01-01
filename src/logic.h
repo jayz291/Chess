@@ -13,6 +13,7 @@ int validate_move_rook(Bitboards& bitboards, Move& move);
 int validate_move_queen(Bitboards& bitboards, Move& move);
 int validate_move_king(Game& game, Bitboards& bitboards, Move& move);
 int check_checks(Game& game, Bitboards& bitboards, Chessboard& board_copy, Move& move);
+int is_in_check(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
 void evaluate_king_checks(Game& game);
 int test_castling(Game& game, Bitboards& bitboard_copy, Move& move);
 int validate_en_passant(Game& game, Bitboards& bitboards, Move& move);
