@@ -267,7 +267,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     if (result >= 0) {
         /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
         ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
-        make_game_move(game, game.bitboards, game.board, result, game.current_move);  
+        make_game_move(game, result, game.current_move);  
     }
     if (game.promoting_pawn) {
         draw_pawn_promotion_screen(game, window, assets);
@@ -300,7 +300,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             game.current_move = move;
             game.board[game.selected_square].selected = false;
             game.selected_square = -1;
-            make_game_move(game, game.bitboards, game.board, result, game.current_move);  
+            make_game_move(game, result, game.current_move);  
         }
         if (game.promoting_pawn) {
             draw_pawn_promotion_screen(game, window, assets);
@@ -636,7 +636,7 @@ bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos) {
         game.piece_selected = queen;
     }
     if (game.piece_selected != -1) {
-        handle_pawn_promotion(game, game.bitboards, game.board, game.current_move);
+        handle_pawn_promotion(game, game.current_move);
         return true;
     }
     return false;
