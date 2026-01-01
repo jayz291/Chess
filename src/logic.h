@@ -5,17 +5,17 @@
 #include <thread>
 #include <chrono>
 
-int validate_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& move, bool only_checking_checks = false);
-int validate_move_pawn(Game& game, Bitboards& bitboards, Move& move);
+int validate_move(Game& game, Move& move, bool only_checking_checks = false);
+int validate_move_pawn(Game& game, Move& move);
 int validate_move_knight(Bitboards& bitboards, Move& move);
 int validate_move_bishop(Bitboards& bitboards, Move& move);
 int validate_move_rook(Bitboards& bitboards, Move& move);
 int validate_move_queen(Bitboards& bitboards, Move& move);
-int validate_move_king(Game& game, Bitboards& bitboards, Move& move);
+int validate_move_king(Game& game, Move& move);
 int is_in_check(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
 void evaluate_king_checks(Game& game);
-int test_castling(Game& game, Bitboards& bitboard_copy, Move& move);
-int validate_en_passant(Game& game, Bitboards& bitboards, Move& move);
+int test_castling(Game& game, Move& move);
+int validate_en_passant(Game& game, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 void update_castling_flags(Game& game, Bitboards& bitboards, Move& move);
 
@@ -28,8 +28,7 @@ void undo_move(Game& game, Bitboards& bitboards, Chessboard& board, Move& prev_m
 void handle_pawn_promotion(Game& game, Bitboards& bitboards, Chessboard& board, Move& move);
 void switch_move(Move& move);
 
-Move_list determine_possible_moves(Game& game, Bitboards& bitboards, Chessboard& board, 
-    int turn, bool CPU = false);
+Move_list determine_possible_moves(Game& game, bool CPU = false);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
 void end_game(Game& game);
@@ -39,8 +38,8 @@ void record_piece_points(Game& game, int piece_type, int piece_colour);
 
 void generate_computer_move(Game& game);
 void update_computer_move(Game& game);
-Move get_best_move(Game& game, Bitboards& bitboards, Chessboard& copy, int depth);
-int negamax(Game& game, Bitboards& bitboards, Chessboard& board, int depth, int alpha, int beta);
+Move get_best_move(Game& game, int depth);
+int negamax(Game& game, int depth, int alpha, int beta);
 int evaluate(Bitboards& bitboards);
 int sort_moves_by_priority(Move& move);
 int positional_eval(uint64_t bitboard, const int table[]);

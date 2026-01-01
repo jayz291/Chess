@@ -295,7 +295,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             move.piece_taken = game.board[square].piece_occupying;
         }
 
-        int result = validate_move(game, game.bitboards, game.board, move);
+        int result = validate_move(game, move);
         if (result >= 0) {
             game.current_move = move;
             game.board[game.selected_square].selected = false;
@@ -598,7 +598,7 @@ int select_square(int x, int y, Game& game) {
         if (game.board[square].piece_occupying.piece_type != none) {
             move.piece_taken = game.board[square].piece_occupying;
         }
-        int result = validate_move(game, game.bitboards, game.board, move);
+        int result = validate_move(game, move);
         game.board[game.selected_square].selected = false;
         game.selected_square = -1; 
   
@@ -607,8 +607,8 @@ int select_square(int x, int y, Game& game) {
             return result;
         } 
         return -1;
-    } else if (((mask & game.bitboards.white_occupied) && game.turn == white) || 
-        ((mask & game.bitboards.black_occupied) && game.turn == black)) {
+    } else if (((mask & game.bitboards.occupied_tables[white]) && game.turn == white) || 
+        ((mask & game.bitboards.occupied_tables[black]) && game.turn == black)) {
         game.board[square].selected = true;
         game.selected_square = 56 - 8 * row + col;
         return -1;
