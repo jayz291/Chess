@@ -29,6 +29,12 @@ void handle_pawn_promotion(Game& game, Move& move);
 void switch_move(Move& move);
 
 Move_list determine_possible_moves(Game& game, bool CPU = false);
+inline void add_pawn_moves(Game& game, Move_list& moves);
+inline void add_knight_moves(Game& game, Move_list& moves);
+inline void add_bishop_moves(Game& game, Move_list& moves);
+inline void add_rook_moves(Game& game, Move_list& moves);
+inline void add_queen_moves(Game& game, Move_list& moves);
+inline void add_king_moves(Game& game, Move_list& moves);
 int determine_repetition(Game& game);
 int determine_insufficient_material(Game& game);
 void end_game(Game& game);

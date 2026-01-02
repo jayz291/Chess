@@ -3,9 +3,11 @@
 #include "logic.h"
 
 void run_game_loop();
+void check_build_mode();
 
 int main() {
     std::srand(std::time(nullptr));
+    check_build_mode();
     run_game_loop();
 }
 
@@ -29,5 +31,14 @@ void run_game_loop() {
         handle_input(game, window, assets);
         render(game, window, assets);
     }
+}
+
+
+void check_build_mode() {
+    #ifdef NDEBUG
+        std::cout << "Running in RELEASE mode" << std::endl;
+    #else
+        std::cout << "Running in DEBUG mode" << std::endl;
+    #endif
 }
 
