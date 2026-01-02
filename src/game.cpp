@@ -272,8 +272,8 @@ int check_position_validity(Game& proposed_game) {
 
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
-    os << "Piece: " << move.piece << '\n';
-    os << "Prev row and col: " << move.prev_square << ' ' << move.new_square << '\n';
+    os << "Piece: " << move.piece << ' ';
+    os << "Move: " << move.prev_square << ' ' << move.new_square << ' ';
     return os;
 }
 

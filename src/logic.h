@@ -46,7 +46,7 @@ void generate_computer_move(Game& game);
 void update_computer_move(Game& game);
 Move get_best_move(Game& game, int depth);
 int negamax(Game& game, int depth, int alpha, int beta);
-int evaluate(Bitboards& bitboards);
-int sort_moves_by_priority(Move& move);
-int positional_eval(uint64_t bitboard, const int table[]);
+int evaluate(Game& game, Bitboards& bitboards);
+int sort_moves_by_priority(Game& game, Move& move);
+inline int positional_eval(Game& game, uint64_t bitboard, int piece, int colour);
 

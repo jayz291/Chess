@@ -451,7 +451,7 @@ Move get_best_move(Game& game, int depth) {
     Move_list possible_moves = determine_possible_moves(game, true);
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+        return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
     });
 
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
@@ -462,7 +462,7 @@ Move get_best_move(Game& game, int depth) {
         int move_eval = -negamax(game, depth - 1, -500000, 500000);
         move_eval += (std::rand() % 5) - 2;
 
-        std::cout << "e: " << move_eval << ' ' << game.turn << '\n';
+        std::cout << "e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
        
         if (move_eval > best_score) {
             best_score = move_eval;
@@ -482,12 +482,11 @@ Move get_best_move(Game& game, int depth) {
 
 int negamax(Game& game, int depth, int alpha, int beta) { 
 
-    //std::cout << "minimaxing\n";
     if (depth == 0) {
         //std::cout << "reached depth 0\n";
         positions_searched++;
         int perspective = (game.turn == white) ? 1 : -1;
-        return perspective * evaluate(game.bitboards);
+        return perspective * evaluate(game, game.bitboards);
     }
     
     Move_list possible_moves = determine_possible_moves(game, true);
@@ -501,7 +500,7 @@ int negamax(Game& game, int depth, int alpha, int beta) {
     }
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+        return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
     });
     //std::cout << "size: " << possible_moves.size() << '\n';
  
@@ -523,53 +522,40 @@ int negamax(Game& game, int depth, int alpha, int beta) {
     return max_eval;
 }
 
-int evaluate(Bitboards& bitboards) {
+int evaluate(Game& game, Bitboards& bitboards) {
     int eval { 0 };
     
-    eval += __builtin_popcountll(bitboards.bitboards[white][pawn]) * piece_values[pawn];
-    eval += __builtin_popcountll(bitboards.bitboards[white][knight]) * piece_values[knight];
-    eval += __builtin_popcountll(bitboards.bitboards[white][bishop]) * piece_values[bishop];
-    eval += __builtin_popcountll(bitboards.bitboards[white][rook]) * piece_values[rook];
-    eval += __builtin_popcountll(bitboards.bitboards[white][queen]) * piece_values[queen];
-    eval -= __builtin_popcountll(bitboards.bitboards[black][pawn]) * piece_values[pawn];
-    eval -= __builtin_popcountll(bitboards.bitboards[black][knight]) * piece_values[knight];
-    eval -= __builtin_popcountll(bitboards.bitboards[black][bishop]) * piece_values[bishop];
-    eval -= __builtin_popcountll(bitboards.bitboards[black][rook]) * piece_values[rook];
-    eval -= __builtin_popcountll(bitboards.bitboards[black][queen]) * piece_values[queen];
-    eval += positional_eval(bitboards.bitboards[white][pawn], white_pawn_square_table);
-    eval += positional_eval(bitboards.bitboards[white][knight], knights_table);
-    eval += positional_eval(bitboards.bitboards[white][bishop], bishop_table);
-    eval += positional_eval(bitboards.bitboards[white][rook], rook_table);
-    eval += positional_eval(bitboards.bitboards[white][queen], queen_table);
-    eval -= positional_eval(bitboards.bitboards[black][pawn], black_pawn_square_table);
-    eval -= positional_eval(bitboards.bitboards[black][knight], knights_table);
-    eval -= positional_eval(bitboards.bitboards[black][bishop], bishop_table);
-    eval -= positional_eval(bitboards.bitboards[black][rook], rook_table);
-    eval -= positional_eval(bitboards.bitboards[black][queen], queen_table);
-    if (bitboards.bitboards[black][queen] != 0 && bitboards.bitboards[white][queen] != 0) {
-        eval += positional_eval(bitboards.bitboards[white][king], king_table_beginning_white);
-        eval -= positional_eval(bitboards.bitboards[black][king], king_table_beginning_black);
-    } else {
-        eval += positional_eval(bitboards.bitboards[white][king], king_table_endgame_white);
-        eval -= positional_eval(bitboards.bitboards[black][king], king_table_endgame_black);
+    for (int piece { 0 }; piece < 5; piece++) {
+        eval += __builtin_popcountll(bitboards.bitboards[white][piece]) * piece_values[piece];
+        eval -= __builtin_popcountll(bitboards.bitboards[black][piece]) * piece_values[piece];
+    }
+
+    for (int piece { 0 }; piece <= 5; piece++) {
+        eval += positional_eval(game, bitboards.bitboards[white][piece], piece, white);
+        eval -= positional_eval(game, bitboards.bitboards[black][piece], piece, black);
     }
     return eval;
 }
 
-int positional_eval(uint64_t bitboard, const int table[]) {
+__attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard, int piece, int colour) {
     int eval { 0 };
     while (bitboard) {
-        int square = __builtin_ctzll(bitboard);
-        eval += table[square];
+        int square = (piece == white) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
+        eval += start_value_tables[piece][square] + (78 - game.value_white_pieces - game.value_black_pieces) / 78.0 *
+        (start_value_tables[piece][square] - endgame_value_tables[piece][square]);
         bitboard &= bitboard - 1;
     }
     return eval;
 }
 
-int sort_moves_by_priority(Move& move) {
+int sort_moves_by_priority(Game& game, Move& move) {
     int move_score_guess = 0;
+    int square = (move.turn == white) ? move.new_square : move.new_square ^ 56;
+    move_score_guess += 30 * (start_value_tables[move.piece][square] + 
+        (78 - game.value_white_pieces - game.value_black_pieces) / 78.0 *
+        (start_value_tables[move.piece][square] - endgame_value_tables[move.piece][square]));
     if (move.piece_taken.piece_type != none) {
-        move_score_guess += (40 * piece_values[move.piece_taken.piece_type] - piece_values[move.piece]);
+        move_score_guess += (10000 * piece_values[move.piece_taken.piece_type] - piece_values[move.piece]);
     }
     if (move.special_move == promotion) {
         move_score_guess += 70 * piece_values[move.promoted_piece];
