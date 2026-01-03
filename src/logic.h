@@ -4,6 +4,15 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <random>
+
+extern uint64_t zobrist_table[12][64];
+extern uint64_t zobrist_castling[16];
+extern uint64_t zobrist_en_passant[9];
+extern uint64_t zobrist_black_turn;
+
+void init_zobrist_table();
+void find_position_hash(Game& game);
 
 int validate_move(Game& game, Move& move, bool only_checking_checks = false);
 int validate_move_pawn(Game& game, Move& move);

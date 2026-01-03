@@ -16,7 +16,11 @@ void run_game_loop() {
     Assets assets {};
     game.state = Gamestate::Intro;
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
+    init_zobrist_table();
     window.setFramerateLimit(60);
+    game.zobrist_hash = 0;
+    find_position_hash(game);
+
     while (window.isOpen()) {
         if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == white) ||
             (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.turn == black)) {

@@ -235,6 +235,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         int result = handle_fen_string(game);
         if (result == 0) {
             std::cout << "passed\n";
+            std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
             is_game_over(game);
@@ -265,8 +266,6 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     int result = select_square(mouse_pos.x, mouse_pos.y, game);
     //std::cout << result << '\n';
     if (result >= 0) {
-        /*std::cout << game.current_move.prev_row << ' ' << game.current_move.prev_col << 
-        ' ' << game.current_move.new_row << ' ' << game.current_move.new_col << '\n';*/
         make_game_move(game, result, game.current_move);  
     }
     if (game.promoting_pawn) {
@@ -276,7 +275,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     }
     //print_all_bitboards(game.bitboards);
     if (result >= 0) {
-        game.turn = ((game.turn == white) ? black : white);
+        std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
         is_game_over(game);
     }
 }
@@ -309,7 +308,6 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         }
         //print_all_bitboards(game.bitboards);
         if (result >= 0) {
-            game.turn = ((game.turn == white) ? black : white);
             is_game_over(game);
         }
     }
@@ -321,6 +319,7 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         game.state = Gamestate::Playing;
         game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
+        std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }
     
     //print_all_bitboards(game.bitboards);
@@ -350,6 +349,7 @@ void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos) {
             undo_game_move(game);
             undo_game_move(game);
         }
+        //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }
 }
 

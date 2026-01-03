@@ -48,11 +48,12 @@ class Game {
         int dragged_piece = none;
         sf::Vector2f current_mouse_pos;
         sf::String fen_string;
-        int en_passant_square;
+        int en_passant_index { 8 }; // (0 - 7 for col of en passant square, 8 if there is none )
         bool typing { false };
         std::size_t cursor_index;
         bool default_position { true };
         bool invalid_fen_position { false };
+        uint64_t zobrist_hash = 0ULL;
         Game();
         void initialise();
 };

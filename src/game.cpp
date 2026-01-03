@@ -77,7 +77,7 @@ int handle_fen_string(Game& game) {
     }
 
     Game proposed_game;
-    proposed_game.castling_rights = 0b10000000;
+    proposed_game.castling_rights = 0b00000000;
     for (int i { 0 }; i < 64; i++) {
         proposed_game.board[i].piece_occupying = { none, none };
     }
@@ -125,7 +125,8 @@ int handle_fen_string(Game& game) {
     if (check_position_validity(proposed_game) == -1) {
         return -1;
     }
-
+    proposed_game.zobrist_hash = 0ULL;
+    find_position_hash(proposed_game);
     game = proposed_game;
     game.default_position = false;
     return 0;
@@ -213,7 +214,7 @@ int fill_board(Game& proposed_game, std::string& fen_board_section) {
 int process_en_passant_square(Game& proposed_game, std::string& en_passant_square) {
 
     if (en_passant_square == "-") {
-        proposed_game.en_passant_square = -1;
+        proposed_game.en_passant_index = 8;
         return 0;
     }
     int col = en_passant_square[0] - 'a';
@@ -233,6 +234,7 @@ int process_en_passant_square(Game& proposed_game, std::string& en_passant_squar
             ~proposed_game.bitboards.occupied & mask << (square - 8) && proposed_game.turn == black) {
             proposed_game.move_record.push_back({square - 8, square + 8, white, pawn, { none, none }, quiet,
             proposed_game.castling_rights, none });
+            proposed_game.en_passant_index = square % 8;
             return 0;
         }
     } else if (square >= 40 && square <= 47) {
@@ -240,6 +242,7 @@ int process_en_passant_square(Game& proposed_game, std::string& en_passant_squar
             ~proposed_game.bitboards.occupied & mask << (square + 8) && proposed_game.turn == white) {
             proposed_game.move_record.push_back({square + 8, square - 8, black, pawn, { none, none }, quiet,
             proposed_game.castling_rights, none });
+            proposed_game.en_passant_index = square % 8;
             return 0;
         }
     }
