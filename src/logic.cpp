@@ -29,6 +29,10 @@ uint64_t RANK_7 = 0x00FF000000000000ULL;
 uint64_t RANK_4 = 0x00000000FF000000ULL;
 uint64_t RANK_5 = 0x000000FF00000000ULL;
 
+std::chrono::steady_clock::time_point search_start_time;
+int nodes_searched = 0;
+int terminate_search { false };
+
 void init_zobrist_table() {
     std::mt19937_64 rng(12345);
     for (int piece { 0 }; piece < 12; piece++) {
@@ -476,7 +480,7 @@ void generate_computer_move(Game& game) {
     Game game_copy = game;
     auto start = std::chrono::steady_clock::now();
     std::thread computer_thread([game_copy, start]() mutable {
-        Move chosen_move = get_best_move(game_copy, 6);
+        Move chosen_move = get_best_move(game_copy, 2000);
         computer_turn = false;
         thinking_in_progress = false;
         finished = true;
@@ -509,50 +513,89 @@ void make_computer_move(Game& game) {
     finished = false;
 }
 
-Move get_best_move(Game& game, int depth) {
-    int best_score = -500000;
-    Move best_move {};
-    //int turn = game.turn;
-    //std::cout << "generating\n";
+Move get_best_move(Game& game, int search_allocated_time_ms) {
+    Move current_best_move {};
+    Move overall_best_move {};
+    search_start_time = std::chrono::steady_clock::now();
+    terminate_search = false;
+    nodes_searched = 0;
+    int overall_best_score, depth_best_score = -50000;
     Move_list possible_moves = determine_possible_moves(game);
-    std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
-    [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
-    });
 
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
-        //std::cout << "testing possible moves\n";
-        auto& move = possible_moves.list[i];
-        make_test_move(game, move);
-        
-        int move_eval = -negamax(game, depth - 1, -500000, 500000);
-        move_eval += (std::rand() % 5) - 2;
-
-        std::cout << "e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
-       
-        if (move_eval > best_score) {
-            best_score = move_eval;
-            best_move = move;
-        }
-    
-        if (best_move.new_square == best_move.prev_square) {
-            best_move = move;
-        }
-        undo_test_move(game, move);
-        //turn = game.turn;
-        
+        possible_moves.list[i].eval = sort_moves_by_priority(game, possible_moves.list[i]);
     }
-    std::cout << "Best score: " << best_score << '\n';
-    return best_move;
+
+    //std::cout << "generating\n";
+    for (int depth { 0 }; depth < 40; depth++) {
+        depth_best_score = -500000;
+        int alpha = -500000;
+        int beta = 500000;
+        std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
+        [&](Move& move1, Move& move2) {
+            return move1.eval > move2.eval;
+        });
+        current_best_move = possible_moves.list[0];
+
+        for (int i { 0 }; i < possible_moves.num_moves; i++) {
+            //std::cout << "testing possible moves\n";
+            auto& move = possible_moves.list[i];
+            make_test_move(game, move);
+    
+            int move_eval = -negamax(game, depth, -beta, -alpha, search_allocated_time_ms);
+
+            if (terminate_search) {
+                break; 
+            }
+            move_eval += (std::rand() % 5) - 2;
+            move.eval = move_eval;
+
+            std::cout << "depth:" <<  depth << " e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
+        
+            if (move_eval > depth_best_score) {
+                depth_best_score = move_eval;
+                current_best_move = move;
+            }
+        
+            if (current_best_move.new_square == current_best_move.prev_square) {
+                current_best_move = move;
+            }
+            undo_test_move(game, move);
+            
+        }
+        
+        if (!terminate_search) {
+            overall_best_move = current_best_move;
+        } else {
+            break;
+        }
+    }
+    assert(overall_best_move.new_square != overall_best_move.prev_square);
+    overall_best_score = depth_best_score;
+    std::cout << "Best score: " << overall_best_score << '\n';
+    return overall_best_move;
 }
 
-int negamax(Game& game, int depth, int alpha, int beta) { 
+int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms) { 
+
+    if (terminate_search) {
+        return 0;
+    }
 
     if (depth == 0) {
         //std::cout << "reached depth 0\n";
         positions_searched++;
         int perspective = (game.turn == white) ? 1 : -1;
         return perspective * evaluate(game, game.bitboards);
+    }
+    nodes_searched++;
+    if ((nodes_searched & 2047) == 0) {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
+        if (elapsed > search_allocated_time_ms) {
+            terminate_search = true;
+            return 0;
+        }
     }
     
     Move_list possible_moves = determine_possible_moves(game);
@@ -576,7 +619,7 @@ int negamax(Game& game, int depth, int alpha, int beta) {
         auto& possible_move = possible_moves.list[i];
         
         make_test_move(game, possible_move);
-        int eval = -negamax(game, depth - 1, -beta, -alpha);
+        int eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms);
         undo_test_move(game, possible_move);
 
         alpha = std::max(eval, alpha);

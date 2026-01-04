@@ -68,6 +68,7 @@ struct Move {
     uint8_t castling_rights {};
     int promoted_piece { none };
     int en_passant_index { -1 };
+    int eval { 0 };
 };
 
 struct Move_list {

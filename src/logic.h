@@ -56,8 +56,8 @@ void is_game_over(Game& game);
 
 void generate_computer_move(Game& game);
 void make_computer_move(Game& game);
-Move get_best_move(Game& game, int depth);
-int negamax(Game& game, int depth, int alpha, int beta);
+Move get_best_move(Game& game, int search_allocated_time_ms);
+int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms);
 int evaluate(Game& game, Bitboards& bitboards);
 int sort_moves_by_priority(Game& game, Move& move);
 inline int positional_eval(Game& game, uint64_t bitboard, int piece, int colour);
