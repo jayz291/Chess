@@ -177,29 +177,37 @@ bool determine_square_validity(int square, int direction) {
     return true; 
 }
 
+// replace piece with another piece on all 3 representations of the board
+void replace_piece(Game& game, int turn, int prev_piece, int new_piece, int target_square) {
+    int zobrist_offset = (turn == white) ? 0 : 6;
+   
+    assert(game.board[target_square].piece_occupying.piece_type != none);
+
+    // update bitboards
+    game.bitboards.bitboards[turn][prev_piece] &= ~(1ULL << target_square);
+    game.bitboards.bitboards[turn][new_piece] |= (1ULL << target_square);
+
+    // update 1D array
+    game.board[target_square].piece_occupying.piece_type = new_piece;
+
+    // update zobrist hash
+    game.zobrist_hash ^= zobrist_table[prev_piece + zobrist_offset][target_square];
+    game.zobrist_hash ^= zobrist_table[new_piece + zobrist_offset][target_square];
+}
+
 void undo_move(Game& game, Move& prev_move, int turn) {
     Bitboards& bitboards = game.bitboards;
     Chessboard& board = game.board;
-    int mover = prev_move.turn;
-    int opposing_turn = ((mover == white) ? black : white);
-    int current = (mover == white) ? 0 : 6;
-    int opposing = (mover == white) ? 6 : 0;
+    int opposing_turn = ((prev_move.turn == white) ? black : white);
+    int current = (prev_move.turn == white) ? 0 : 6;
+    int opposing = (prev_move.turn == white) ? 6 : 0;
     switch_move(prev_move);
     
     //int promoted_piece = queen;
     int original_piece = prev_move.piece; 
     if (prev_move.special_move == promotion) {
-        int from_square = prev_move.prev_square;
-        int promoted_piece = prev_move.promoted_piece;
-        assert(board[prev_move.prev_square].piece_occupying.piece_type != none);
-        uint64_t mask = 1ULL;
 
-        bitboards.bitboards[prev_move.turn][promoted_piece] &= ~(mask << from_square);
-        bitboards.bitboards[prev_move.turn][pawn] |= (mask << from_square);
-        board[from_square].piece_occupying.piece_type = pawn;
-
-        game.zobrist_hash ^= zobrist_table[pawn + current][from_square];
-        game.zobrist_hash ^= zobrist_table[prev_move.promoted_piece + current][from_square];
+        replace_piece(game, prev_move.turn, prev_move.promoted_piece, pawn, prev_move.prev_square);
         prev_move.piece = pawn;
     }
 
@@ -435,18 +443,7 @@ void make_test_move(Game& game, Move& move) {
         //std::cout << "promoting pawn\n";
         game.promoting_pawn = true;
         move_piece(game, move);
-        u_int64_t mask = 1ULL;
-        int shift = move.new_square;
-        u_int64_t square = mask << shift;
-
-        board[move.new_square].piece_occupying.piece_type = move.promoted_piece;
-        //std::cout << "promoted piece" << move.promoted_piece << '\n';
-        assert(board[move.new_square].piece_occupying.piece_type != none);
-
-        bitboards.bitboards[move.turn][pawn] &= (~square);
-        bitboards.bitboards[move.turn][move.promoted_piece] |= (square);
-        game.zobrist_hash ^= zobrist_table[pawn + current][move.new_square];
-        game.zobrist_hash ^= zobrist_table[move.promoted_piece + current][move.new_square];
+        replace_piece(game, move.turn, pawn, move.promoted_piece, move.new_square);
 
         update_castling_flags(game, move);
         game.move_record.push_back(move);
@@ -715,18 +712,11 @@ void handle_pawn_promotion(Game& game, Move& move) {
     Chessboard& board = game.board;
     Bitboards& bitboards = game.bitboards;
     move_piece(game, move);
-    u_int64_t square = (1ULL << move.new_square);
+    //u_int64_t square = (1ULL << move.new_square);
     move.special_move = promotion;
     move.promoted_piece = game.piece_selected;
     
-    board[move.new_square].piece_occupying.piece_type = game.piece_selected;
-    assert(board[move.new_square].piece_occupying.piece_type != none);
-
-    bitboards.bitboards[game.turn][pawn] &= (~square);
-    bitboards.bitboards[game.turn][game.piece_selected] |= (square);
-    move.en_passant_index = game.en_passant_index;
-    game.zobrist_hash ^= zobrist_table[pawn + current_offset][move.new_square];
-    game.zobrist_hash ^= zobrist_table[move.promoted_piece + current_offset][move.new_square];
+    replace_piece(game, move.turn, pawn, move.promoted_piece, move.new_square);
 
     bitboards.update_occupied();
     update_castling_flags(game, move);
