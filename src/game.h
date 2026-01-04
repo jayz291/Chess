@@ -24,11 +24,7 @@ class Game {
         int turn {};
         bool white_in_check {};
         bool black_in_check {};
-        bool game_over {};
-        bool checkmate {};
-        bool stalemate {};
-        bool repetition {};
-        bool insufficient_material {};
+        uint8_t game_status {}; // 8th bit: is game over, 4th bit: checkmate, 3rd bit: stalemate, 2nd bit: repetition
         int winner { -1 };
         bool promoting_pawn {};
         int piece_selected {};

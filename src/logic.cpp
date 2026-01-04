@@ -660,7 +660,7 @@ bool determine_insufficient_material(Game& game) {
     bool pawns_on_board = ((game.bitboards.bitboards[white][pawn] | game.bitboards.bitboards[black][pawn]) == 0) ? 
     false : true;
     if (game.value_black_pieces <= 300 && game.value_white_pieces <= 300 && !pawns_on_board) {
-        game.insufficient_material = true;
+        game.game_status |= 1UL;
         return true;
     }
     return false;
@@ -674,7 +674,7 @@ bool determine_repetition(Game& game) {
             occurrences++;
         }
         if (occurrences == 3) {
-            game.repetition = true;
+            game.game_status |= (1UL << 1);
             return true;
         }
     }
@@ -715,24 +715,24 @@ void evaluate_king_checks(Game& game) {
 
 void end_game(Game& game) {
     //std::cout << "It is over\n";
-    game.game_over = true;
+    game.game_status |= (1UL << 7);
     game.state = Gamestate::Gameover;
-    if (game.repetition || game.insufficient_material || game.plys_to_100 == 100) {
+    if ((game.game_status & (1UL << 1)) | (game.game_status & 1UL) || game.plys_to_100 == 100) {
         return;
     }
     if (game.turn == black) {
         if (game.black_in_check) {
-            game.checkmate = true;
+            game.game_status |= (1UL << 3); // checkmate
             game.winner = white;
         } else {
-            game.stalemate = true;
+            game.game_status |= (1UL << 2); // stalemate
         }
     } else {
         if (game.white_in_check) {
-            game.checkmate = true;
+            game.game_status |= (1UL << 3);
             game.winner = black;
         } else {
-            game.stalemate = true;
+            game.game_status |= (1UL << 2);
         }
     }
 }

@@ -502,17 +502,17 @@ void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
     text.setCharacterSize(40);
     text.setPosition({280, 280}); 
 
-    if (game.checkmate) {
+    if (game.game_status & (1UL << 3)) {
         if (game.winner == white) {
             text.setString("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {
             text.setString("CHECKMATE\nBLACK WON!\n-----------------------------\nClick anywhere to \ncontinue");
         }
-    } else if (game.stalemate) {
+    } else if (game.game_status & (1UL << 2)) {
         text.setString("Draw by stalemate\n-----------------------------\nClick anywhere to \ncontinue");
-    } else if (game.repetition) {
+    } else if (game.game_status & (1UL << 1)) {
         text.setString("Draw by threefold \nrepetition\n-----------------------------\nClick anywhere to \ncontinue");
-    } else if (game.insufficient_material) {
+    } else if (game.game_status & (1UL)) {
         text.setString("Draw by insufficient \nmaterial\n-----------------------------\nClick anywhere to \ncontinue");
     } else if (game.plys_to_100 == 100) {
         text.setString("Draw by the 50-move rule\n-----------------------------\nClick anywhere to \ncontinue");

@@ -19,9 +19,9 @@ void Game::initialise() {
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
     winner = piece_selected = none;
-    white_in_check = black_in_check = game_over = false;
+    white_in_check = black_in_check = /*game_over*/promoting_pawn = false;
     turn = white;
-    checkmate = stalemate = repetition = insufficient_material = promoting_pawn = false;
+    game_status = 0b00000000;
     selected_square = none;
     bitboards = {};
     castling_rights = 0b00001111;
