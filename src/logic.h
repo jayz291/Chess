@@ -37,7 +37,7 @@ void undo_move(Game& game, Move& prev_move, int turn);
 void handle_pawn_promotion(Game& game, Move& move);
 void switch_move(Move& move);
 
-Move_list determine_possible_moves(Game& game, bool CPU = false);
+Move_list determine_possible_moves(Game& game);
 inline void add_pawn_moves(Game& game, Move_list& moves);
 inline void add_knight_moves(Game& game, Move_list& moves);
 inline void add_bishop_moves(Game& game, Move_list& moves);

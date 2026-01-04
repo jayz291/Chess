@@ -186,12 +186,21 @@ void undo_move(Game& game, Move& prev_move, int turn) {
     int opposing = (mover == white) ? 6 : 0;
     switch_move(prev_move);
     
-    int promoted_piece = queen;
+    //int promoted_piece = queen;
     int original_piece = prev_move.piece; 
     if (prev_move.special_move == promotion) {
+        int from_square = prev_move.prev_square;
+        int promoted_piece = prev_move.promoted_piece;
         assert(board[prev_move.prev_square].piece_occupying.piece_type != none);
-        promoted_piece = board[prev_move.prev_square].piece_occupying.piece_type;
-        prev_move.piece = promoted_piece;
+        uint64_t mask = 1ULL;
+
+        bitboards.bitboards[prev_move.turn][promoted_piece] &= ~(mask << from_square);
+        bitboards.bitboards[prev_move.turn][pawn] |= (mask << from_square);
+        board[from_square].piece_occupying.piece_type = pawn;
+
+        game.zobrist_hash ^= zobrist_table[pawn + current][from_square];
+        game.zobrist_hash ^= zobrist_table[prev_move.promoted_piece + current][from_square];
+        prev_move.piece = pawn;
     }
 
     move_piece(game, prev_move, true);
@@ -232,19 +241,6 @@ void undo_move(Game& game, Move& prev_move, int turn) {
         }
     }
     
-    if (prev_move.special_move == promotion) {
-        uint64_t mask = 1ULL;
-        int to_square = prev_move.new_square;
-        int piece = board[to_square].piece_occupying.piece_type;
-        bitboards.bitboards[prev_move.turn][promoted_piece] &= ~(mask << to_square);
-        bitboards.bitboards[prev_move.turn][pawn] |= (mask << to_square);
-        board[prev_move.new_square].piece_occupying.piece_type = pawn;
-
-        game.zobrist_hash ^= zobrist_table[pawn + current][prev_move.new_square];
-        game.zobrist_hash ^= zobrist_table[prev_move.promoted_piece + current][prev_move.new_square];
-
-        //bitboards.update_occupied();
-    }
     switch_move(prev_move);
 }
 
@@ -544,7 +540,7 @@ Move get_best_move(Game& game, int depth) {
     Move best_move {};
     //int turn = game.turn;
     //std::cout << "generating\n";
-    Move_list possible_moves = determine_possible_moves(game, true);
+    Move_list possible_moves = determine_possible_moves(game);
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
         return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
@@ -585,7 +581,7 @@ int negamax(Game& game, int depth, int alpha, int beta) {
         return perspective * evaluate(game, game.bitboards);
     }
     
-    Move_list possible_moves = determine_possible_moves(game, true);
+    Move_list possible_moves = determine_possible_moves(game);
     if (possible_moves.num_moves == 0) {
         int king_square = __builtin_ctzll(game.bitboards.bitboards[game.turn][king]);
         if (is_square_attacked(game.bitboards, king_square, game.turn)) {
@@ -1065,7 +1061,7 @@ int is_in_check(Game& game, Move& move) {
     return in_check;
 }
 
-Move_list determine_possible_moves(Game& game, bool CPU) {
+Move_list determine_possible_moves(Game& game) {
     Move_list moves;
     add_pawn_moves(game, moves);
     add_knight_moves(game, moves);
