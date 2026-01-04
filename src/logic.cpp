@@ -683,7 +683,6 @@ bool determine_repetition(Game& game) {
 
 void handle_pawn_promotion(Game& game, Move& move) {
 
-    int current_offset = (move.turn == white) ? 0 : 6;
     assert(move.turn == game.turn);
 
     move_piece(game, move);
@@ -783,7 +782,7 @@ void move_piece(Game& game, Move& move) {
     }*/
 }
 
-int validate_move(Game& game, Move& move, bool only_checking_checks) {
+int validate_move(Game& game, Move& move) {
     int result { 0 };
     if (move.new_square < 0 || move.new_square > 63) {
         return -1;
@@ -794,21 +793,21 @@ int validate_move(Game& game, Move& move, bool only_checking_checks) {
         game.board[move.new_square].piece_occupying.colour != move.turn)) {
         
         if (move.piece == pawn) {
-            result = validate_move_pawn(game, move);
+            result = validate_pawn_move(game, move);
         } else if (move.piece == knight) {
-            result = validate_move_knight(game.bitboards, move);
+            result = validate_knight_move(game.bitboards, move);
         } else if (move.piece == bishop) {
-            result = validate_move_bishop(game.bitboards, move);
+            result = validate_bishop_move(game.bitboards, move);
         } else if (move.piece == rook) {
-            result = validate_move_rook(game.bitboards, move);
+            result = validate_rook_move(game.bitboards, move);
         } else if (move.piece == queen) {
-            result = validate_move_queen(game.bitboards, move);
+            result = validate_queen_move(game.bitboards, move);
         } else if (move.piece == king) {
-            result = validate_move_king(game, move);
+            result = validate_king_move(game, move);
         } else {
             return 0;
         }
-        if (result >= 0 && !only_checking_checks) {
+        if (result >= 0) {
             Game game_copy = game;
             if (!is_in_check(game_copy, move)) {
                 return result;
@@ -825,7 +824,7 @@ int validate_move(Game& game, Move& move, bool only_checking_checks) {
     }
 }
 
-int validate_move_pawn(Game& game, Move& move) {
+int validate_pawn_move(Game& game, Move& move) {
     int square = move.new_square;
     Bitboards& bitboards = game.bitboards;
     uint64_t mask = 1ULL;
@@ -882,15 +881,13 @@ int validate_move_pawn(Game& game, Move& move) {
 
 int validate_en_passant(Game& game, Move& move) {
     //std::cout << "here\n";
-    Bitboards& bitboards = game.bitboards;
     int captured_square = ((move.turn == white) ? move.new_square - 8 : move.new_square + 8);
     uint64_t mask = 1ULL;
     int opposing_turn = ((move.turn == white) ? black : white);
    
-    if (bitboards.bitboards[opposing_turn][pawn] & mask << captured_square) {
+    if (game.bitboards.bitboards[opposing_turn][pawn] & mask << captured_square) {
         Move prev_move = game.move_record[game.move_record.size() - 1];
-        //std::cout << "prev" << prev_move.prev_row << ' ' << prev_move.prev_col << 
-        //" Curr" << prev_move.new_row << prev_move.new_col << '\n';
+ 
         if (prev_move.piece == pawn && prev_move.new_square == captured_square && 
             std::abs(prev_move.new_square - prev_move.prev_square) == 16) {
             return 3;
@@ -900,7 +897,7 @@ int validate_en_passant(Game& game, Move& move) {
     return -1;
 }
 
-int validate_move_knight(Bitboards& bitboards, Move& move) {
+int validate_knight_move(Bitboards& bitboards, Move& move) {
     u_int64_t mask = 1ULL << move.new_square;
     if (bitboards.knight_attacks[move.prev_square] & mask) {
         return 0;
@@ -908,7 +905,7 @@ int validate_move_knight(Bitboards& bitboards, Move& move) {
     return -1;
 }
 
-int validate_move_bishop(Bitboards& bitboards, Move& move) {
+int validate_bishop_move(Bitboards& bitboards, Move& move) {
     if (std::abs(move.new_square - move.prev_square) % 9 == 0 || 
         std::abs(move.new_square - move.prev_square) % 7 == 0) {
         uint64_t path = bitboards.between_table[move.prev_square][move.new_square];
@@ -920,7 +917,7 @@ int validate_move_bishop(Bitboards& bitboards, Move& move) {
     return -1;
 }
 
-int validate_move_rook(Bitboards& bitboards, Move& move) {
+int validate_rook_move(Bitboards& bitboards, Move& move) {
     if ((move.new_square - move.prev_square) % 8 == 0 || std::abs(move.new_square - move.prev_square) <= 7) {
         uint64_t path = bitboards.between_table[move.prev_square][move.new_square];
         if (path & bitboards.occupied) {
@@ -931,19 +928,19 @@ int validate_move_rook(Bitboards& bitboards, Move& move) {
     return -1;
 }
 
-int validate_move_queen(Bitboards& bitboards, Move& move) {
-    if (validate_move_rook(bitboards, move) == 0 || validate_move_bishop(bitboards, move) == 0) {
+int validate_queen_move(Bitboards& bitboards, Move& move) {
+    if (validate_rook_move(bitboards, move) == 0 || validate_bishop_move(bitboards, move) == 0) {
         return 0;
     } 
     return -1;
 }
 
-int validate_move_king(Game &game, Move& move) {
+int validate_king_move(Game &game, Move& move) {
     if (game.bitboards.king_moves[move.prev_square] & 1ULL << move.new_square) {
         return 0;
     } else if (move.prev_square / 8 == move.new_square / 8 && std::abs(move.new_square - move.prev_square) == 2) {
         Bitboards bitboard_copy = game.bitboards;
-        return test_castling(game, move);
+        return validate_castling(game, move);
     }
     return -1;
 }
@@ -974,7 +971,7 @@ int is_square_attacked(Bitboards& bitboard_copy, int square, int turn) {
     return 0;
 }
 
-int test_castling(Game &game, Move& move) {
+int validate_castling(Game &game, Move& move) {
 
     uint64_t castle_mask_right_w = (1ULL << 5) | (1ULL << 6);
     uint64_t castle_mask_left_w = (1ULL << 1) | (1ULL << 2) | (1ULL << 3);
@@ -1257,20 +1254,20 @@ __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves)
         if (from_square == 4 && game.turn == white) {
             Move move1 { from_square, 6, game.turn, king, { none, none }, castling };
             Move move2 { from_square, 2, game.turn, king, { none, none }, castling };
-            if (test_castling(game, move1) == 1) {
+            if (validate_castling(game, move1) == 1) {
                 moves.list[local_counter++] = move1;
             }
-            if (test_castling(game, move2) == 2) {
+            if (validate_castling(game, move2) == 2) {
                 moves.list[local_counter++] = move2;
                 //std::cout << "here\n";
             }
         } else if (from_square == 60 && game.turn == black) {
             Move move1 { from_square, 62, game.turn, king, { none, none }, castling };
             Move move2 { from_square, 58, game.turn, king, { none, none }, castling };
-            if (test_castling(game, move1) == 1) {
+            if (validate_castling(game, move1) == 1) {
                 moves.list[local_counter++] = move1;
             }
-            if (test_castling(game, move2) == 2) {
+            if (validate_castling(game, move2) == 2) {
                 moves.list[local_counter++] = move2;
             }
         }

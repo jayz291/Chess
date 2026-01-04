@@ -59,6 +59,7 @@ void draw_undo_button(sf::RenderWindow& window, Assets& assets);
 void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets);
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets);
 void draw_return_to_home_button(sf::RenderWindow& window, Assets& assets);
+void draw_flip_view_button(sf::RenderWindow& window, Assets& assets);
 
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
     int size, sf::Color colour);
@@ -72,6 +73,7 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_flip_view(Game& game, sf::Vector2i mouse_pos);
 
 int select_square(int x, int y, Game& game);
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);

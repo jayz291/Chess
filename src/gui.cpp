@@ -31,7 +31,6 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                     }
                     handle_clicks_undoing(game, game_pos);
                 }
-
             } else if (game.state == Gamestate::Promoting_pawn) {
                 handle_clicks_promoting(game, game_pos);
             } else if (game.state == Gamestate::Gameover) {
@@ -41,6 +40,10 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             }
             if (game.state != Gamestate::Intro) {
                 handle_clicks_returning(game, game_pos);
+            }
+            if (game.mode == Gamemode::Twoplayer && (game.state == Gamestate::Playing || 
+                game.state == Gamestate::Resetting)) {
+                handle_clicks_flip_view(game, game_pos);
             }
         }
         if (const auto* key_event = event->getIf<sf::Event::KeyPressed>()) {
@@ -130,6 +133,9 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     }
     if (game.state == Gamestate::Promoting_pawn) {
         draw_pawn_promotion_screen(game, window, assets);
+    }
+    if (game.mode == Gamemode::Twoplayer && game.state != Gamestate::Intro) {
+        draw_flip_view_button(window, assets);
     }
     window.display();
 }
@@ -269,7 +275,6 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
         make_game_move(game, result, game.current_move);  
     }
     if (game.promoting_pawn) {
-        draw_pawn_promotion_screen(game, window, assets);
         game.state = Gamestate::Promoting_pawn;
         return;
     }
@@ -302,7 +307,6 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             make_game_move(game, result, game.current_move);  
         }
         if (game.promoting_pawn) {
-            draw_pawn_promotion_screen(game, window, assets);
             game.state = Gamestate::Promoting_pawn;
             return;
         }
@@ -357,6 +361,12 @@ void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
     }
 }
 
+void handle_clicks_flip_view(Game& game, sf::Vector2i mouse_pos) {
+    if (920 <= mouse_pos.x && mouse_pos.x <= 994 && 55 <= mouse_pos.y && mouse_pos.y <= 90) {
+        game.view = (game.view == white) ? black : white;
+    }
+}
+
 void draw_reset_button(sf::RenderWindow& window, Assets& assets) {
 
     sf::RectangleShape reset_button = make_rectangle({10, 10}, {44, 35}, sf::Color::White);
@@ -381,6 +391,14 @@ void draw_return_to_home_button(sf::RenderWindow& window, Assets& assets) {
     sf::Text text = configure_text(assets.font, "Back to Home", {13, 58}, 15, sf::Color::Red);
 
     window.draw(return_button);
+    window.draw(text);
+}
+
+void draw_flip_view_button(sf::RenderWindow& window, Assets& assets) {
+    sf::RectangleShape flip_view_button = make_rectangle({920, 55}, {74, 35}, sf::Color::White);
+    sf::Text text = configure_text(assets.font, "Flip view", {924, 60}, 15, sf::Color::Red);
+
+    window.draw(flip_view_button);
     window.draw(text);
 }
 
@@ -488,11 +506,10 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
         }
     }
     if (game.is_dragging) {
-        //std::cout << "here\n";
         draw_piece(game, window, assets, 7 - game.selected_square / 8, game.selected_square % 8, 
             game.board[game.selected_square].piece_occupying.piece_type,
             game.board[game.selected_square].piece_occupying.colour, true);
-    }
+    } 
 }
 
 void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
@@ -526,16 +543,18 @@ void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
+    sf::Color colour = (game.turn == white) ? sf::Color::White : sf::Color::Black;
     sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, sf::Color::Blue);
+    sf::Text text = configure_text(assets.font, "Choose Promotion Piece", {280, 280}, 40, colour);
 
     window.draw(pawn_promotion_screen);
+    window.draw(text);
     int rank = ((game.view == white) ? 4 : 3);
     draw_piece(game, window, assets, rank, 2, rook, game.turn);
     draw_piece(game, window, assets, rank, 3, knight, game.turn);
     draw_piece(game, window, assets, rank, 4, bishop, game.turn);
     draw_piece(game, window, assets, rank, 5, queen, game.turn);
  
-    window.display();
 }
 
 void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, 
@@ -578,7 +597,7 @@ int select_square(int x, int y, Game& game) {
     int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
     
-    if (game.mode == Gamemode::CPUwhite) {
+    if (game.mode == Gamemode::CPUwhite || game.view == black) {
         row = 7 - row;
     }
     int square = 56 - 8 * row + col;

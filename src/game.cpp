@@ -19,7 +19,7 @@ void Game::initialise() {
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
     winner = piece_selected = none;
-    white_in_check = black_in_check = /*game_over*/promoting_pawn = false;
+    white_in_check = black_in_check = promoting_pawn = false;
     turn = white;
     game_status = 0b00000000;
     selected_square = none;
@@ -30,9 +30,9 @@ void Game::initialise() {
         int row = i / 8;
         int col = i % 8;
         if ((row + col) % 2 == 0) {
-            board[i].colour = yellow;
-        } else {
             board[i].colour = brown;
+        } else {
+            board[i].colour = yellow;
         }
     }
     for (int i { 48 }; i < 56; i++) {
