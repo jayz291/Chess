@@ -33,11 +33,10 @@ class Game {
         bool promoting_pawn {};
         int piece_selected {};
         std::vector<Move> move_record {};
-        std::vector<std::string> board_record {};
+        std::vector<uint64_t> board_record {};
         int plys_to_100 {};
         int value_white_pieces {};
         int value_black_pieces {};
-        bool pawns_on_board {};
         Move current_move {};
         int view { white };
         std::vector<Move> possible_moves {};

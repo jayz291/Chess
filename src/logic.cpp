@@ -519,7 +519,7 @@ void generate_computer_move(Game& game) {
     computer_thread.detach();
 }
 
-void update_computer_move(Game& game) {
+void make_computer_move(Game& game) {
     if (finished) {
         Move chosen_move = calculated_move;
         std::cout << "best move calculated: ";
@@ -637,7 +637,7 @@ __attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard
     int eval { 0 };
     while (bitboard) {
         int square = (piece == white) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
-        eval += start_value_tables[piece][square] + (78 - game.value_white_pieces - game.value_black_pieces) / 78.0 *
+        eval += start_value_tables[piece][square] + (7800 - game.value_white_pieces - game.value_black_pieces) / 7800.0 *
         (start_value_tables[piece][square] - endgame_value_tables[piece][square]);
         bitboard &= bitboard - 1;
     }
@@ -648,7 +648,7 @@ int sort_moves_by_priority(Game& game, Move& move) {
     int move_score_guess = 0;
     int square = (move.turn == white) ? move.new_square : move.new_square ^ 56;
     move_score_guess += 30 * (start_value_tables[move.piece][square] + 
-        (78 - game.value_white_pieces - game.value_black_pieces) / 78.0 *
+        (7800 - game.value_white_pieces - game.value_black_pieces) / 7800.0 *
         (start_value_tables[move.piece][square] - endgame_value_tables[move.piece][square]));
     if (move.piece_taken.piece_type != none) {
         move_score_guess += (10000 * piece_values[move.piece_taken.piece_type] - piece_values[move.piece]);
@@ -664,7 +664,8 @@ int sort_moves_by_priority(Game& game, Move& move) {
 
 void is_game_over(Game& game) {
     evaluate_king_checks(game);
-    record_board(game);
+    game.board_record.push_back(game.zobrist_hash);
+    //record_board(game);
     
     Game game_copy = game;
     Move_list moves = determine_possible_moves(game_copy);
@@ -673,21 +674,29 @@ void is_game_over(Game& game) {
     if (moves.num_moves > 0) {
         std::cout << moves.num_moves << '\n';
     }
-    if (moves.num_moves == 0 || determine_repetition(game) == -1 || 
-        determine_insufficient_material(game) == -1 || game.plys_to_100 == 100) {
+    if (moves.num_moves == 0 || determine_repetition(game) || 
+        determine_insufficient_material(game) || game.plys_to_100 == 100) {
         end_game(game);
     }
 }
 
-int determine_insufficient_material(Game& game) {
-    if (game.value_black_pieces <= 3 && game.value_white_pieces <= 3 && !game.pawns_on_board) {
-        game.insufficient_material = true;
-        return -1;
+bool determine_insufficient_material(Game& game) {
+    game.value_black_pieces = 0;
+    game.value_white_pieces = 0;
+    for (int piece { 0 }; piece < 5; piece++) {
+        game.value_white_pieces += __builtin_popcountll(game.bitboards.bitboards[white][piece]) * piece_values[piece];
+        game.value_black_pieces += __builtin_popcountll(game.bitboards.bitboards[black][piece]) * piece_values[piece];
     }
-    return 0;
+    bool pawns_on_board = ((game.bitboards.bitboards[white][pawn] | game.bitboards.bitboards[black][pawn]) == 0) ? 
+    false : true;
+    if (game.value_black_pieces <= 300 && game.value_white_pieces <= 300 && !pawns_on_board) {
+        game.insufficient_material = true;
+        return true;
+    }
+    return false;
 }
 
-int determine_repetition(Game& game) {
+bool determine_repetition(Game& game) {
     int occurrences { 1 };
     int latest_move { static_cast<int>(game.board_record.size() - 1)};
     for (int i { latest_move - 1 }; i >= 0; i--) {
@@ -696,10 +705,10 @@ int determine_repetition(Game& game) {
         }
         if (occurrences == 3) {
             game.repetition = true;
-            return -1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
 void handle_pawn_promotion(Game& game, Move& move) {
@@ -726,6 +735,7 @@ void handle_pawn_promotion(Game& game, Move& move) {
     bitboards.update_occupied();
     update_castling_flags(game, move);
     game.zobrist_hash ^= zobrist_black_turn;
+    game.turn = ((game.turn == white) ? black : white);
     game.move_record.push_back(move);
     game.piece_selected = none;
     game.promoting_pawn = false;
@@ -781,10 +791,10 @@ void move_piece(Game& game, Move& move, bool undo) {
     game.board[move.new_square].piece_occupying = game.board[move.prev_square].piece_occupying;
     game.board[move.prev_square].piece_occupying = { none, none };
 
-    int addition = (move.turn == white) ? 0 : 6;
-    int antiaddition = (move.turn == white) ? 6 : 0;
-    game.zobrist_hash ^= zobrist_table[move.piece + addition][move.prev_square];
-    game.zobrist_hash ^= zobrist_table[move.piece + addition][move.new_square];
+    int current = (move.turn == white) ? 0 : 6;
+    int opposing = (move.turn == white) ? 6 : 0;
+    game.zobrist_hash ^= zobrist_table[move.piece + current][move.prev_square];
+    game.zobrist_hash ^= zobrist_table[move.piece + current][move.new_square];
 
     uint64_t from_bit = 1ULL << move.prev_square; 
     uint64_t to_bit = 1ULL << move.new_square;
@@ -796,7 +806,7 @@ void move_piece(Game& game, Move& move, bool undo) {
     if (captured != -1) {
         game.bitboards.bitboards[opposing_turn][captured] &= ~to_bit;
         game.bitboards.occupied_tables[opposing_turn] &= ~to_bit;
-        game.zobrist_hash ^= zobrist_table[captured + antiaddition][move.new_square];
+        game.zobrist_hash ^= zobrist_table[captured + opposing][move.new_square];
     }
     
     game.bitboards.occupied = game.bitboards.occupied_tables[black] | game.bitboards.occupied_tables[white];
@@ -811,8 +821,6 @@ void move_piece(Game& game, Move& move, bool undo) {
         return;
     }*/
 }
-
-
 
 int validate_move(Game& game, Move& move, bool only_checking_checks) {
     int result { 0 };
@@ -1309,94 +1317,6 @@ __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves)
     }
     moves.num_moves = local_counter;
 }
-
-void record_board(Game& game) {
-    std::string board_positions {};
-    bool black_en_passant { false }, white_en_passant { false };
-    bool black_castling { false }, white_castling { false };
-    game.value_black_pieces = game.value_white_pieces = 0;
-    game.pawns_on_board = false;
-    for (int i { 0 }; i < 64; i++) {
-        
-            if (game.board[i].piece_occupying.piece_type != none) {
-                board_positions += '[';
-                board_positions += std::to_string(i);
-                board_positions += std::to_string(game.board[i].piece_occupying.piece_type);
-                board_positions += std::to_string(game.board[i].piece_occupying.colour);
-                board_positions += ']';
-                record_piece_points(game, game.board[i].piece_occupying.piece_type, 
-                    game.board[i].piece_occupying.colour);
-            }   
-            if (game.board[i].piece_occupying.piece_type == pawn) {
-                if (56 - i / 8 == 3 && !white_en_passant) {
-                    Move move1 { i, i + 7, white, pawn };
-                    Move move2 { i, i + 9, white, pawn };
-                    if (validate_move(game, move1) == 3 || validate_move(game, move2) == 3) {
-                        white_en_passant = true;
-                    }
-                }
-                if (i == 4 && !black_en_passant) {
-                    Move move1 { i, i - 7, black, pawn };
-                    Move move2 { i, i - 9, black, pawn };
-                    if (validate_move(game, move1) == 3 || validate_move(game, move2) == 3) {
-                        black_en_passant = true;
-                    }                   
-                }
-            }
-            if (game.board[i].piece_occupying.piece_type == king) {
-                if (i == 4 && !white_castling) {
-                    Move move1 { i, 6, white, king };
-                    Move move2 { i, 2, white, king };
-                    if (validate_move(game, move1) == 1 || validate_move(game, move2) == 2) {
-                        white_castling = true;
-                    }
-                }
-                if (i == 60 && !black_castling) {
-                    Move move1 { i, 62, black, king };
-                    Move move2 { i, 58, black, king };
-                    if (validate_move(game, move1) == 1 || validate_move(game, move2) == 2) {
-                        black_castling = true;
-                    }                
-                }
-            }
-  
-    }
-    if (white_castling) {
-        board_positions += "[wc=t]";
-    }
-    if (black_castling) {
-        board_positions += "[bc=t]";
-    }
-    if (white_en_passant) {
-        board_positions += "[wep=t]";
-    }
-    if (black_en_passant) {
-        board_positions += "[bep=t]";
-    }
-    //std::cout << board_positions << '\n';
-    game.board_record.push_back(board_positions);
-}
-
-void record_piece_points(Game& game, int piece_type, int piece_colour) {
-    int points { 0 };
-    if (piece_type == knight || piece_type == bishop) {
-        points = 3;
-    } else if (piece_type == pawn) {
-        points = 1;
-        game.pawns_on_board = true;
-    } else if (piece_type == rook) {
-        points = 5;
-    } else if (piece_type == queen) {
-        points = 9;
-    }
-    if (piece_colour == white) {
-        game.value_white_pieces += points;
-    } else {
-        game.value_black_pieces += points;
-    }
-}
-
-
 
 
 

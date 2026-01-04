@@ -74,7 +74,7 @@ void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos);
 void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos);
 
 int select_square(int x, int y, Game& game);
-bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos);
+bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);
 
 
 

@@ -16,7 +16,6 @@ void Game::initialise() {
     current_move = {};
     move_record.clear();
     board_record.clear();
-    pawns_on_board = true;
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
     winner = piece_selected = none;
@@ -178,7 +177,6 @@ int fill_board(Game& proposed_game, std::string& fen_board_section) {
         } 
         //std::cout << curr_square << '\n';
         if (curr_square >= 65) {
-            std::cout << "here\n";
             return -1;
         }
 

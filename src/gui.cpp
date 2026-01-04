@@ -314,14 +314,12 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
 }
 
 void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
-    bool selection_made = select_pawn_promotion(game, mouse_pos);
+    bool selection_made = select_promotion_piece(game, mouse_pos);
     if (selection_made) {
         game.state = Gamestate::Playing;
-        game.turn = ((game.turn == white) ? black : white);
         is_game_over(game);
         std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }
-    
     //print_all_bitboards(game.bitboards);
 }
 
@@ -617,7 +615,7 @@ int select_square(int x, int y, Game& game) {
     return -3;
 }
 
-bool select_pawn_promotion(Game& game, sf::Vector2i mouse_pos) {
+bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos) {
     int x, y;
 
     x = mouse_pos.x;

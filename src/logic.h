@@ -44,15 +44,13 @@ inline void add_bishop_moves(Game& game, Move_list& moves);
 inline void add_rook_moves(Game& game, Move_list& moves);
 inline void add_queen_moves(Game& game, Move_list& moves);
 inline void add_king_moves(Game& game, Move_list& moves);
-int determine_repetition(Game& game);
-int determine_insufficient_material(Game& game);
+bool determine_repetition(Game& game);
+bool determine_insufficient_material(Game& game);
 void end_game(Game& game);
-void record_board(Game& game);
 void is_game_over(Game& game);
-void record_piece_points(Game& game, int piece_type, int piece_colour);
 
 void generate_computer_move(Game& game);
-void update_computer_move(Game& game);
+void make_computer_move(Game& game);
 Move get_best_move(Game& game, int depth);
 int negamax(Game& game, int depth, int alpha, int beta);
 int evaluate(Game& game, Bitboards& bitboards);

@@ -16,7 +16,6 @@ uint64_t get_rook_mask(int square);
 uint64_t get_bishop_mask(int square);
 uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask);
 
-
 constexpr int SQUARE_SIZE = 95;
 
 enum {
@@ -125,7 +124,7 @@ const int start_value_tables[6][64] = {
     -10,  0,  5,  0,  0,  0,  0,-10,
     -20,-10,-10, -5, -5,-10,-10,-20 },
     // king
-    { 20, 40, 60,  0,  0, 10, 60, 20,
+    { 20, 60, 40,  0,  0, 10, 60, 20,
     20, 20,  0,  0,  0,  0, 20, 20,
     -30,-40,-40,-50,-50,-40,-40,-30,
     -30,-40,-40,-50,-50,-40,-40,-30,
