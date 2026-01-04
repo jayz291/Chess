@@ -46,6 +46,7 @@ void init_zobrist_table() {
 }
 
 void find_position_hash(Game& game) {
+    game.zobrist_hash = 0ULL;
     uint64_t occupied_board = game.bitboards.occupied;
     while (occupied_board) {
         int square = __builtin_ctzll(occupied_board);
@@ -195,61 +196,94 @@ void replace_piece(Game& game, int turn, int prev_piece, int new_piece, int targ
     game.zobrist_hash ^= zobrist_table[new_piece + zobrist_offset][target_square];
 }
 
-void undo_move(Game& game, Move& prev_move, int turn) {
-    Bitboards& bitboards = game.bitboards;
-    Chessboard& board = game.board;
+void remove_piece(Game& game, int turn, int target_piece, int target_square) {
+    int zobrist_offset = (turn == white) ? 0 : 6;
+
+    // update bitboards
+    game.bitboards.bitboards[turn][target_piece] &= ~(1ULL << target_square);
+    game.bitboards.occupied_tables[turn] &= ~(1ULL << target_square);
+    game.bitboards.occupied &= ~(1ULL << target_square);
+
+    // update 1D array
+    game.board[target_square].piece_occupying = { none, none };
+
+    // update zobrist hash
+    game.zobrist_hash ^= zobrist_table[target_piece + zobrist_offset][target_square];
+}
+
+void place_piece(Game& game, int turn, int target_piece, int target_square) {
+    int zobrist_offset = (turn == white) ? 0 : 6;
+
+    // update bitboards
+    game.bitboards.bitboards[turn][target_piece] |= (1ULL << target_square);
+    game.bitboards.occupied_tables[turn] |= (1ULL << target_square);
+    game.bitboards.occupied |= (1ULL << target_square);
+
+    // update 1D array
+    game.board[target_square].piece_occupying = { target_piece, turn };
+
+    // update zobrist hash
+    game.zobrist_hash ^= zobrist_table[target_piece + zobrist_offset][target_square];
+}
+
+void restore_zobrist_en_passant_and_castling(Game& game, Move& prev_move) {
+    game.zobrist_hash ^= zobrist_castling[game.castling_rights];
+    game.castling_rights = prev_move.castling_rights;
+    game.zobrist_hash ^= zobrist_castling[game.castling_rights];
+
+    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
+    game.en_passant_index = prev_move.en_passant_index;    
+    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
+}
+
+void update_zobrist_en_passant(Game& game, Move& move) {
+    move.en_passant_index = game.en_passant_index;
+    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
+    assert(game.en_passant_index >= 0 && game.en_passant_index <= 8);
+
+    if (std::abs(move.prev_square - move.new_square) == 16 && move.piece == pawn) {
+        game.en_passant_index = ((move.prev_square + move.new_square) / 2) % 8;
+    } else {
+        game.en_passant_index = 8;
+    }
+    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
+}
+
+void undo_move(Game& game, Move& prev_move) {
+
     int opposing_turn = ((prev_move.turn == white) ? black : white);
-    int current = (prev_move.turn == white) ? 0 : 6;
-    int opposing = (prev_move.turn == white) ? 6 : 0;
-    switch_move(prev_move);
+    flip_move(prev_move);
     
     //int promoted_piece = queen;
     int original_piece = prev_move.piece; 
     if (prev_move.special_move == promotion) {
-
         replace_piece(game, prev_move.turn, prev_move.promoted_piece, pawn, prev_move.prev_square);
         prev_move.piece = pawn;
     }
 
-    move_piece(game, prev_move, true);
+    move_piece(game, prev_move);
     prev_move.piece = original_piece;
 
     if (prev_move.special_move != en_passant && prev_move.piece_taken.piece_type != none) {
-        board[prev_move.prev_square].piece_occupying = prev_move.piece_taken;
-        int from_square = prev_move.prev_square;
-        uint64_t mask = (1ULL << from_square);
-        bitboards.bitboards[opposing_turn][prev_move.piece_taken.piece_type] |= mask;
-        bitboards.occupied_tables[opposing_turn] |= mask;
-        bitboards.occupied |= mask;
-
-        game.zobrist_hash ^= zobrist_table[prev_move.piece_taken.piece_type + opposing][from_square];
-        //bitboards.update_occupied();
-    }
- 
-    if (prev_move.special_move == en_passant) {
+        place_piece(game, opposing_turn, prev_move.piece_taken.piece_type, prev_move.prev_square);
+    } else if (prev_move.special_move == en_passant) {
         int captured_square = ((prev_move.turn == white) ? prev_move.prev_square - 8 : prev_move.prev_square + 8);
-        board[captured_square].piece_occupying = prev_move.piece_taken;
         assert(prev_move.piece_taken.piece_type == pawn);
-        uint64_t mask = 1ULL;
-
-        bitboards.bitboards[opposing_turn][pawn] |= (mask << captured_square);
-        bitboards.occupied_tables[opposing_turn] |= (mask << captured_square);
-        bitboards.occupied |= (mask << captured_square);
-        game.zobrist_hash ^= zobrist_table[pawn + opposing][captured_square];
-        //bitboards.update_occupied();
+        place_piece(game, opposing_turn, pawn, captured_square);
     }
+
     int castling_row = ((prev_move.turn == black) ? 0 : 7);
     if (prev_move.special_move == castling) {
         if (prev_move.prev_square - prev_move.new_square == 2) {
             Move move { 56 - 8 * castling_row + 5, 56 - 8 * castling_row + 7, prev_move.turn, rook };
-            move_piece(game, move, true);
+            move_piece(game, move);
         } else {
             Move move { 56 - 8 * castling_row + 3, 56 - 8 * castling_row, prev_move.turn, rook };
-            move_piece(game, move, true);
+            move_piece(game, move);
         }
     }
     
-    switch_move(prev_move);
+    flip_move(prev_move);
 }
 
 
@@ -260,25 +294,15 @@ void undo_game_move(Game& game) {
     //std::cout << "size: " << game.move_record.size() << '\n';
     Move prev_move = game.move_record[game.move_record.size() - 1];
     std::cout << game.move_record.size() - 1 << '\n';
-    int turn = (((game.move_record.size() - 1) % 2 == 0) ? black : white); 
-    game.zobrist_hash ^= zobrist_castling[game.castling_rights];
-    game.castling_rights = prev_move.castling_rights;
-    // std::cout << std::bitset<8>(prev_move.castling_rights) << '\n';
-    game.zobrist_hash ^= zobrist_castling[game.castling_rights];
 
-    undo_move(game, prev_move, turn);
+    restore_zobrist_en_passant_and_castling(game, prev_move);
+
+    undo_move(game, prev_move);
     if (prev_move.piece_taken.piece_type == none && prev_move.piece != pawn) {
         if (game.plys_to_100 > 0) {
             game.plys_to_100--;
         }
     }
-  
-    //std::cout << "Prev index: " << game.en_passant_index << '\n';
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
-    game.en_passant_index = prev_move.en_passant_index;    
-    assert(game.en_passant_index >= 0 && game.en_passant_index <= 8);
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
-    //std::cout << "New index: " << game.en_passant_index << '\n';  
     
     // std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
     if (game.board_record.size() > 0) {
@@ -292,14 +316,8 @@ void undo_game_move(Game& game) {
 
 void undo_test_move(Game& game, Move& prev_move) {
 
-    undo_move(game, prev_move, prev_move.turn);
-    game.zobrist_hash ^= zobrist_castling[game.castling_rights];
-    game.castling_rights = prev_move.castling_rights;
-    game.zobrist_hash ^= zobrist_castling[game.castling_rights];
-
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
-    game.en_passant_index = prev_move.en_passant_index;
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
+    undo_move(game, prev_move);
+    restore_zobrist_en_passant_and_castling(game, prev_move);
 
     if (!game.move_record.empty()) {
         game.move_record.pop_back();
@@ -311,28 +329,14 @@ void undo_test_move(Game& game, Move& prev_move) {
 
 void make_game_move(Game& game, int result, Move move) {
     Chessboard& board = game.board;
-    Bitboards& bitboards = game.bitboards;
     
-    int opposing = (game.turn == white) ? 6 : 0;
-    //std::cout << "moving\n";
     if (move.piece == pawn || board[move.new_square].piece_occupying.piece_type != none) {
         game.plys_to_100 = 0;
     } else {
         game.plys_to_100++;
     }
 
-    move.en_passant_index = game.en_passant_index;
-    //int old_en_passant_index = (game.en_passant_square != -1) ? (game.en_passant_square % 8) : 8;
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
-    assert(game.en_passant_index >= 0 && game.en_passant_index <= 8);
-
-    if (std::abs(move.prev_square - move.new_square) == 16 && move.piece == pawn) {
-        game.en_passant_index = ((move.prev_square + move.new_square) / 2) % 8;
-    } else {
-        game.en_passant_index = 8;
-    }
-    int new_en_passant_index = game.en_passant_index;
-    game.zobrist_hash ^= zobrist_en_passant[new_en_passant_index];
+    update_zobrist_en_passant(game, move);
 
     if ((game.turn == black && board[move.prev_square].piece_occupying.piece_type == pawn 
         && 7 - move.prev_square / 8 == 6) || 
@@ -361,22 +365,14 @@ void make_game_move(Game& game, int result, Move move) {
             Move move { 56, 59, black, rook };
             move_piece(game, move);
         }
-        game.board_record.clear();
         move.special_move = castling;
     } else if (result == 3) {
         
         int captured_square = ((game.turn == white) ? move.new_square - 8 : move.new_square + 8);
         int opposing_turn = ((game.turn == white)) ? black : white;
-   
-        u_int64_t mask = (1ULL << captured_square);
         move.special_move = en_passant;
         move.piece_taken = board[captured_square].piece_occupying;
-        board[captured_square].piece_occupying = { none, none};
-        bitboards.bitboards[opposing_turn][pawn] &= (~mask);
-        game.zobrist_hash ^= zobrist_table[pawn + opposing][captured_square];
-        //Square: " << captured_square << '\n';
-        bitboards.update_occupied();
-        game.board_record.clear();
+        remove_piece(game, opposing_turn, move.piece_taken.piece_type, captured_square);
     } 
 
     game.turn = ((game.turn == white) ? black : white);
@@ -415,13 +411,10 @@ void update_castling_flags(Game& game, Move& move) {
 }
 
 void make_test_move(Game& game, Move& move) {
-    Chessboard& board = game.board;
-    Bitboards& bitboards = game.bitboards;
-    
     int current = (game.turn == white) ? 0 : 6;
     int opposing = (game.turn == white) ? 6 : 0;
 
-    assert(board[move.prev_square].piece_occupying.piece_type != none);
+    assert(game.board[move.prev_square].piece_occupying.piece_type != none);
     //std::cout << "processing move\n";
 
     /*if (move.piece == pawn || board[move.new_square].piece_occupying.piece_type != none) {
@@ -429,15 +422,7 @@ void make_test_move(Game& game, Move& move) {
     } else {
         game.plys_to_100++;
     }*/
-    move.en_passant_index = game.en_passant_index;
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
-
-    if (std::abs(move.prev_square - move.new_square) == 16 && move.piece == pawn) {
-        game.en_passant_index = ((move.prev_square + move.new_square) / 2) % 8;
-    } else {
-        game.en_passant_index = 8;
-    }
-    game.zobrist_hash ^= zobrist_en_passant[game.en_passant_index];
+    update_zobrist_en_passant(game, move);
 
     if (move.special_move == promotion) {
         //std::cout << "promoting pawn\n";
@@ -470,17 +455,9 @@ void make_test_move(Game& game, Move& move) {
     }
 
     if (move.special_move == en_passant) {
-
         int captured_square = ((game.turn == white) ? move.new_square - 8 : move.new_square + 8);
         int opposing_turn = ((game.turn == white)) ? black : white;
-        u_int64_t mask = (1ULL << captured_square);
-        move.piece_taken = board[captured_square].piece_occupying;
-        board[captured_square].piece_occupying = { none, none};
-        bitboards.bitboards[opposing_turn][pawn] &= (~mask);
-        bitboards.occupied_tables[opposing_turn] &= (~mask);
-        bitboards.occupied &= (~mask);
-        
-        game.zobrist_hash ^= zobrist_table[pawn + opposing][captured_square];
+        remove_piece(game, opposing_turn, pawn, captured_square);
     } 
     update_castling_flags(game, move);
     game.move_record.push_back(move);
@@ -709,8 +686,6 @@ void handle_pawn_promotion(Game& game, Move& move) {
     int current_offset = (move.turn == white) ? 0 : 6;
     assert(move.turn == game.turn);
 
-    Chessboard& board = game.board;
-    Bitboards& bitboards = game.bitboards;
     move_piece(game, move);
     //u_int64_t square = (1ULL << move.new_square);
     move.special_move = promotion;
@@ -718,7 +693,7 @@ void handle_pawn_promotion(Game& game, Move& move) {
     
     replace_piece(game, move.turn, pawn, move.promoted_piece, move.new_square);
 
-    bitboards.update_occupied();
+    game.bitboards.update_occupied();
     update_castling_flags(game, move);
     game.zobrist_hash ^= zobrist_black_turn;
     game.turn = ((game.turn == white) ? black : white);
@@ -762,13 +737,13 @@ void end_game(Game& game) {
     }
 }
 
-void switch_move(Move& move) {
+void flip_move(Move& move) {
     int temp = move.prev_square;
     move.prev_square = move.new_square;
     move.new_square = temp;
 }
 
-void move_piece(Game& game, Move& move, bool undo) {
+void move_piece(Game& game, Move& move) {
 
     //int piece = move.piece;
     int captured { -1 };

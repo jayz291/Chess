@@ -64,6 +64,7 @@ int handle_fen_string(Game& game) {
     std::cout << fen_string << '\n';
     std::vector<std::string> split_fen;
     if (fen_string.size() == 0) {
+        find_position_hash(game);
         return 0;
     }
     std::stringstream ss(fen_string);
@@ -124,7 +125,6 @@ int handle_fen_string(Game& game) {
     if (check_position_validity(proposed_game) == -1) {
         return -1;
     }
-    proposed_game.zobrist_hash = 0ULL;
     find_position_hash(proposed_game);
     game = proposed_game;
     game.default_position = false;

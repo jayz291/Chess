@@ -29,14 +29,18 @@ int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 void update_castling_flags(Game& game, Move& move);
 
 void replace_piece(Game& game, int turn, int prev_piece, int new_piece, int target_square);
+void remove_piece(Game& game, int turn, int target_piece, int target_square);
+void place_piece(Game& game, int turn, int target_piece, int target_square);
+void restore_zobrist_en_passant_and_castling(Game& game, Move& prev_move);
+void update_zobrist_en_passant(Game& game, Move& move);
 void make_game_move(Game& game, int result, Move move);
 void make_test_move(Game& game, Move& move);
-void move_piece(Game& game, Move& move, bool undo = false);
+void move_piece(Game& game, Move& move);
 void undo_game_move(Game& game);
 void undo_test_move(Game& game, Move& prev_move);
-void undo_move(Game& game, Move& prev_move, int turn);
+void undo_move(Game& game, Move& prev_move);
 void handle_pawn_promotion(Game& game, Move& move);
-void switch_move(Move& move);
+void flip_move(Move& move);
 
 Move_list determine_possible_moves(Game& game);
 inline void add_pawn_moves(Game& game, Move_list& moves);
