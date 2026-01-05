@@ -13,6 +13,9 @@ extern uint64_t zobrist_black_turn;
 
 void init_zobrist_table();
 void find_position_hash(Game& game);
+void clear_transposition_table();
+void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move);
+int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move);
 
 int validate_move(Game& game, Move& move);
 int validate_pawn_move(Game& game, Move& move);
@@ -58,7 +61,8 @@ void generate_computer_move(Game& game);
 void make_computer_move(Game& game);
 Move get_best_move(Game& game, int search_allocated_time_ms);
 int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms);
-int evaluate(Game& game, Bitboards& bitboards);
+inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms);
+int evaluate(Game& game);
 int sort_moves_by_priority(Game& game, Move& move);
 inline int positional_eval(Game& game, uint64_t bitboard, int piece, int colour);
 

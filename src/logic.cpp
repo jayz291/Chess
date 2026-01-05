@@ -66,6 +66,45 @@ void find_position_hash(Game& game) {
     }
 }
 
+void clear_transposition_table() {
+    for (int i { 0 }; i < TABLE_SIZE; i++) {
+        transposition_table[i].eval = 0;
+        transposition_table[i].zobrist_key = 0;
+    }
+}
+
+void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move) {
+    int index = key & (TABLE_SIZE - 1);
+
+    if (transposition_table[index].zobrist_key != 0 && transposition_table[index].depth > depth) {
+        return;
+    }
+    transposition_table[index].best_move = best_move;
+    transposition_table[index].eval = eval;
+    transposition_table[index].zobrist_key = key;
+    transposition_table[index].flag = flag;
+    transposition_table[index].depth = depth;
+}
+
+int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move) {
+    int index = key & (TABLE_SIZE - 1);
+    table_entry entry = transposition_table[index];
+    if (key == entry.zobrist_key) {
+        best_move = entry.best_move;
+        if (entry.depth >= depth) {
+            if (entry.flag == tt_flag::tt_exact) {
+                return entry.eval;
+            } else if (entry.flag == tt_flag::tt_alpha && entry.eval <= alpha) {
+                return alpha;
+            } else if (entry.flag == tt_flag::tt_beta && entry.eval >= beta) {
+                return beta;
+            }
+        }
+
+    }
+    return -999999;
+}
+
 uint64_t find_rook_attacks(int square, uint64_t& occupied) {
     int directions[4] = {-1, 1, 8, -8};
     int curr = square;
@@ -527,10 +566,10 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
     }
 
     //std::cout << "generating\n";
-    for (int depth { 0 }; depth < 40; depth++) {
+    for (int depth { 1 }; depth < 40; depth++) {
         depth_best_score = -500000;
-        int alpha = -500000;
-        int beta = 500000;
+        int alpha = -500000, beta = 500000;
+        int move_eval = 0;
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
             return move1.eval > move2.eval;
@@ -540,18 +579,20 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
             //std::cout << "testing possible moves\n";
             auto& move = possible_moves.list[i];
+
             make_test_move(game, move);
-    
-            int move_eval = -negamax(game, depth, -beta, -alpha, search_allocated_time_ms);
+            move_eval = find_eval(game, i, depth, beta, alpha, search_allocated_time_ms);
+            undo_test_move(game, move);
 
             if (terminate_search) {
                 break; 
             }
-            move_eval += (std::rand() % 5) - 2;
+            //move_eval += (std::rand() % 5) - 2;
             move.eval = move_eval;
 
             std::cout << "depth:" <<  depth << " e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
         
+            //alpha = std::max(move_eval, alpha);
             if (move_eval > depth_best_score) {
                 depth_best_score = move_eval;
                 current_best_move = move;
@@ -560,33 +601,35 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
             if (current_best_move.new_square == current_best_move.prev_square) {
                 current_best_move = move;
             }
-            undo_test_move(game, move);
-            
         }
         
         if (!terminate_search) {
             overall_best_move = current_best_move;
+            overall_best_score = depth_best_score;
         } else {
             break;
         }
     }
     assert(overall_best_move.new_square != overall_best_move.prev_square);
-    overall_best_score = depth_best_score;
     std::cout << "Best score: " << overall_best_score << '\n';
     return overall_best_move;
 }
 
 int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms) { 
 
+    Move stored_move {};
+    int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move);
+    if (stored_eval != -999999) {
+        return stored_eval;
+    }
     if (terminate_search) {
         return 0;
     }
 
     if (depth == 0) {
-        //std::cout << "reached depth 0\n";
         positions_searched++;
         int perspective = (game.turn == white) ? 1 : -1;
-        return perspective * evaluate(game, game.bitboards);
+        return perspective * evaluate(game);
     }
     nodes_searched++;
     if ((nodes_searched & 2047) == 0) {
@@ -602,46 +645,83 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     if (possible_moves.num_moves == 0) {
         int king_square = __builtin_ctzll(game.bitboards.bitboards[game.turn][king]);
         if (is_square_attacked(game.bitboards, king_square, game.turn)) {
-            return -400000 - depth * 50;
+            return -400000 - depth * 50;   // favour quick checkmates
         } else {
             return 0;
         }
     }
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
+        if (move1 == stored_move) {
+            return true;
+        }
+        if (move2 == stored_move) {
+            return false;
+        }
         return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
     });
-    //std::cout << "size: " << possible_moves.size() << '\n';
  
     int max_eval = -600000;
+    int move_eval;
+    int original_alpha = alpha;
+    Move best_move_this_node {};
 
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
         
         make_test_move(game, possible_move);
-        int eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms);
+        move_eval = find_eval(game, i, depth, beta, alpha, search_allocated_time_ms);
         undo_test_move(game, possible_move);
 
-        alpha = std::max(eval, alpha);
-        max_eval = std::max(eval, max_eval);
-        if (beta <= alpha) {
+        if (move_eval > max_eval) {
+            max_eval = move_eval;
+            best_move_this_node = possible_move;
+        }
+
+        alpha = std::max(move_eval, alpha);
+        if (alpha >= beta) {
             break;
         } 
+    }
+    tt_flag flag;
+    if (max_eval <= original_alpha) {
+        flag = tt_flag::tt_alpha;
+    } else if (max_eval >= beta) {
+        flag = tt_flag::tt_beta;
+    } else {
+        flag = tt_flag::tt_exact;
+    }
+    if (max_eval <= 20000) {
+        record_entry(game.zobrist_hash, max_eval, depth, flag, best_move_this_node);
     }
     return max_eval;
 }
 
-int evaluate(Game& game, Bitboards& bitboards) {
+// principal variation search
+inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms) {
+    int move_eval;
+    if (move_num == 0) {
+        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms);
+    } else {
+        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms);
+        if (move_eval > alpha && move_eval < beta) {
+            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms);
+        }
+    }
+    return move_eval;
+}
+
+int evaluate(Game& game) {
     int eval { 0 };
     
     for (int piece { 0 }; piece < 5; piece++) {
-        eval += __builtin_popcountll(bitboards.bitboards[white][piece]) * piece_values[piece];
-        eval -= __builtin_popcountll(bitboards.bitboards[black][piece]) * piece_values[piece];
+        eval += __builtin_popcountll(game.bitboards.bitboards[white][piece]) * piece_values[piece];
+        eval -= __builtin_popcountll(game.bitboards.bitboards[black][piece]) * piece_values[piece];
     }
 
     for (int piece { 0 }; piece <= 5; piece++) {
-        eval += positional_eval(game, bitboards.bitboards[white][piece], piece, white);
-        eval -= positional_eval(game, bitboards.bitboards[black][piece], piece, black);
+        eval += positional_eval(game, game.bitboards.bitboards[white][piece], piece, white);
+        eval -= positional_eval(game, game.bitboards.bitboards[black][piece], piece, black);
     }
     return eval;
 }

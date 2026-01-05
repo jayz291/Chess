@@ -45,6 +45,12 @@ enum {
     promotion = 3
 };
 
+enum tt_flag {
+    tt_exact,
+    tt_alpha, 
+    tt_beta,
+};
+
 struct Piece {
     int piece_type {};
     int colour {};
@@ -75,6 +81,17 @@ struct Move_list {
     std::array<Move, 300> list;
     int num_moves {};
 };
+
+struct table_entry {
+    uint64_t zobrist_key;
+    int eval;
+    int depth;
+    tt_flag flag;
+    Move best_move;
+};
+
+constexpr int TABLE_SIZE = 1048576;
+inline table_entry transposition_table[TABLE_SIZE];
 
 const int piece_values[6] = { 100, 300, 300, 500, 900, 20000 };
 
@@ -447,6 +464,7 @@ enum class Gamemode {
 };
 
 std::ostream& operator<<(std::ostream& os, const Move& move);
+bool operator==(Move& move1, Move& move2);
 
 uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards);
 uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards);

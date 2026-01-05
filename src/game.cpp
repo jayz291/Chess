@@ -278,6 +278,16 @@ std::ostream& operator<<(std::ostream& os, const Move& move) {
     return os;
 }
 
+bool operator==(Move& move1, Move& move2) {
+    if (move1.prev_square == move2.prev_square &&
+        move1.new_square == move2.new_square &&
+        move1.piece == move2.piece &&
+        move1.turn == move2.turn) {
+        return true;
+    }
+    return false;
+}
+
 void print_bitboard(uint64_t bitboard) {
     std::cout << "\n";
 
