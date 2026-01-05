@@ -560,6 +560,7 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& as
 void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, 
     int x, int y, int piece, int colour, bool dragging) {
     //std::string piece_type = piece->piece_type;
+    assert(piece >= 0 && piece <= 5);
     sf::Texture texture = assets.array[colour][piece];
 
     sf::Sprite sprite(texture);

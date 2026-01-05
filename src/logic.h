@@ -1,5 +1,6 @@
 #pragma once
 #include "game.h"
+#include "engine.h"
 #include <cmath>
 #include <algorithm>
 #include <thread>
@@ -13,9 +14,6 @@ extern uint64_t zobrist_black_turn;
 
 void init_zobrist_table();
 void find_position_hash(Game& game);
-void clear_transposition_table();
-void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move);
-int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move);
 
 int validate_move(Game& game, Move& move);
 int validate_pawn_move(Game& game, Move& move);
@@ -37,32 +35,14 @@ void place_piece(Game& game, int turn, int target_piece, int target_square);
 void restore_zobrist_en_passant_and_castling(Game& game, Move& prev_move);
 void update_zobrist_en_passant(Game& game, Move& move);
 void make_game_move(Game& game, int result, Move move);
-void make_test_move(Game& game, Move& move);
 void move_piece(Game& game, Move& move);
 void undo_game_move(Game& game);
-void undo_test_move(Game& game, Move& prev_move);
 void undo_move(Game& game, Move& prev_move);
 void handle_pawn_promotion(Game& game, Move& move);
 void flip_move(Move& move);
 
-Move_list determine_possible_moves(Game& game);
-inline void add_pawn_moves(Game& game, Move_list& moves);
-inline void add_knight_moves(Game& game, Move_list& moves);
-inline void add_bishop_moves(Game& game, Move_list& moves);
-inline void add_rook_moves(Game& game, Move_list& moves);
-inline void add_queen_moves(Game& game, Move_list& moves);
-inline void add_king_moves(Game& game, Move_list& moves);
 bool determine_repetition(Game& game);
 bool determine_insufficient_material(Game& game);
 void end_game(Game& game);
 void is_game_over(Game& game);
-
-void generate_computer_move(Game& game);
-void make_computer_move(Game& game);
-Move get_best_move(Game& game, int search_allocated_time_ms);
-int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms);
-inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms);
-int evaluate(Game& game);
-int sort_moves_by_priority(Game& game, Move& move);
-inline int positional_eval(Game& game, uint64_t bitboard, int piece, int colour);
 

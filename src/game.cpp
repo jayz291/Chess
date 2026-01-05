@@ -1,5 +1,6 @@
 #include "game.h"
 #include "logic.h"
+#include "engine.h"
 
 Move calculated_move;
 std::atomic<bool> computer_turn { false };
@@ -16,6 +17,7 @@ void Game::initialise() {
     current_move = {};
     move_record.clear();
     board_record.clear();
+    clear_transposition_table();
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
     winner = piece_selected = none;

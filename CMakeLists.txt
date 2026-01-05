@@ -18,6 +18,8 @@ add_executable(chess
     src/logic.h
     src/gui.h
     src/definitions.h
+    src/engine.cpp
+    src/engine.h
 )
 
 target_include_directories(chess PRIVATE src)
