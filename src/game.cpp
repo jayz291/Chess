@@ -27,6 +27,9 @@ void Game::initialise() {
     selected_square = none;
     bitboards = {};
     castling_rights = 0b00001111;
+    for (int i { 0 }; i < 64; i++) {
+        board[i] = { none, none };
+    }
     for (int i { 48 }; i < 56; i++) {
         board[i] = { pawn, black };
     }
