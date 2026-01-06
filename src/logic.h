@@ -7,7 +7,7 @@
 #include <chrono>
 #include <random>
 
-extern uint64_t zobrist_table[12][64];
+extern uint64_t zobrist_table[16][64];
 extern uint64_t zobrist_castling[16];
 extern uint64_t zobrist_en_passant[9];
 extern uint64_t zobrist_black_turn;
@@ -29,9 +29,9 @@ int validate_en_passant(Game& game, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 void update_castling_flags(Game& game, Move& move);
 
-void replace_piece(Game& game, int turn, int prev_piece, int new_piece, int target_square);
-void remove_piece(Game& game, int turn, int target_piece, int target_square);
-void place_piece(Game& game, int turn, int target_piece, int target_square);
+void replace_piece(Game& game, int turn, uint8_t prev_piece, uint8_t new_piece, int target_square);
+void remove_piece(Game& game, int turn, uint8_t target_piece, int target_square);
+void place_piece(Game& game, int turn, uint8_t target_piece, int target_square);
 void restore_zobrist_en_passant_and_castling(Game& game, Move& prev_move);
 void update_zobrist_en_passant(Game& game, Move& move);
 void make_game_move(Game& game, int result, Move move);
@@ -46,3 +46,5 @@ bool determine_insufficient_material(Game& game);
 void end_game(Game& game);
 void is_game_over(Game& game);
 
+uint8_t convert_promotion_piece(Move& move, const uint8_t& promotion_piece);
+int get_piece_colour(uint8_t piece);

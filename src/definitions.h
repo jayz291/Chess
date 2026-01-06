@@ -27,7 +27,7 @@ enum {
     yellow = 0,
     brown = 1,
 };
-
+/*
 enum {
     none = -1,
     pawn = 0,
@@ -37,13 +37,13 @@ enum {
     queen = 4,
     king = 5
 };
-
+/
 enum {
     quiet = 0,
     en_passant = 1,
     castling = 2,
     promotion = 3
-};
+};*/
 
 enum tt_flag {
     tt_exact,
@@ -56,8 +56,9 @@ struct Piece {
     int colour {};
 };
 
-using Chessboard = std::array<Piece, 64>;
+using Chessboard = std::array<uint8_t, 64>;
 
+/*
 struct Move {
     int prev_square { 0 };
     int new_square { 0 };
@@ -69,11 +70,119 @@ struct Move {
     int promoted_piece { none };
     int en_passant_index { -1 };
     int eval;
+};*/
+
+enum : uint8_t {
+    EMPTY_SQUARE = 0b0000,
+    WHITE_PAWN = 0b0001,
+    WHITE_KNIGHT = 0b0010,
+    WHITE_BISHOP = 0b0011,
+    WHITE_ROOK = 0b0100,
+    WHITE_QUEEN = 0b0101,
+    WHITE_KING = 0b0110,
+    BLACK_PAWN = 0b1001,
+    BLACK_KNIGHT = 0b1010,
+    BLACK_BISHOP = 0b1011,
+    BLACK_ROOK = 0b1100,
+    BLACK_QUEEN = 0b1101,
+    BLACK_KING = 0b1110
+};
+
+enum : uint8_t {
+    KNIGHT = 0b00,
+    BISHOP = 0b01,
+    ROOK = 0b10,
+    QUEEN = 0b11,
+};
+enum : uint8_t {
+    QUIET = 0b00,
+    CASTLING = 0b01,
+    EN_PASSANT = 0b10,
+    PROMOTION = 0b11
+};
+
+struct Move {
+    uint32_t data {};
+    static constexpr int FROM_SHIFT = 26;
+    static constexpr int TO_SHIFT = 20;
+    static constexpr int PIECE_SHIFT = 16;
+    static constexpr int CAPTURED_SHIFT = 12;
+    static constexpr int SPECIAL_MOVE_SHIFT = 10;
+    static constexpr int PROMOTION_PIECE_SHIFT = 8;
+    static constexpr int CASTLING_RIGHTS_SHIFT = 4;
+    static constexpr uint32_t SQUARE_MASK = 0x3F;
+    static constexpr uint32_t MASK = 0xF;
+    static constexpr uint32_t TWO_BIT_MASK = 0x3;
+
+    int get_from_square() const {
+        return (data >> FROM_SHIFT) & SQUARE_MASK;
+    }
+    int get_to_square() const {
+        return (data >> TO_SHIFT) & SQUARE_MASK;
+    }
+    int get_piece() const {
+        return (data >> PIECE_SHIFT) & MASK;
+    }
+    int get_turn() const {
+        return (data >> 19) & 1;
+    }
+    int get_captured_piece() const {
+        return (data >> CAPTURED_SHIFT) & MASK;
+    }
+    int get_move_type() const {
+        return (data >> SPECIAL_MOVE_SHIFT) & TWO_BIT_MASK;
+    }
+    int get_promotion_piece() const {
+        return (data >> PROMOTION_PIECE_SHIFT) & TWO_BIT_MASK;
+    }
+    int get_castling_rights() const {
+        return (data >> CASTLING_RIGHTS_SHIFT) & MASK;
+    }
+    int get_en_passant_index() const {
+        return data & MASK;
+    }
+    void set_from_square(int from_square) {
+        data &= ~(SQUARE_MASK << FROM_SHIFT);
+        data |= (from_square & SQUARE_MASK) << FROM_SHIFT;
+    }
+    void set_to_square(int to_square) {
+        data &= ~(SQUARE_MASK << TO_SHIFT);
+        data |= (to_square & SQUARE_MASK) << TO_SHIFT;
+    }
+    void set_piece(uint8_t piece) {
+        data &= ~(MASK << PIECE_SHIFT);
+        data |= (piece & MASK) << PIECE_SHIFT;
+    }
+    void set_captured(uint8_t captured) {
+        data &= ~(MASK << CAPTURED_SHIFT);
+        data |= (captured & MASK) << CAPTURED_SHIFT;
+    }
+    void set_move_type(uint8_t move_type) {
+        data &= ~(TWO_BIT_MASK << SPECIAL_MOVE_SHIFT);
+        data |= (move_type & TWO_BIT_MASK) << SPECIAL_MOVE_SHIFT;
+    }
+    void set_promotion_piece(uint8_t promotion_piece) {
+        data &= ~(TWO_BIT_MASK << PROMOTION_PIECE_SHIFT);
+        data |= (promotion_piece & TWO_BIT_MASK) << PROMOTION_PIECE_SHIFT;
+    }
+    void set_castling_flags(uint8_t castling_rights) {
+        data &= ~(MASK << CASTLING_RIGHTS_SHIFT);
+        data |= (castling_rights & MASK) << CASTLING_RIGHTS_SHIFT;
+    }
+    void set_en_passant_index(uint8_t index) {
+        data &= ~(MASK);
+        data |= (index & MASK);
+    }
 };
 
 struct Move_list {
     std::array<Move, 300> list;
     int num_moves {};
+};
+
+struct Move_record {
+    std::array<Move, 2048> history;
+    int moves_recorded {};
 };
 
 struct table_entry {
@@ -167,10 +276,10 @@ const int endgame_value_tables[6][64] = {
     -50,-40,-30,-30,-30,-30,-40,-50 },
     //bishop
     { -20,-10,-10,-10,-10,-10,-10,-20,
-    -10,  0,  0,  0,  0,  0,  0,-10,
-    -10,  0,  5, 10, 10,  5,  0,-10,
-    -10,  5,  5, 10, 10,  5,  5,-10,
-    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -10,  10,  10, 10, 10,  10,  10,-10,
+    -10,  10,  10, 10, 10,  10,  10,-10,
+    -10,  10, 10, 10, 10, 10,  10,-10,
     -10, 10, 10, 10, 10, 10, 10,-10,
     -10,  5,  0,  0,  0,  0,  5,-10,
     -20,-10,-10,-10,-10,-10,-10,-20 },
@@ -215,7 +324,7 @@ extern uint64_t RANK_2;
 extern uint64_t RANK_7;
 
 struct Bitboards {
-    uint64_t bitboards[2][6];
+    uint64_t bitboards[16];
     uint64_t occupied_tables[2];
     uint64_t occupied;
     static uint64_t knight_attacks[64];
@@ -285,18 +394,18 @@ struct Bitboards {
     };
     static bool initialised;
     Bitboards() {
-        bitboards[white][pawn] = 0x000000000000FF00ULL;
-        bitboards[white][knight] = 0x0000000000000042ULL;
-        bitboards[white][bishop] = 0x0000000000000024ULL;
-        bitboards[white][rook] = 0x0000000000000081ULL;
-        bitboards[white][queen] = 0x0000000000000008ULL;
-        bitboards[white][king] = 0x0000000000000010ULL;
-        bitboards[black][pawn] = 0x00FF000000000000ULL;
-        bitboards[black][knight] = 0x4200000000000000ULL;
-        bitboards[black][bishop] = 0x2400000000000000ULL;
-        bitboards[black][rook] = 0x8100000000000000ULL;
-        bitboards[black][queen] = 0x0800000000000000ULL;
-        bitboards[black][king] = 0x1000000000000000ULL;
+        bitboards[WHITE_PAWN] = 0x000000000000FF00ULL;
+        bitboards[WHITE_KNIGHT] = 0x0000000000000042ULL;
+        bitboards[WHITE_BISHOP] = 0x0000000000000024ULL;
+        bitboards[WHITE_ROOK] = 0x0000000000000081ULL;
+        bitboards[WHITE_QUEEN] = 0x0000000000000008ULL;
+        bitboards[WHITE_KING] = 0x0000000000000010ULL;
+        bitboards[BLACK_PAWN] = 0x00FF000000000000ULL;
+        bitboards[BLACK_KNIGHT] = 0x4200000000000000ULL;
+        bitboards[BLACK_BISHOP] = 0x2400000000000000ULL;
+        bitboards[BLACK_ROOK] = 0x8100000000000000ULL;
+        bitboards[BLACK_QUEEN] = 0x0800000000000000ULL;
+        bitboards[BLACK_KING] = 0x1000000000000000ULL;
         update_occupied();
         if (!initialised) {
             find_valid_knight_moves();
@@ -308,10 +417,10 @@ struct Bitboards {
         }
     }
     void update_occupied() {
-        occupied_tables[white] = bitboards[0][0] | bitboards[0][1] | bitboards[0][2] | bitboards[0][3] | bitboards[0][4] |
-        bitboards[0][5];
-        occupied_tables[black] = bitboards[1][0] | bitboards[1][1] | bitboards[1][2] | bitboards[1][3] | bitboards[1][4] |
-        bitboards[1][5];
+        occupied_tables[white] = bitboards[WHITE_PAWN] | bitboards[WHITE_KNIGHT] | bitboards[WHITE_BISHOP] | 
+        bitboards[WHITE_ROOK] | bitboards[WHITE_QUEEN] | bitboards[WHITE_KING];
+        occupied_tables[black] = bitboards[BLACK_PAWN] | bitboards[BLACK_KNIGHT] | bitboards[BLACK_BISHOP] | 
+        bitboards[BLACK_ROOK] | bitboards[BLACK_QUEEN] | bitboards[BLACK_KING];
         occupied = occupied_tables[white] | occupied_tables[black];
     }
     void find_valid_knight_moves() {
@@ -407,8 +516,8 @@ struct Bitboards {
     }
 
     void fill_attack_square(int square, int piece) {
-        uint64_t mask = (piece == bishop) ? get_bishop_mask(square) : get_rook_mask(square);
-        if (piece == bishop) {
+        uint64_t mask = (piece == WHITE_BISHOP) ? get_bishop_mask(square) : get_rook_mask(square);
+        if (piece == WHITE_BISHOP) {
             bishop_masks[square] = mask;
         } else {
             rook_masks[square] = mask;
@@ -418,10 +527,10 @@ struct Bitboards {
         uint64_t blocker[4096], attack[4096], used[4096];
         for (int i { 0 }; i < (1 << num_bits); i++) {
             blocker[i] = set_occupancy(i, num_bits, mask);
-            attack[i] = (piece == bishop) ? find_bishop_attacks(square, blocker[i]) : find_rook_attacks(square, blocker[i]);
+            attack[i] = (piece == WHITE_BISHOP) ? find_bishop_attacks(square, blocker[i]) : find_rook_attacks(square, blocker[i]);
         }
 
-        if (piece == bishop) {
+        if (piece == WHITE_BISHOP) {
             for (int i = 0; i < (1 << num_bits); i++) {
                 int magic_index = (int)((blocker[i] * bishop_magic_nums[square]) >> (64 - bishop_shifts[square]));
                 bishop_attack_table[square][magic_index] = attack[i];
@@ -436,8 +545,8 @@ struct Bitboards {
     void fill_attack_tables() {
         std::cout << "initialising magic bitboards\n";
         for (int square { 0 }; square < 64; square++) {
-            fill_attack_square(square, rook);
-            fill_attack_square(square, bishop);
+            fill_attack_square(square, WHITE_ROOK);
+            fill_attack_square(square, WHITE_BISHOP);
         }
         std::cout << "done\n";
     }

@@ -20,38 +20,38 @@ void Game::initialise() {
     clear_transposition_table();
     value_white_pieces = value_black_pieces = 0;
     plys_to_100 = 0;
-    winner = piece_selected = none;
+    winner = piece_selected = -1;
     white_in_check = black_in_check = promoting_pawn = false;
     turn = white;
     game_status = 0b00000000;
-    selected_square = none;
+    selected_square = -1;
     bitboards = {};
     castling_rights = 0b00001111;
     for (int i { 0 }; i < 64; i++) {
-        board[i] = { none, none };
+        board[i] = EMPTY_SQUARE;
     }
     for (int i { 48 }; i < 56; i++) {
-        board[i] = { pawn, black };
+        board[i] = BLACK_PAWN;
     }
     for (int i { 8 }; i < 16; i++) {
-        board[i] = { pawn, white };
+        board[i] = WHITE_PAWN;
     }
-    board[56] = { rook, black };
-    board[57] = { knight, black };
-    board[58] = { bishop, black };
-    board[59] = { queen, black };
-    board[60] = { king, black };
-    board[61] = { bishop, black };
-    board[62] = { knight, black };
-    board[63] = { rook, black };
-    board[0] = { rook, white };
-    board[1] = { knight, white };
-    board[2] = { bishop, white };
-    board[3] = { queen, white };
-    board[4] = { king, white };
-    board[5] = { bishop, white };
-    board[6] = { knight, white };
-    board[7] = { rook, white };
+    board[56] = BLACK_ROOK;
+    board[57] = BLACK_KNIGHT;
+    board[58] = BLACK_BISHOP;
+    board[59] = BLACK_QUEEN;
+    board[60] = BLACK_KING;
+    board[61] = BLACK_BISHOP;
+    board[62] = BLACK_KNIGHT;
+    board[63] = BLACK_QUEEN;
+    board[0] = WHITE_ROOK;
+    board[1] = WHITE_KNIGHT;
+    board[2] = WHITE_BISHOP;
+    board[3] = WHITE_QUEEN;
+    board[4] = WHITE_KING;
+    board[5] = WHITE_BISHOP;
+    board[6] = WHITE_KNIGHT;
+    board[7] = WHITE_ROOK;
 }
 
 int handle_fen_string(Game& game) {
@@ -74,7 +74,7 @@ int handle_fen_string(Game& game) {
     Game proposed_game;
     proposed_game.castling_rights = 0b00000000;
     for (int i { 0 }; i < 64; i++) {
-        proposed_game.board[i] = { none, none };
+        proposed_game.board[i] = EMPTY_SQUARE;
     }
     memset(proposed_game.bitboards.bitboards, 0, sizeof(proposed_game.bitboards.bitboards));
 
@@ -134,41 +134,41 @@ int fill_board(Game& proposed_game, std::string& fen_board_section) {
 
     for (char letter: fen_board_section) {
         if (letter == 'r') {
-            proposed_game.board[curr_square] = { rook, black };
-            proposed_game.bitboards.bitboards[black][rook] |= mask << curr_square;
+            proposed_game.board[curr_square] = BLACK_ROOK;
+            proposed_game.bitboards.bitboards[BLACK_ROOK] |= mask << curr_square;
         } else if (letter == 'n') {
-            proposed_game.board[curr_square] = { knight, black };
-            proposed_game.bitboards.bitboards[black][knight] |= mask << curr_square;
+            proposed_game.board[curr_square] = BLACK_KNIGHT;
+            proposed_game.bitboards.bitboards[BLACK_KNIGHT] |= mask << curr_square;
         } else if (letter == 'b') {
-            proposed_game.board[curr_square] = { bishop, black };
-            proposed_game.bitboards.bitboards[black][bishop] |= mask << curr_square;
+            proposed_game.board[curr_square] = BLACK_BISHOP;
+            proposed_game.bitboards.bitboards[BLACK_BISHOP] |= mask << curr_square;
         } else if (letter == 'q') {
-            proposed_game.board[curr_square] = { queen, black };
-            proposed_game.bitboards.bitboards[black][queen] |= mask << curr_square;
+            proposed_game.board[curr_square] = BLACK_QUEEN;
+            proposed_game.bitboards.bitboards[BLACK_QUEEN] |= mask << curr_square;
         } else if (letter == 'k') {
-            proposed_game.board[curr_square] = { king, black };
-            proposed_game.bitboards.bitboards[black][king] |= mask << curr_square;
+            proposed_game.board[curr_square] = BLACK_KING;
+            proposed_game.bitboards.bitboards[BLACK_KING] |= mask << curr_square;
         } else if (letter == 'p') {
-            proposed_game.board[curr_square] = { pawn, black };
-            proposed_game.bitboards.bitboards[black][pawn] |= mask << curr_square;          
+            proposed_game.board[curr_square] = BLACK_PAWN;
+            proposed_game.bitboards.bitboards[BLACK_PAWN] |= mask << curr_square;          
         } else if (letter == 'R') {
-            proposed_game.board[curr_square] = { rook, white };
-            proposed_game.bitboards.bitboards[white][rook] |= mask << curr_square;
+            proposed_game.board[curr_square] = WHITE_ROOK;
+            proposed_game.bitboards.bitboards[WHITE_ROOK] |= mask << curr_square;
         } else if (letter == 'N') { 
-            proposed_game.board[curr_square] = { knight, white };
-            proposed_game.bitboards.bitboards[white][knight] |= mask << curr_square;
+            proposed_game.board[curr_square] = WHITE_KNIGHT;
+            proposed_game.bitboards.bitboards[WHITE_KNIGHT] |= mask << curr_square;
         } else if (letter == 'B') {
-            proposed_game.board[curr_square] = { bishop, white };
-            proposed_game.bitboards.bitboards[white][bishop] |= mask << curr_square;
+            proposed_game.board[curr_square] = WHITE_BISHOP;
+            proposed_game.bitboards.bitboards[WHITE_BISHOP] |= mask << curr_square;
         } else if (letter == 'Q') {
-            proposed_game.board[curr_square] = { queen, white };
-            proposed_game.bitboards.bitboards[white][queen] |= mask << curr_square;
+            proposed_game.board[curr_square] = WHITE_QUEEN;
+            proposed_game.bitboards.bitboards[WHITE_QUEEN] |= mask << curr_square;
         } else if (letter == 'K') {
-            proposed_game.board[curr_square] = { king, white };
-            proposed_game.bitboards.bitboards[white][king] |= mask << curr_square;
+            proposed_game.board[curr_square] = WHITE_KING;
+            proposed_game.bitboards.bitboards[WHITE_KING] |= mask << curr_square;
         } else if (letter == 'P') {
-            proposed_game.board[curr_square] = { pawn, white };
-            proposed_game.bitboards.bitboards[white][pawn] |= mask << curr_square;          
+            proposed_game.board[curr_square] = WHITE_PAWN;
+            proposed_game.bitboards.bitboards[WHITE_PAWN] |= mask << curr_square;          
         } 
         //std::cout << curr_square << '\n';
         if (curr_square >= 65) {
@@ -223,18 +223,26 @@ int process_en_passant_square(Game& proposed_game, std::string& en_passant_squar
     }
     
     if (square >= 16 && square <= 23) {
-        if ((proposed_game.bitboards.bitboards[white][pawn] & (mask << (square + 8))) &&
+        if ((proposed_game.bitboards.bitboards[WHITE_PAWN] & (mask << (square + 8))) &&
             ~proposed_game.bitboards.occupied & mask << (square - 8) && proposed_game.turn == black) {
-            proposed_game.move_record.push_back({square - 8, square + 8, white, pawn, { none, none }, quiet,
-            proposed_game.castling_rights, none });
+            Move prev_move;
+            prev_move.set_from_square(square - 8);
+            prev_move.set_to_square(square + 8);
+            prev_move.set_piece(WHITE_PAWN);
+            prev_move.set_castling_flags(proposed_game.castling_rights);
+            proposed_game.move_record.push_back(prev_move);
             proposed_game.en_passant_index = square % 8;
             return 0;
         }
     } else if (square >= 40 && square <= 47) {
-        if ((proposed_game.bitboards.bitboards[black][pawn] & (mask << (square - 8))) &&
+        if ((proposed_game.bitboards.bitboards[BLACK_PAWN] & (mask << (square - 8))) &&
             ~proposed_game.bitboards.occupied & mask << (square + 8) && proposed_game.turn == white) {
-            proposed_game.move_record.push_back({square + 8, square - 8, black, pawn, { none, none }, quiet,
-            proposed_game.castling_rights, none });
+            Move prev_move;
+            prev_move.set_from_square(square + 8);
+            prev_move.set_to_square(square - 8);
+            prev_move.set_piece(BLACK_PAWN);
+            prev_move.set_castling_flags(proposed_game.castling_rights);
+            proposed_game.move_record.push_back(prev_move);
             proposed_game.en_passant_index = square % 8;
             return 0;
         }
@@ -243,15 +251,15 @@ int process_en_passant_square(Game& proposed_game, std::string& en_passant_squar
 }
 
 int check_position_validity(Game& proposed_game) {
-    if (proposed_game.bitboards.bitboards[black][king] == 0 || 
-        (proposed_game.bitboards.bitboards[black][king] & (proposed_game.bitboards.bitboards[black][king] - 1)) != 0 ||
-        proposed_game.bitboards.bitboards[white][king] == 0 || 
-        ((proposed_game.bitboards.bitboards[white][king] & (proposed_game.bitboards.bitboards[white][king] - 1)) != 0)) {
+    if (proposed_game.bitboards.bitboards[BLACK_KING] == 0 || 
+        (proposed_game.bitboards.bitboards[BLACK_KING] & (proposed_game.bitboards.bitboards[BLACK_KING] - 1)) != 0 ||
+        proposed_game.bitboards.bitboards[WHITE_KING] == 0 || 
+        ((proposed_game.bitboards.bitboards[WHITE_KING] & (proposed_game.bitboards.bitboards[WHITE_KING] - 1)) != 0)) {
         return -1;
     }
 
-    int black_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[black][king]);
-    int white_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[white][king]);
+    int black_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[BLACK_KING]);
+    int white_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[WHITE_KING]);
 
     if (is_square_attacked(proposed_game.bitboards, white_king_square, white)) {
         proposed_game.white_in_check = true;
@@ -268,16 +276,15 @@ int check_position_validity(Game& proposed_game) {
 
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
-    os << "Piece: " << move.piece << ' ';
-    os << "Move: " << move.prev_square << ' ' << move.new_square << ' ';
+    os << "Piece: " << move.get_piece() << ' ';
+    os << "Move: " << move.get_from_square() << ' ' << move.get_to_square() << ' ';
     return os;
 }
 
 bool operator==(Move& move1, Move& move2) {
-    if (move1.prev_square == move2.prev_square &&
-        move1.new_square == move2.new_square &&
-        move1.piece == move2.piece &&
-        move1.turn == move2.turn) {
+    if (move1.get_from_square() == move2.get_from_square() &&
+        move1.get_to_square() == move2.get_to_square() &&
+        move1.get_piece() == move2.get_piece()) {
         return true;
     }
     return false;
@@ -337,7 +344,7 @@ void print_all_bitboards(Bitboards& bitboards) {
                 std::cout << colour << " king";
             }
             
-            print_bitboard(bitboards.bitboards[i][j]);
+            //print_bitboard(bitboards.bitboards[i][j]);
         }
     }
 }

@@ -35,12 +35,11 @@ class Game {
         int value_black_pieces {};
         Move current_move {};
         int view { white };
-        std::vector<Move> possible_moves {};
         Move calculated_move {};
         bool move_ready { false };
         uint8_t castling_rights;
         bool is_dragging { false };
-        int dragged_piece = none;
+        uint8_t dragged_piece = EMPTY_SQUARE;
         sf::Vector2f current_mouse_pos;
         sf::String fen_string;
         int en_passant_index { 8 }; // (0 - 7 for col of en passant square, 8 if there is none )
