@@ -57,9 +57,7 @@ struct Piece {
 };
 
 struct Cell {
-    int colour {};
     Piece piece_occupying { none, none };
-    bool selected { false };
 };
 
 using Chessboard = std::array<Cell, 64>;
@@ -71,10 +69,10 @@ struct Move {
     int piece {};
     Piece piece_taken { none, none };
     int special_move { quiet };
-    uint8_t castling_rights {};
-    int promoted_piece { none };
+    uint8_t castling_rights;
+    int promoted_piece;
     int en_passant_index { -1 };
-    int eval { 0 };
+    int eval;
 };
 
 struct Move_list {
@@ -465,6 +463,7 @@ enum class Gamemode {
 
 std::ostream& operator<<(std::ostream& os, const Move& move);
 bool operator==(Move& move1, Move& move2);
+bool operator==(Piece& piece1, Piece& piece2);
 
 uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards);
 uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards);

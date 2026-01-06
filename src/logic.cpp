@@ -512,7 +512,8 @@ void move_piece(Game& game, Move& move) {
 
     //int piece = move.piece;
     int captured { -1 };
-    captured = game.board[move.new_square].piece_occupying.piece_type;
+    assert(game.board[move.new_square].piece_occupying == move.piece_taken);
+    captured = move.piece_taken.piece_type;
 
     game.board[move.new_square].piece_occupying = game.board[move.prev_square].piece_occupying;
     game.board[move.prev_square].piece_occupying = { none, none };
@@ -684,7 +685,7 @@ int validate_bishop_move(Bitboards& bitboards, Move& move) {
 }
 
 int validate_rook_move(Bitboards& bitboards, Move& move) {
-    if ((move.new_square - move.prev_square) % 8 == 0 || std::abs(move.new_square - move.prev_square) <= 7) {
+    if ((move.new_square / 8 - move.prev_square / 8) == 0 || (move.new_square % 8 - move.prev_square % 8) == 0) {
         uint64_t path = bitboards.between_table[move.prev_square][move.new_square];
         if (path & bitboards.occupied) {
             return -1;

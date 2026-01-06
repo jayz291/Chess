@@ -337,7 +337,7 @@ __attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard
     while (bitboard) {
         int square = (piece == white) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
         eval += start_value_tables[piece][square] + (7800 - game.value_white_pieces - game.value_black_pieces) / 7800.0 *
-        (start_value_tables[piece][square] - endgame_value_tables[piece][square]);
+        (endgame_value_tables[piece][square] - start_value_tables[piece][square]);
         bitboard &= bitboard - 1;
     }
     return eval;

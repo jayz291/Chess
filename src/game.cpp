@@ -27,16 +27,6 @@ void Game::initialise() {
     selected_square = none;
     bitboards = {};
     castling_rights = 0b00001111;
-    for (int i { 0 }; i < 64; i++) {
-        board[i].piece_occupying = { none, none };
-        int row = i / 8;
-        int col = i % 8;
-        if ((row + col) % 2 == 0) {
-            board[i].colour = brown;
-        } else {
-            board[i].colour = yellow;
-        }
-    }
     for (int i { 48 }; i < 56; i++) {
         board[i].piece_occupying = { pawn, black };
     }
@@ -285,6 +275,14 @@ bool operator==(Move& move1, Move& move2) {
         move1.new_square == move2.new_square &&
         move1.piece == move2.piece &&
         move1.turn == move2.turn) {
+        return true;
+    }
+    return false;
+}
+
+bool operator==(Piece& piece1, Piece& piece2) {
+    if (piece1.colour == piece2.colour &&
+        piece1.piece_type == piece2.piece_type) {
         return true;
     }
     return false;

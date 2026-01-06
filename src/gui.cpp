@@ -302,7 +302,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         int result = validate_move(game, move);
         if (result >= 0) {
             game.current_move = move;
-            game.board[game.selected_square].selected = false;
+            //game.board[game.selected_square].selected = false;
             game.selected_square = -1;
             make_game_move(game, result, game.current_move);  
         }
@@ -422,7 +422,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             x_offset = 120 + j * (SQUARE_SIZE);
             y_offset = 20 + i * (SQUARE_SIZE);
             int square = 56 - 8 * i + j;
-            if (game.board[square].colour == brown) {
+            if (((i + j) & 1) != 0) {
                 if (game.view == white) {
                     if (prev_move_available && (square == prev_move.prev_square) ||
                         (square == prev_move.new_square)) {
@@ -455,12 +455,12 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                     }
                 }
             }
-            if (game.board[square].selected && game.view == white) {
+            if (square == game.selected_square && game.view == white) {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
-            } else if (game.board[square ^ 56].selected && game.view == black) {
+            } else if ((square ^ 56) == game.selected_square && game.view == black) {
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);             
             }
@@ -617,7 +617,6 @@ int select_square(int x, int y, Game& game) {
             move.piece_taken = game.board[square].piece_occupying;
         }
         int result = validate_move(game, move);
-        game.board[game.selected_square].selected = false;
         game.selected_square = -1; 
   
         if (result >= 0) {
@@ -627,7 +626,6 @@ int select_square(int x, int y, Game& game) {
         return -1;
     } else if (((mask & game.bitboards.occupied_tables[white]) && game.turn == white) || 
         ((mask & game.bitboards.occupied_tables[black]) && game.turn == black)) {
-        game.board[square].selected = true;
         game.selected_square = 56 - 8 * row + col;
         return -1;
   
