@@ -52,15 +52,11 @@ enum tt_flag {
 };
 
 struct Piece {
-    int piece_type {};
+    int piece {};
     int colour {};
 };
 
-struct Cell {
-    Piece piece_occupying { none, none };
-};
-
-using Chessboard = std::array<Cell, 64>;
+using Chessboard = std::array<Piece, 64>;
 
 struct Move {
     int prev_square { 0 };
@@ -70,7 +66,7 @@ struct Move {
     Piece piece_taken { none, none };
     int special_move { quiet };
     uint8_t castling_rights;
-    int promoted_piece;
+    int promoted_piece { none };
     int en_passant_index { -1 };
     int eval;
 };

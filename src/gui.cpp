@@ -27,7 +27,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                     if (game.selected_square != -1) {
                         game.is_dragging = true;
                         game.current_mouse_pos = world_pos;
-                        game.dragged_piece = game.board[game.selected_square].piece_occupying.piece_type;
+                        game.dragged_piece = game.board[game.selected_square].piece;
                     }
                     handle_clicks_undoing(game, game_pos);
                 }
@@ -295,8 +295,8 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     }
     if (square != game.selected_square) {
         Move move { game.selected_square, square, game.turn, game.dragged_piece };
-        if (game.board[square].piece_occupying.piece_type != none) {
-            move.piece_taken = game.board[square].piece_occupying;
+        if (game.board[square].piece != none) {
+            move.piece_taken = game.board[square];
         }
 
         int result = validate_move(game, move);
@@ -507,8 +507,8 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     }
     if (game.is_dragging) {
         draw_piece(game, window, assets, 7 - game.selected_square / 8, game.selected_square % 8, 
-            game.board[game.selected_square].piece_occupying.piece_type,
-            game.board[game.selected_square].piece_occupying.colour, true);
+            game.board[game.selected_square].piece,
+            game.board[game.selected_square].colour, true);
     } 
 }
 
@@ -611,10 +611,10 @@ int select_square(int x, int y, Game& game) {
     if (game.selected_square != -1) {
         
         Move move { game.selected_square, square, game.turn, 
-            game.board[game.selected_square].piece_occupying.piece_type };
+            game.board[game.selected_square].piece };
 
-        if (game.board[square].piece_occupying.piece_type != none) {
-            move.piece_taken = game.board[square].piece_occupying;
+        if (game.board[square].piece != none) {
+            move.piece_taken = game.board[square];
         }
         int result = validate_move(game, move);
         game.selected_square = -1; 
