@@ -246,7 +246,6 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
             is_game_over(game);
-            //run_perft_suite(game, 5);
         } else {
             game.invalid_fen_position = true;
         }
@@ -414,15 +413,16 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
 
     bool prev_move_available { false };
     Move prev_move;
+    int to_square, from_square;
     if (game.move_record.size() > 0) {
         prev_move_available = true;
         prev_move = game.move_record.back();
+        to_square = prev_move.get_to_square();
+        from_square = prev_move.get_from_square();
         if (game.view == black) {
-            int to_square = prev_move.get_to_square();
-            int from_square = prev_move.get_from_square();
             to_square ^= 56;
-            from_square &= 56;
-        }
+            from_square ^= 56;
+        } 
     }
     
     for (int i { 0 }; i < 8; i++) {
@@ -433,15 +433,15 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             int square = 56 - 8 * i + j;
             if (((i + j) & 1) != 0) {
                 if (game.view == white) {
-                    if (prev_move_available && (square == prev_move.get_from_square()) ||
-                        (square == prev_move.get_to_square())) {
+                    if (prev_move_available && (square == from_square) ||
+                        (square == to_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));
                     }
                 } else {
-                    if (prev_move_available && (square == prev_move.get_from_square()) ||
-                        (square == prev_move.get_to_square())) {
+                    if (prev_move_available && (square == from_square) ||
+                        (square == to_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
@@ -449,15 +449,15 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                 }
             } else {
                 if (game.view == white) {
-                    if (prev_move_available && (square == prev_move.get_from_square()) ||
-                        (square == prev_move.get_to_square())) {
+                    if (prev_move_available && (square == from_square) ||
+                        (square == to_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
                     }
                 } else {
-                    if (prev_move_available && (square == prev_move.get_from_square()) ||
-                        (square == prev_move.get_to_square())) {
+                    if (prev_move_available && (square == from_square) ||
+                        (square == to_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));

@@ -43,7 +43,7 @@ void Game::initialise() {
     board[60] = BLACK_KING;
     board[61] = BLACK_BISHOP;
     board[62] = BLACK_KNIGHT;
-    board[63] = BLACK_QUEEN;
+    board[63] = BLACK_ROOK;
     board[0] = WHITE_ROOK;
     board[1] = WHITE_KNIGHT;
     board[2] = WHITE_BISHOP;
@@ -298,6 +298,16 @@ bool operator==(Piece& piece1, Piece& piece2) {
     return false;
 }
 
+void print_board(std::array<uint8_t, 64> board) {
+    for (int i { 0 }; i < 64; i++) {
+        std::cout << static_cast<int>(board[i]) << ' ';
+        if (( i + 1) % 8 == 0) {
+            std::cout << '\n';
+        }
+    }
+    std::cout << '\n';
+}
+
 void print_bitboard(uint64_t bitboard) {
     std::cout << "\n";
 
@@ -321,31 +331,39 @@ void print_bitboard(uint64_t bitboard) {
 
 void print_all_bitboards(Bitboards& bitboards) {
     std::cout << "-----------------------------------------------\n";
-    for (int i = 0; i < 2; i++) {
-        for (int j = 0; j < 6; j++) {
-            std::string colour = ((i == 0) ? "white" : "black");
-            
-            if (j == 0) {
-                std::cout << colour << " pawns";
-            }
-            if (j == 1) {
-                std::cout << colour << " knights";
-            }
-            if (j == 2) {
-                std::cout << colour << " bishops";
-            }
-            if (j == 3) {
-                std::cout << colour << " rooks";
-            }
-            if (j == 4) {
-                std::cout << colour << " queens";
-            }
-            if (j == 5) {
-                std::cout << colour << " king";
-            }
-            
-            //print_bitboard(bitboards.bitboards[i][j]);
+    for (int i = 1; i <= 6; i++) {
+        if (i == 1) {
+            std::cout << "white pawns";
+        } else if (i == 2) {
+            std::cout << "white knights";
+        } else if (i == 3) {
+            std::cout << "white bishops";
+        } else if (i == 4) {
+            std::cout << "white rooks";
+        } else if (i == 5) {
+            std::cout << "white queens";
+        } else if (i == 6) {
+            std::cout << "white king";
         }
+        std::cout << '\n';
+        print_bitboard(bitboards.bitboards[i]);
+    }
+    for (int i = 9; i <= 14; i++) {
+        if (i == 9) {
+            std::cout << "black pawns";
+        } else if (i == 10) {
+            std::cout << "black knights";
+        } else if (i == 11) {
+            std::cout << "black bishops";
+        } else if (i == 12) {
+            std::cout << "black rooks";
+        } else if (i == 13) {
+            std::cout << "black queens";
+        } else if (i == 14) {
+            std::cout << "black king";
+        }
+        std::cout << '\n';
+        print_bitboard(bitboards.bitboards[i]);
     }
 }
 

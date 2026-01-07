@@ -58,3 +58,4 @@ int check_position_validity(Game& proposed_game);
 int process_en_passant_square(Game& proposed_game, std::string& en_passant_square);
 void print_bitboard(uint64_t bitboard);
 void print_all_bitboards(Bitboards& bitboards);
+void print_board(std::array<uint8_t, 64> board);

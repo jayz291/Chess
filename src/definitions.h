@@ -196,9 +196,10 @@ struct table_entry {
 constexpr int TABLE_SIZE = 1048576;
 inline table_entry transposition_table[TABLE_SIZE];
 
-const int piece_values[6] = { 100, 300, 300, 500, 900, 20000 };
+const int piece_values[16] = { 0, 100, 300, 300, 500, 900, 20000, 0, 0, 100, 300, 300, 500, 900, 20000, 0 };
 
-const int start_value_tables[6][64] = {
+const int start_value_tables[7][64] = {
+    {},
     // pawn 
     { 0, 0, 0, 0, 0, 0, 0, 0,
     5, 10, 10, -20, -20, 10, 10, 5,
@@ -255,7 +256,8 @@ const int start_value_tables[6][64] = {
     -10,-20,-20,-20,-20,-20,-20,-10 }
 };
 
-const int endgame_value_tables[6][64] = {
+const int endgame_value_tables[7][64] = {
+    {},
     // pawn 
     { 0, 0, 0, 0, 0, 0, 0, 0,
     -5, 0, -5, -5, -5, 0, -5,
