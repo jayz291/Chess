@@ -186,7 +186,7 @@ bool determine_square_validity(int square, int direction) {
 }
 
 // replace piece with another piece on all 3 representations of the board
-void replace_piece(Game& game, int turn, uint8_t prev_piece, uint8_t new_piece, int target_square) {
+void replace_piece(Game& game, uint8_t prev_piece, uint8_t new_piece, int target_square) {
     //int zobrist_offset = (turn == white) ? 0 : 6;
    
     assert(game.board[target_square] != EMPTY_SQUARE);
@@ -259,30 +259,28 @@ void update_zobrist_en_passant(Game& game, Move& move) {
 
 void undo_move(Game& game, Move& prev_move) {
 
-    int opposing_turn = ((prev_move.get_turn() == white) ? black : white);
-    //flip_move(prev_move);
+    //int opposing_turn = ((prev_move.get_turn() == white) ? black : white);
     
-    //int promoted_piece = queen;
-    int original_piece = prev_move.get_piece(); 
+    uint8_t original_piece = prev_move.get_piece(); 
     if (prev_move.get_move_type() == PROMOTION) {
-        uint8_t piece = (opposing_turn == white) ? BLACK_PAWN : WHITE_PAWN;
+        uint8_t piece = (prev_move.get_opposing_turn() == white) ? BLACK_PAWN : WHITE_PAWN;
         uint8_t promotion_piece = convert_promotion_piece(prev_move, prev_move.get_promotion_piece());
         //std::cout << "promoting\n";
-        replace_piece(game, prev_move.get_turn(), promotion_piece, piece, prev_move.get_to_square());
-        prev_move.set_piece(piece);
+        replace_piece(game, promotion_piece, piece, prev_move.get_to_square());
+        prev_move.set_another_piece(piece);
     }
     move_piece(game, prev_move.get_piece(),  prev_move.get_to_square(), prev_move.get_from_square(), 
     prev_move.get_turn());
-    prev_move.set_piece(original_piece);
+    prev_move.set_another_piece(original_piece);
 
     if (prev_move.get_move_type() != EN_PASSANT && prev_move.get_captured_piece() != EMPTY_SQUARE) {
-        place_piece(game, opposing_turn, prev_move.get_captured_piece(), prev_move.get_to_square());
+        place_piece(game, prev_move.get_opposing_turn(), prev_move.get_captured_piece(), prev_move.get_to_square());
     } else if (prev_move.get_move_type() == EN_PASSANT) {
         //std::cout << "en_passant\n";
         int captured_square = ((prev_move.get_turn() == white) ? prev_move.get_to_square() - 8 : 
         prev_move.get_to_square() + 8);
         uint8_t captured = (prev_move.get_turn() == white) ? BLACK_PAWN : WHITE_PAWN;
-        place_piece(game, opposing_turn, captured, captured_square);
+        place_piece(game, prev_move.get_opposing_turn(), captured, captured_square);
     }
 
     int castling_row = ((prev_move.get_turn() == black) ? 0 : 7);
@@ -297,7 +295,6 @@ void undo_move(Game& game, Move& prev_move) {
         }
     }
     
-    //flip_move(prev_move);
 }
 
 
@@ -481,7 +478,7 @@ void handle_pawn_promotion(Game& game, Move& move) {
     move.set_promotion_piece(game.piece_selected);
     uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
 
-    replace_piece(game, move.get_turn(), move.get_piece(), promotion_piece, move.get_to_square());
+    replace_piece(game, move.get_piece(), promotion_piece, move.get_to_square());
 
     game.bitboards.update_occupied();
     update_castling_flags(game, move);
@@ -528,13 +525,7 @@ void end_game(Game& game) {
     }
 }
 
-void flip_move(Move& move) {
-    int temp = move.get_from_square();
-    move.set_from_square(move.get_to_square());
-    move.set_to_square(temp);
-}
-
-void move_piece(Game& game, int target_piece, int from_square, int to_square, int turn) {
+void move_piece(Game& game, uint8_t target_piece, int from_square, int to_square, int turn) {
 
     //int piece = move.get_piece();
     uint8_t captured { EMPTY_SQUARE };
@@ -553,7 +544,7 @@ void move_piece(Game& game, int target_piece, int from_square, int to_square, in
     game.bitboards.bitboards[target_piece] ^= (from_bit | to_bit);
     game.bitboards.occupied_tables[turn] ^= (from_bit | to_bit);
  
-    if (captured != EMPTY_SQUARE) {
+    if (captured != EMPTY_SQUARE) { 
         game.bitboards.bitboards[captured] &= ~to_bit;
         game.bitboards.occupied_tables[opposing_turn] &= ~to_bit;
         game.zobrist_hash ^= zobrist_table[captured][to_square];

@@ -290,14 +290,6 @@ bool operator==(Move& move1, Move& move2) {
     return false;
 }
 
-bool operator==(Piece& piece1, Piece& piece2) {
-    if (piece1.colour == piece2.colour &&
-        piece1.piece == piece2.piece) {
-        return true;
-    }
-    return false;
-}
-
 void print_board(std::array<uint8_t, 64> board) {
     for (int i { 0 }; i < 64; i++) {
         std::cout << static_cast<int>(board[i]) << ' ';

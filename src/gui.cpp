@@ -436,15 +436,15 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             int square = 56 - 8 * i + j;
             if (((i + j) & 1) != 0) {
                 if (game.view == white) {
-                    if (prev_move_available && (square == from_square) ||
-                        (square == to_square)) {
+                    if (prev_move_available && (square == from_square ||
+                        square == to_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));
                     }
                 } else {
-                    if (prev_move_available && (square == from_square) ||
-                        (square == to_square)) {
+                    if (prev_move_available && (square == from_square ||
+                        square == to_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
@@ -452,15 +452,15 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                 }
             } else {
                 if (game.view == white) {
-                    if (prev_move_available && (square == from_square) ||
-                        (square == to_square)) {
+                    if (prev_move_available && (square == from_square ||
+                        square == to_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
                     }
                 } else {
-                    if (prev_move_available && (square == from_square) ||
-                        (square == to_square)) {
+                    if (prev_move_available && (square == from_square ||
+                        square == to_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));

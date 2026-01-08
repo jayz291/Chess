@@ -23,37 +23,10 @@ enum {
     black = 1
 };
 
-enum {
-    yellow = 0,
-    brown = 1,
-};
-/*
-enum {
-    none = -1,
-    pawn = 0,
-    knight = 1,
-    bishop = 2,
-    rook = 3,
-    queen = 4,
-    king = 5
-};
-/
-enum {
-    quiet = 0,
-    en_passant = 1,
-    castling = 2,
-    promotion = 3
-};*/
-
 enum tt_flag {
     tt_exact,
     tt_alpha, 
     tt_beta,
-};
-
-struct Piece {
-    int piece {};
-    int colour {};
 };
 
 using Chessboard = std::array<uint8_t, 64>;
@@ -136,6 +109,9 @@ struct Move {
     int get_turn() const {
         return (data >> 19) & 1;
     }
+    int get_opposing_turn() const {
+        return ~(data >> 19) & 1;
+    }
     int get_captured_piece() const {
         return (data >> CAPTURED_SHIFT) & MASK;
     }
@@ -152,14 +128,18 @@ struct Move {
         return data & MASK;
     }
     void set_from_square(int from_square) {
-        data &= ~(SQUARE_MASK << FROM_SHIFT);
+        //data &= ~(SQUARE_MASK << FROM_SHIFT);
         data |= (from_square & SQUARE_MASK) << FROM_SHIFT;
     }
     void set_to_square(int to_square) {
-        data &= ~(SQUARE_MASK << TO_SHIFT);
+        //data &= ~(SQUARE_MASK << TO_SHIFT);
         data |= (to_square & SQUARE_MASK) << TO_SHIFT;
     }
     void set_piece(uint8_t piece) {
+        //data &= ~(MASK << PIECE_SHIFT);
+        data |= (piece & MASK) << PIECE_SHIFT;
+    }
+    void set_another_piece(uint8_t piece) {
         data &= ~(MASK << PIECE_SHIFT);
         data |= (piece & MASK) << PIECE_SHIFT;
     }
@@ -580,7 +560,6 @@ enum class Gamemode {
 
 std::ostream& operator<<(std::ostream& os, const Move& move);
 bool operator==(Move& move1, Move& move2);
-bool operator==(Piece& piece1, Piece& piece2);
 
 uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards);
 uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards);
