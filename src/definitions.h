@@ -31,20 +31,6 @@ enum tt_flag {
 
 using Chessboard = std::array<uint8_t, 64>;
 
-/*
-struct Move {
-    int prev_square { 0 };
-    int new_square { 0 };
-    int turn {};
-    int piece {};
-    Piece piece_taken { none, none };
-    int special_move { quiet };
-    uint8_t castling_rights;
-    int promoted_piece { none };
-    int en_passant_index { -1 };
-    int eval;
-};*/
-
 enum : uint8_t {
     EMPTY_SQUARE = 0b0000,
     WHITE_PAWN = 0b0001,
@@ -72,7 +58,7 @@ enum : uint8_t {
     KING = 0b0110,
 };
 
-inline uint8_t piece_array[2][7] = {
+inline const uint8_t piece_array[2][7] = {
     { EMPTY_SQUARE, WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING },
     { EMPTY_SQUARE, BLACK_PAWN, BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING }
 };
@@ -169,6 +155,12 @@ struct Move {
     void set_en_passant_index(uint8_t index) {
         data &= ~(MASK);
         data |= (index & MASK);
+    }
+    void set_move(int from_square, int to_square, uint8_t piece, uint8_t captured) {
+        set_from_square(from_square);
+        set_to_square(to_square);
+        set_piece(piece);
+        set_captured(captured);
     }
 };
 
