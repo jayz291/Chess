@@ -271,7 +271,8 @@ void undo_move(Game& game, Move& prev_move) {
         replace_piece(game, prev_move.get_turn(), promotion_piece, piece, prev_move.get_from_square());
         prev_move.set_piece(piece);
     }
-    move_piece(game, prev_move);
+    move_piece(game, prev_move.get_piece(), prev_move.get_from_square(), 
+    prev_move.get_to_square(), prev_move.get_turn());
     prev_move.set_piece(original_piece);
 
     if (prev_move.get_move_type() != EN_PASSANT && prev_move.get_captured_piece() != EMPTY_SQUARE) {
@@ -295,7 +296,7 @@ void undo_move(Game& game, Move& prev_move) {
             move.set_to_square(56 - 8 * castling_row + 7);
             move.set_piece(piece);
             //std::cout << std::bitset<8>(piece) << '\n';
-            move_piece(game, move);
+            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
             //std::cout << "undid castling\n";
         } else {
             //Move move { 56 - 8 * castling_row + 3, 56 - 8 * castling_row, prev_move.turn, rook };
@@ -303,7 +304,7 @@ void undo_move(Game& game, Move& prev_move) {
             move.set_from_square(56 - 8 * castling_row + 3);
             move.set_to_square(56 - 8 * castling_row);
             move.set_piece(piece);
-            move_piece(game, move);
+            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
         }
     }
     
@@ -361,7 +362,7 @@ void make_game_move(Game& game, int result, Move move) {
     }
 
     if (move.get_from_square() != move.get_to_square()) {
-        move_piece(game, move);
+        move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
     }   
 
     if (result > 0 && result < 3) {
@@ -371,28 +372,28 @@ void make_game_move(Game& game, int result, Move move) {
             move.set_from_square(7);
             move.set_to_square(5);
             move.set_piece(WHITE_ROOK);
-            move_piece(game, move);
+            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
         } else if (result == 2 && game.turn == white) {
             //Move move { 0, 3, white, rook };
             Move move;
             move.set_from_square(0);
             move.set_to_square(3);
             move.set_piece(WHITE_ROOK);
-            move_piece(game, move);
+            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
         } else if (result == 1 && game.turn == black) {
             //Move move { 63, 61, black, rook };
             Move move;
             move.set_from_square(63);
             move.set_to_square(61);
             move.set_piece(BLACK_ROOK);
-            move_piece(game, move);
+            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
         } else if (result == 2 && game.turn == black) {
             //Move move { 56, 59, black, rook };
             Move move;
             move.set_from_square(56);
             move.set_to_square(59);
             move.set_piece(BLACK_ROOK);
-            move_piece(game, move);
+            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
         }
         move.set_move_type(CASTLING);
     } else if (result == 3) {
@@ -455,8 +456,8 @@ void is_game_over(Game& game) {
     if (moves.num_moves == 0 || determine_repetition(game) || 
         determine_insufficient_material(game) || game.plys_to_100 == 100) {
     
-        std::cout << std::bitset<8>(game.game_status) << '\n';
-        std::cout << game.plys_to_100 << '\n';
+        //std::cout << std::bitset<8>(game.game_status) << '\n';
+        //std::cout << game.plys_to_100 << '\n';
         std::cout << "ending game\n";
         std::cout << "moves possible: " << moves.num_moves << '\n';
         end_game(game);
@@ -505,7 +506,7 @@ void handle_pawn_promotion(Game& game, Move& move) {
 
     assert(move.get_turn() == game.turn);
 
-    move_piece(game, move);
+    move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
     //u_int64_t square = (1ULL << move.get_to_square())
     move.set_move_type(PROMOTION);
     move.set_promotion_piece(game.piece_selected);
@@ -564,43 +565,35 @@ void flip_move(Move& move) {
     move.set_to_square(temp);
 }
 
-void move_piece(Game& game, Move& move) {
+void move_piece(Game& game, int target_piece, int from_square, int to_square, int turn) {
 
     //int piece = move.get_piece();
     uint8_t captured { EMPTY_SQUARE };
-    captured = game.board[move.get_to_square()];
+    captured = game.board[to_square];
 
-    game.board[move.get_to_square()] = game.board[move.get_from_square()];
-    if (game.board[move.get_from_square()] == 0 || __builtin_popcountll(game.bitboards.bitboards[WHITE_PAWN]) > 8) {
-        print_all_bitboards(game.bitboards);
-        exit(5);
-        //print_board(game.board);
-        //std::cout << std::bitset<32>(move.data) << '\n';
-    }
-    game.board[move.get_from_square()] = EMPTY_SQUARE;
+    game.board[to_square] = game.board[from_square];
+    game.board[from_square] = EMPTY_SQUARE;
 
-    int current = (move.get_turn() == white) ? 0 : 6;
-    int opposing = (move.get_turn() == white) ? 6 : 0;
-    game.zobrist_hash ^= zobrist_table[move.get_piece()][move.get_from_square()];
-    game.zobrist_hash ^= zobrist_table[move.get_piece()][move.get_to_square()];
+    game.zobrist_hash ^= zobrist_table[target_piece][from_square];
+    game.zobrist_hash ^= zobrist_table[target_piece][to_square];
 
-    uint64_t from_bit = 1ULL << move.get_from_square(); 
-    uint64_t to_bit = 1ULL << move.get_to_square();
-    int opposing_turn = ((move.get_turn() == white) ? black : white);
+    uint64_t from_bit = 1ULL << from_square; 
+    uint64_t to_bit = 1ULL << to_square;
+    int opposing_turn = ((turn == white) ? black : white);
 
-    game.bitboards.bitboards[move.get_piece()] ^= (from_bit | to_bit);
-    game.bitboards.occupied_tables[move.get_turn()] ^= (from_bit | to_bit);
+    game.bitboards.bitboards[target_piece] ^= (from_bit | to_bit);
+    game.bitboards.occupied_tables[turn] ^= (from_bit | to_bit);
  
     if (captured != EMPTY_SQUARE) {
         game.bitboards.bitboards[captured] &= ~to_bit;
         game.bitboards.occupied_tables[opposing_turn] &= ~to_bit;
-        game.zobrist_hash ^= zobrist_table[captured][move.get_to_square()];
+        game.zobrist_hash ^= zobrist_table[captured][to_square];
     }
     
     game.bitboards.occupied = game.bitboards.occupied_tables[black] | game.bitboards.occupied_tables[white];
     //bitboards.update_occupied();
     //print_bitboard(bitboards.occupied);
-    assert(game.board[move.get_to_square()] != EMPTY_SQUARE);
+    assert(game.board[to_square] != EMPTY_SQUARE);
     /*
     if (board[move.get_to_square()].piece == none) {
         //print_all_bitboards(bitboards);
@@ -735,8 +728,8 @@ int validate_knight_move(Bitboards& bitboards, Move& move) {
 }
 
 int validate_bishop_move(Bitboards& bitboards, Move& move) {
-    if (std::abs(move.get_to_square() - move.get_from_square()) % 9 == 0 || 
-        std::abs(move.get_to_square() - move.get_from_square()) % 7 == 0) {
+    if (std::abs(move.get_to_square() / 8 - move.get_from_square() / 8) ==
+        std::abs(move.get_to_square() % 8 - move.get_from_square() % 8)) {
         uint64_t path = bitboards.between_table[move.get_from_square()][move.get_to_square()];
         if (path & bitboards.occupied) {
             return -1;

@@ -60,8 +60,8 @@ void undo_test_move(Game& game, Move& prev_move) {
 }
 
 void make_test_move(Game& game, Move& move) {
-    int current = (game.turn == white) ? 0 : 6;
-    int opposing = (game.turn == white) ? 6 : 0;
+    //int current = (game.turn == white) ? 0 : 6;
+    //int opposing = (game.turn == white) ? 6 : 0;
 
     assert(game.board[move.get_from_square()] != EMPTY_SQUARE);
     //std::cout << "processing move\n";
@@ -77,7 +77,7 @@ void make_test_move(Game& game, Move& move) {
         //std::cout << "promoting pawn\n";
         game.promoting_pawn = true;
         //std::cout << "Old piece before: " << std::bitset<8>(move.get_piece()) << '\n';
-        move_piece(game, move);
+        move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
         uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
         //std::cout << "Old piece: " << std::bitset<8>(move.get_piece()) << '\n';
         //std::cout << "Promotion piece: " << std::bitset<8>(promotion_piece) << '\n';
@@ -94,7 +94,7 @@ void make_test_move(Game& game, Move& move) {
 
     //std::cout << "just before moving piece\n";
     assert(move.get_from_square() != move.get_to_square());
-    move_piece(game, move);
+    move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
 
     if (move.get_move_type() == CASTLING) {
         uint8_t piece = (move.get_turn() == white) ? WHITE_ROOK: BLACK_ROOK;
@@ -106,14 +106,16 @@ void make_test_move(Game& game, Move& move) {
             rook_move.set_to_square(56 - 8 * row + 5);
             rook_move.set_piece(piece);
             //std::cout << std::bitset<32>(move.data) << '\n';
-            move_piece(game, rook_move);
+            move_piece(game, rook_move.get_piece(), rook_move.get_from_square(), 
+            rook_move.get_to_square(), rook_move.get_turn());
         } else if (move.get_to_square() - move.get_from_square() == -2) {
             //Move rook_move { 56 - 8 * row, 56 - 8 * row + 3, move.get_turn(), rook };
             Move rook_move;
             rook_move.set_from_square(56 - 8 * row);
             rook_move.set_to_square(56 - 8 * row + 3);
             rook_move.set_piece(piece);
-            move_piece(game, rook_move);
+            move_piece(game, rook_move.get_piece(), rook_move.get_from_square(), 
+            rook_move.get_to_square(), rook_move.get_turn());
         }
     }
 

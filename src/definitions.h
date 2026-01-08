@@ -85,7 +85,17 @@ enum : uint8_t {
     BLACK_BISHOP = 0b1011,
     BLACK_ROOK = 0b1100,
     BLACK_QUEEN = 0b1101,
-    BLACK_KING = 0b1110
+    BLACK_KING = 0b1110,
+};
+
+enum : uint8_t {
+    TYPE_MASK = 0b0111,
+    COLOUR_MASK = 0b1000,
+    T_PAWN = 0b0001,
+    T_KNIGHT = 0b0010,
+    T_BISHOP = 0b0011,
+    T_QUEEN = 0b0101,
+    T_KING = 0b0110,
 };
 
 enum : uint8_t {
@@ -158,11 +168,11 @@ struct Move {
         data |= (captured & MASK) << CAPTURED_SHIFT;
     }
     void set_move_type(uint8_t move_type) {
-        data &= ~(TWO_BIT_MASK << SPECIAL_MOVE_SHIFT);
+        //data &= ~(TWO_BIT_MASK << SPECIAL_MOVE_SHIFT);
         data |= (move_type & TWO_BIT_MASK) << SPECIAL_MOVE_SHIFT;
     }
     void set_promotion_piece(uint8_t promotion_piece) {
-        data &= ~(TWO_BIT_MASK << PROMOTION_PIECE_SHIFT);
+        //data &= ~(TWO_BIT_MASK << PROMOTION_PIECE_SHIFT);
         data |= (promotion_piece & TWO_BIT_MASK) << PROMOTION_PIECE_SHIFT;
     }
     void set_castling_flags(uint8_t castling_rights) {

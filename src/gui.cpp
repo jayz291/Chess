@@ -415,10 +415,13 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     Move prev_move;
     int to_square, from_square;
     if (game.move_record.size() > 0) {
-        prev_move_available = true;
+        
         prev_move = game.move_record.back();
         to_square = prev_move.get_to_square();
         from_square = prev_move.get_from_square();
+        if (to_square != from_square) {
+            prev_move_available = true;
+        }
         if (game.view == black) {
             to_square ^= 56;
             from_square ^= 56;
