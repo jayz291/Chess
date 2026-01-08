@@ -100,22 +100,10 @@ void make_test_move(Game& game, Move& move) {
         uint8_t piece = (move.get_turn() == white) ? WHITE_ROOK: BLACK_ROOK;
         int row = 7 - move.get_to_square() / 8;
         if (move.get_to_square() - move.get_from_square() == 2) {
-            //Move rook_move { 56 - 8 * row + 7, 56 - 8 * row + 5, move.get_turn(), rook };
-            Move rook_move;
-            rook_move.set_from_square(56 - 8 * row + 7);
-            rook_move.set_to_square(56 - 8 * row + 5);
-            rook_move.set_piece(piece);
             //std::cout << std::bitset<32>(move.data) << '\n';
-            move_piece(game, rook_move.get_piece(), rook_move.get_from_square(), 
-            rook_move.get_to_square(), rook_move.get_turn());
+            move_piece(game, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, move.get_turn());
         } else if (move.get_to_square() - move.get_from_square() == -2) {
-            //Move rook_move { 56 - 8 * row, 56 - 8 * row + 3, move.get_turn(), rook };
-            Move rook_move;
-            rook_move.set_from_square(56 - 8 * row);
-            rook_move.set_to_square(56 - 8 * row + 3);
-            rook_move.set_piece(piece);
-            move_piece(game, rook_move.get_piece(), rook_move.get_from_square(), 
-            rook_move.get_to_square(), rook_move.get_turn());
+            move_piece(game, piece, 56 - 8 * row, 56 - 8 * row + 3, move.get_turn());
         }
     }
 

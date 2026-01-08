@@ -260,7 +260,7 @@ void update_zobrist_en_passant(Game& game, Move& move) {
 void undo_move(Game& game, Move& prev_move) {
 
     int opposing_turn = ((prev_move.get_turn() == white) ? black : white);
-    flip_move(prev_move);
+    //flip_move(prev_move);
     
     //int promoted_piece = queen;
     int original_piece = prev_move.get_piece(); 
@@ -268,20 +268,19 @@ void undo_move(Game& game, Move& prev_move) {
         uint8_t piece = (opposing_turn == white) ? BLACK_PAWN : WHITE_PAWN;
         uint8_t promotion_piece = convert_promotion_piece(prev_move, prev_move.get_promotion_piece());
         //std::cout << "promoting\n";
-        replace_piece(game, prev_move.get_turn(), promotion_piece, piece, prev_move.get_from_square());
+        replace_piece(game, prev_move.get_turn(), promotion_piece, piece, prev_move.get_to_square());
         prev_move.set_piece(piece);
     }
-    move_piece(game, prev_move.get_piece(), prev_move.get_from_square(), 
-    prev_move.get_to_square(), prev_move.get_turn());
+    move_piece(game, prev_move.get_piece(),  prev_move.get_to_square(), prev_move.get_from_square(), 
+    prev_move.get_turn());
     prev_move.set_piece(original_piece);
 
     if (prev_move.get_move_type() != EN_PASSANT && prev_move.get_captured_piece() != EMPTY_SQUARE) {
-        place_piece(game, opposing_turn, prev_move.get_captured_piece(), prev_move.get_from_square());
+        place_piece(game, opposing_turn, prev_move.get_captured_piece(), prev_move.get_to_square());
     } else if (prev_move.get_move_type() == EN_PASSANT) {
         //std::cout << "en_passant\n";
-        int captured_square = ((prev_move.get_turn() == white) ? prev_move.get_from_square() - 8 : 
-        prev_move.get_from_square() + 8);
-        //assert(prev_move.get_captured_piece() == WHITE_PAWN || prev_move.get_captured_piece == BLACK_PAWN);
+        int captured_square = ((prev_move.get_turn() == white) ? prev_move.get_to_square() - 8 : 
+        prev_move.get_to_square() + 8);
         uint8_t captured = (prev_move.get_turn() == white) ? BLACK_PAWN : WHITE_PAWN;
         place_piece(game, opposing_turn, captured, captured_square);
     }
@@ -289,26 +288,16 @@ void undo_move(Game& game, Move& prev_move) {
     int castling_row = ((prev_move.get_turn() == black) ? 0 : 7);
     uint8_t piece = (prev_move.get_turn() == black) ? BLACK_ROOK : WHITE_ROOK;
     if (prev_move.get_move_type() == CASTLING) {
-        if (prev_move.get_from_square() - prev_move.get_to_square() == 2) {
-            //Move move { 56 - 8 * castling_row + 5, 56 - 8 * castling_row + 7, prev_move.turn, rook };
-            Move move;
-            move.set_from_square(56 - 8 * castling_row + 5);
-            move.set_to_square(56 - 8 * castling_row + 7);
-            move.set_piece(piece);
+        if (prev_move.get_to_square() - prev_move.get_from_square() == 2) {
             //std::cout << std::bitset<8>(piece) << '\n';
-            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+            move_piece(game, piece, 56 - 8 * castling_row + 5, 56 - 8 * castling_row + 7, prev_move.get_turn());
             //std::cout << "undid castling\n";
         } else {
-            //Move move { 56 - 8 * castling_row + 3, 56 - 8 * castling_row, prev_move.turn, rook };
-            Move move;
-            move.set_from_square(56 - 8 * castling_row + 3);
-            move.set_to_square(56 - 8 * castling_row);
-            move.set_piece(piece);
-            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+            move_piece(game, piece, 56 - 8 * castling_row + 3, 56 - 8 * castling_row, prev_move.get_turn());
         }
     }
     
-    flip_move(prev_move);
+    //flip_move(prev_move);
 }
 
 
@@ -367,33 +356,13 @@ void make_game_move(Game& game, int result, Move move) {
 
     if (result > 0 && result < 3) {
         if (result == 1 && game.turn == white) { 
-            //Move move { 7, 5, white, rook };
-            Move move;
-            move.set_from_square(7);
-            move.set_to_square(5);
-            move.set_piece(WHITE_ROOK);
-            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+            move_piece(game, WHITE_ROOK, 7, 5, white);
         } else if (result == 2 && game.turn == white) {
-            //Move move { 0, 3, white, rook };
-            Move move;
-            move.set_from_square(0);
-            move.set_to_square(3);
-            move.set_piece(WHITE_ROOK);
-            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+            move_piece(game, WHITE_ROOK, 0, 3, white);
         } else if (result == 1 && game.turn == black) {
-            //Move move { 63, 61, black, rook };
-            Move move;
-            move.set_from_square(63);
-            move.set_to_square(61);
-            move.set_piece(BLACK_ROOK);
-            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+            move_piece(game, BLACK_ROOK, 63, 61, black);
         } else if (result == 2 && game.turn == black) {
-            //Move move { 56, 59, black, rook };
-            Move move;
-            move.set_from_square(56);
-            move.set_to_square(59);
-            move.set_piece(BLACK_ROOK);
-            move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+            move_piece(game, BLACK_ROOK, 56, 59, black);
         }
         move.set_move_type(CASTLING);
     } else if (result == 3) {
