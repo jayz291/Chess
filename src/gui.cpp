@@ -22,8 +22,8 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             if (game.state == Gamestate::Intro) {
                 handle_clicks_intro(game, window, assets, game_pos);
             } else if (game.state == Gamestate::Playing) {
-                if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && game.turn == black) ||
-                    game.mode == Gamemode::CPUblack && game.turn == white) {
+                if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && game.turn == BLACK) ||
+                    game.mode == Gamemode::CPUblack && game.turn == WHITE) {
                     handle_clicks_playing(game, window, game_pos, assets);
                     if (game.selected_square != -1) {
                         game.is_dragging = true;
@@ -153,8 +153,8 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
     sf::RectangleShape choice3_button = make_rectangle({690, 530}, {250, 110}, sf::Color::White);
     sf::RectangleShape text_box = make_rectangle({60, 690}, {870, 50}, sf::Color::White);
 
-    sf::Text choice1_text = configure_text(assets.font, "Play CPU as\n white", {130, 540}, 30, sf::Color::Black);
-    sf::Text choice2_text = configure_text(assets.font, "Play CPU as\n black", {420, 540}, 30, sf::Color::Black);
+    sf::Text choice1_text = configure_text(assets.font, "Play CPU as\n WHITE", {130, 540}, 30, sf::Color::Black);
+    sf::Text choice2_text = configure_text(assets.font, "Play CPU as\n BLACK", {420, 540}, 30, sf::Color::Black);
     sf::Text choice3_text = configure_text(assets.font, "Two player", {710, 540}, 30, sf::Color::Black);
     sf::Text entered_fen = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, sf::Color::Black);
     //std::cout << game.fen_string.toAnsiString() << '\n';
@@ -245,19 +245,18 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
             std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
-            is_game_over(game);
         } else {
             game.invalid_fen_position = true;
         }
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
-        game.view = white;
+        game.view = WHITE;
         game.mode = Gamemode::CPUblack;
     } else if (400 <= x && x <= 650 && 530 <= y && y <= 640) {
-        game.view = black;
+        game.view = BLACK;
         game.mode = Gamemode::CPUwhite;
     } else if (690 <= x && x <= 940 && 530 <= y && y <= 640) {
-        game.view = white;
+        game.view = WHITE;
         game.mode = Gamemode::Twoplayer;
     }
     if (100 <= x && x <= 920 && 690 <= y && y <= 740) {
@@ -369,7 +368,7 @@ void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
 
 void handle_clicks_flip_view(Game& game, sf::Vector2i mouse_pos) {
     if (920 <= mouse_pos.x && mouse_pos.x <= 994 && 55 <= mouse_pos.y && mouse_pos.y <= 90) {
-        game.view = (game.view == white) ? black : white;
+        game.view = (game.view == WHITE) ? BLACK : WHITE;
     }
 }
 
@@ -422,7 +421,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
         if (to_square != from_square) {
             prev_move_available = true;
         }
-        if (game.view == black) {
+        if (game.view == BLACK) {
             to_square ^= 56;
             from_square ^= 56;
         } 
@@ -435,7 +434,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             y_offset = 20 + i * (SQUARE_SIZE);
             int square = 56 - 8 * i + j;
             if (((i + j) & 1) != 0) {
-                if (game.view == white) {
+                if (game.view == WHITE) {
                     if (prev_move_available && (square == from_square ||
                         square == to_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
@@ -451,7 +450,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                     }
                 }
             } else {
-                if (game.view == white) {
+                if (game.view == WHITE) {
                     if (prev_move_available && (square == from_square ||
                         square == to_square)) {
                         cell.setFillColor(sf::Color(144, 238, 144));
@@ -467,12 +466,12 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                     }
                 }
             }
-            if (square == game.selected_square && game.view == white) {
+            if (square == game.selected_square && game.view == WHITE) {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
-            } else if ((square ^ 56) == game.selected_square && game.view == black) {
+            } else if ((square ^ 56) == game.selected_square && game.view == BLACK) {
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);             
             }
@@ -531,7 +530,7 @@ void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
     text.setPosition({280, 280}); 
 
     if (game.game_status & (1UL << 3)) {
-        if (game.winner == white) {
+        if (game.winner == WHITE) {
             text.setString("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {
             text.setString("CHECKMATE\nBLACK WON!\n-----------------------------\nClick anywhere to \ncontinue");
@@ -554,17 +553,17 @@ void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
 
-    sf::Color colour = (game.turn == white) ? sf::Color::White : sf::Color::Black;
+    sf::Color colour = (game.turn == WHITE) ? sf::Color::White : sf::Color::Black;
     sf::RectangleShape pawn_promotion_screen = make_rectangle({250, 250}, {500, 300}, sf::Color::Blue);
     sf::Text text = configure_text(assets.font, "Choose Promotion Piece", {280, 280}, 40, colour);
 
     window.draw(pawn_promotion_screen);
     window.draw(text);
-    int rank = ((game.view == white) ? 4 : 3);
-    uint8_t piece1 = (game.turn == white) ? WHITE_ROOK : BLACK_ROOK;
-    uint8_t piece2 = (game.turn == white) ? WHITE_KNIGHT : BLACK_KNIGHT;
-    uint8_t piece3 = (game.turn == white) ? WHITE_BISHOP : BLACK_BISHOP;
-    uint8_t piece4 = (game.turn == white) ? WHITE_QUEEN : BLACK_QUEEN;
+    int rank = ((game.view == WHITE) ? 4 : 3);
+    uint8_t piece1 = piece_array[game.turn][ROOK];
+    uint8_t piece2 = piece_array[game.turn][KNIGHT];
+    uint8_t piece3 = piece_array[game.turn][BISHOP];
+    uint8_t piece4 = piece_array[game.turn][QUEEN];
     draw_piece(game, window, assets, rank, 2, piece1);
     draw_piece(game, window, assets, rank, 3, piece2);
     draw_piece(game, window, assets, rank, 4, piece3);
@@ -584,7 +583,7 @@ void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets,
     if (!dragging) {
         float y_offset;
         float x_offset { static_cast<float>(135 + y * (SQUARE_SIZE)) };
-        if (game.view == white) {
+        if (game.view == WHITE) {
             y_offset = (30 + x * (SQUARE_SIZE));
         } else {
             y_offset = (695 - x * (SQUARE_SIZE));
@@ -597,11 +596,11 @@ void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets,
     }
 
     if (piece == WHITE_KING) {
-        if (game.white_in_check && game.turn == white) {
+        if (game.white_in_check && game.turn == WHITE) {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         } 
     } else if (piece == BLACK_KING) {
-        if (game.black_in_check && game.turn == black) {
+        if (game.black_in_check && game.turn == BLACK) {
             sprite.setColor(sf::Color(255, 0, 0, 100));
         }
     }
@@ -613,7 +612,7 @@ int select_square(int x, int y, Game& game) {
     int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
     
-    if (game.mode == Gamemode::CPUwhite || game.view == black) {
+    if (game.mode == Gamemode::CPUwhite || game.view == BLACK) {
         row = 7 - row;
     }
     int square = 56 - 8 * row + col;
@@ -642,8 +641,8 @@ int select_square(int x, int y, Game& game) {
             return result;
         } 
         return -1;
-    } else if (((mask & game.bitboards.occupied_tables[white]) && game.turn == white) || 
-        ((mask & game.bitboards.occupied_tables[black]) && game.turn == black)) {
+    } else if (((mask & game.bitboards.occupied_tables[WHITE]) && game.turn == WHITE) || 
+        ((mask & game.bitboards.occupied_tables[BLACK]) && game.turn == BLACK)) {
         game.selected_square = 56 - 8 * row + col;
         return -1;
   
@@ -661,13 +660,13 @@ bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos) {
     int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
 
     if (row == 4 && col == 2) {
-        game.piece_selected = (game.turn == white) ? WHITE_ROOK : BLACK_ROOK;
+        game.piece_selected = P_ROOK;
     } else if (row == 4 && col == 3) {
-        game.piece_selected = (game.turn == white) ? WHITE_KNIGHT : BLACK_KNIGHT;
+        game.piece_selected = P_KNIGHT;
     } else if (row == 4 && col == 4) {
-        game.piece_selected = (game.turn == white) ? WHITE_BISHOP : BLACK_BISHOP;
+        game.piece_selected = P_BISHOP;
     } else if (row == 4 && col == 5) {
-        game.piece_selected = (game.turn == white) ? WHITE_QUEEN : BLACK_QUEEN;
+        game.piece_selected = P_QUEEN;
     }
     if (game.piece_selected != -1) {
         handle_pawn_promotion(game, game.current_move);

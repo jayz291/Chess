@@ -34,7 +34,7 @@ class Game {
         int value_white_pieces {};
         int value_black_pieces {};
         Move current_move {};
-        int view { white };
+        int view { WHITE };
         Move calculated_move {};
         bool move_ready { false };
         uint8_t castling_rights;

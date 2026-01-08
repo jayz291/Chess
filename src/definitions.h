@@ -19,8 +19,8 @@ uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask);
 constexpr int SQUARE_SIZE = 95;
 
 enum {
-    white = 0,
-    black = 1
+    WHITE = 0,
+    BLACK = 1
 };
 
 enum tt_flag {
@@ -64,19 +64,26 @@ enum : uint8_t {
 enum : uint8_t {
     TYPE_MASK = 0b0111,
     COLOUR_MASK = 0b1000,
-    T_PAWN = 0b0001,
-    T_KNIGHT = 0b0010,
-    T_BISHOP = 0b0011,
-    T_QUEEN = 0b0101,
-    T_KING = 0b0110,
+    PAWN = 0b0001,
+    KNIGHT = 0b0010,
+    BISHOP = 0b0011,
+    ROOK = 0b0100,
+    QUEEN = 0b0101,
+    KING = 0b0110,
+};
+
+inline uint8_t piece_array[2][7] = {
+    { EMPTY_SQUARE, WHITE_PAWN, WHITE_KNIGHT, WHITE_BISHOP, WHITE_ROOK, WHITE_QUEEN, WHITE_KING },
+    { EMPTY_SQUARE, BLACK_PAWN, BLACK_KNIGHT, BLACK_BISHOP, BLACK_ROOK, BLACK_QUEEN, BLACK_KING }
 };
 
 enum : uint8_t {
-    KNIGHT = 0b00,
-    BISHOP = 0b01,
-    ROOK = 0b10,
-    QUEEN = 0b11,
+    P_KNIGHT = 0b00,
+    P_BISHOP = 0b01,
+    P_ROOK = 0b10,
+    P_QUEEN = 0b11,
 };
+
 enum : uint8_t {
     QUIET = 0b00,
     CASTLING = 0b01,
@@ -188,8 +195,7 @@ inline table_entry transposition_table[TABLE_SIZE];
 
 const int piece_values[16] = { 0, 100, 300, 300, 500, 900, 20000, 0, 0, 100, 300, 300, 500, 900, 20000, 0 };
 
-const int start_value_tables[7][64] = {
-    {},
+const int start_value_tables[6][64] = {
     // pawn 
     { 0, 0, 0, 0, 0, 0, 0, 0,
     5, 10, 10, -20, -20, 10, 10, 5,
@@ -246,8 +252,7 @@ const int start_value_tables[7][64] = {
     -10,-20,-20,-20,-20,-20,-20,-10 }
 };
 
-const int endgame_value_tables[7][64] = {
-    {},
+const int endgame_value_tables[6][64] = {
     // pawn 
     { 0, 0, 0, 0, 0, 0, 0, 0,
     -5, 0, -5, -5, -5, 0, -5,
@@ -409,11 +414,11 @@ struct Bitboards {
         }
     }
     void update_occupied() {
-        occupied_tables[white] = bitboards[WHITE_PAWN] | bitboards[WHITE_KNIGHT] | bitboards[WHITE_BISHOP] | 
+        occupied_tables[WHITE] = bitboards[WHITE_PAWN] | bitboards[WHITE_KNIGHT] | bitboards[WHITE_BISHOP] | 
         bitboards[WHITE_ROOK] | bitboards[WHITE_QUEEN] | bitboards[WHITE_KING];
-        occupied_tables[black] = bitboards[BLACK_PAWN] | bitboards[BLACK_KNIGHT] | bitboards[BLACK_BISHOP] | 
+        occupied_tables[BLACK] = bitboards[BLACK_PAWN] | bitboards[BLACK_KNIGHT] | bitboards[BLACK_BISHOP] | 
         bitboards[BLACK_ROOK] | bitboards[BLACK_QUEEN] | bitboards[BLACK_KING];
-        occupied = occupied_tables[white] | occupied_tables[black];
+        occupied = occupied_tables[WHITE] | occupied_tables[BLACK];
     }
     void find_valid_knight_moves() {
         for (int cell { 0 }; cell < 64; cell++) {
@@ -489,8 +494,8 @@ struct Bitboards {
             if (position & RANK_2) {
                 non_capture_moves |= (position << 16);
             }
-            pawn_attacks[white][cell] = capture_moves;
-            pawn_moves[white][cell] = non_capture_moves;
+            pawn_attacks[WHITE][cell] = capture_moves;
+            pawn_moves[WHITE][cell] = non_capture_moves;
         }
         for (int cell { 0 }; cell < 64; cell++) {
             uint64_t position = 1ULL << cell;
@@ -502,12 +507,12 @@ struct Bitboards {
             if (position & RANK_7) {
                 non_capture_moves |= (position >> 16);
             }
-            pawn_attacks[black][cell] = capture_moves;
-            pawn_moves[black][cell] = non_capture_moves;
+            pawn_attacks[BLACK][cell] = capture_moves;
+            pawn_moves[BLACK][cell] = non_capture_moves;
         }
     }
 
-    void fill_attack_square(int square, int piece) {
+    constexpr void fill_attack_square(int square, int piece) {
         uint64_t mask = (piece == WHITE_BISHOP) ? get_bishop_mask(square) : get_rook_mask(square);
         if (piece == WHITE_BISHOP) {
             bishop_masks[square] = mask;
@@ -534,13 +539,13 @@ struct Bitboards {
             }
         }
     }
-    void fill_attack_tables() {
-        std::cout << "initialising magic bitboards\n";
+    constexpr void fill_attack_tables() {
+        //std::cout << "initialising magic bitboards\n";
         for (int square { 0 }; square < 64; square++) {
             fill_attack_square(square, WHITE_ROOK);
             fill_attack_square(square, WHITE_BISHOP);
         }
-        std::cout << "done\n";
+        //std::cout << "done\n";
     }
 };
 

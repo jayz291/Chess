@@ -55,7 +55,7 @@ void undo_test_move(Game& game, Move& prev_move) {
         game.move_record.pop_back();
     }
 
-    game.turn = ((game.turn == black) ? white : black);
+    game.turn = ((game.turn == BLACK) ? WHITE : BLACK);
     game.zobrist_hash ^= zobrist_black_turn;
 }
 
@@ -85,7 +85,7 @@ void make_test_move(Game& game, Move& move) {
         game.move_record.push_back(move);
         game.piece_selected = EMPTY_SQUARE;
         // game.promoting_pawn = false;
-        game.turn = white + black - game.turn; // flip the turn
+        game.turn = WHITE + BLACK - game.turn; // flip the turn
         game.zobrist_hash ^= zobrist_black_turn;
         return;
     }
@@ -95,7 +95,7 @@ void make_test_move(Game& game, Move& move) {
     move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
 
     if (move.get_move_type() == CASTLING) {
-        uint8_t piece = (move.get_turn() == white) ? WHITE_ROOK: BLACK_ROOK;
+        uint8_t piece = piece_array[move.get_turn()][ROOK];
         int row = 7 - move.get_to_square() / 8;
         if (move.get_to_square() - move.get_from_square() == 2) {
             move_piece(game, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, move.get_turn());
@@ -105,14 +105,14 @@ void make_test_move(Game& game, Move& move) {
     }
 
     if (move.get_move_type() == EN_PASSANT) {
-        int captured_square = ((game.turn == white) ? move.get_to_square() - 8 : move.get_to_square() + 8);
-        int opposing_turn = ((game.turn == white)) ? black : white;
-        uint8_t captured_piece = (game.turn == white) ? BLACK_PAWN : WHITE_PAWN;
+        int captured_square = ((game.turn == WHITE) ? move.get_to_square() - 8 : move.get_to_square() + 8);
+        int opposing_turn = ((game.turn == WHITE)) ? BLACK : WHITE;
+        uint8_t captured_piece = piece_array[opposing_turn][PAWN];
         remove_piece(game, opposing_turn, captured_piece, captured_square);
     } 
     update_castling_flags(game, move);
     game.move_record.push_back(move);
-    game.turn = ((game.turn == white) ? black : white);
+    game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
     game.zobrist_hash ^= zobrist_black_turn;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
@@ -237,7 +237,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
 
     if (depth == 0) {
         positions_searched++;
-        int perspective = (game.turn == white) ? 1 : -1;
+        int perspective = (game.turn == WHITE) ? 1 : -1;
         return perspective * evaluate(game);
     }
     nodes_searched++;
@@ -251,7 +251,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     }
     
     Move_list possible_moves = determine_possible_moves(game);
-    uint8_t king = (game.turn == white) ? WHITE_KING : BLACK_KING;
+    uint8_t king = piece_array[game.turn][KING];
     if (possible_moves.num_moves == 0) {
         int king_square = __builtin_ctzll(game.bitboards.bitboards[king]);
         if (is_square_attacked(game.bitboards, king_square, game.turn)) {
@@ -338,13 +338,13 @@ int evaluate(Game& game) {
 
 __attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard, uint8_t piece) {
     int eval { 0 };
-    if (piece >> 3) {
+    if ((piece >> 3) & 1) {
         piece -= 8;
     }
     while (bitboard) {
-        int square = (piece == white) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
-        eval = start_value_tables[piece][square] + (7800 - game.value_white_pieces + game.value_black_pieces) / 7800.0 *
-        (endgame_value_tables[piece][square] - start_value_tables[piece][square]);
+        int square = ((piece >> 3) == WHITE) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
+        eval += (start_value_tables[piece - 1][square] + (7800 - game.value_white_pieces + game.value_black_pieces) / 7800.0 *
+        (endgame_value_tables[piece - 1][square] - start_value_tables[piece - 1][square]));
         bitboard &= bitboard - 1;
     }
     return eval;
@@ -352,7 +352,7 @@ __attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard
 
 int sort_moves_by_priority(Game& game, Move& move) {
     int move_score_guess = 0;
-    int square = (move.get_turn() == white) ? move.get_to_square() : move.get_to_square() ^ 56;
+    int square = (move.get_turn() == WHITE) ? move.get_to_square() : move.get_to_square() ^ 56;
     move_score_guess += 30 * (start_value_tables[move.get_piece()][square] + 
         (7800 - game.value_white_pieces - game.value_black_pieces) / 7800.0 *
         (start_value_tables[move.get_piece()][square] - endgame_value_tables[move.get_piece()][square]));
@@ -384,21 +384,21 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
     Chessboard& board = game.board;
     int& turn = game.turn;
     uint64_t mask = 1ULL;
-    uint8_t target_piece = (turn == white) ? WHITE_PAWN : BLACK_PAWN;
+    uint8_t target_piece = piece_array[turn][PAWN];
     uint64_t current_pieces = bitboards.bitboards[target_piece];
     int local_counter = moves.num_moves;
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        int opposing_turn = ((turn == white) ? black : white);
-        uint8_t target_piece = ((turn == white)) ? WHITE_PAWN : BLACK_PAWN;
+        int opposing_turn = ((turn == WHITE) ? BLACK : WHITE);
+        //uint8_t target_piece = ((turn == WHITE)) ? WHITE_PAWN : BLACK_PAWN;
         uint64_t captures = bitboards.pawn_attacks[turn][from_square];
         uint64_t non_captures = bitboards.pawn_moves[turn][from_square];
         while (captures) {
             int to_square = __builtin_ctzll(captures);
             if (mask << to_square & bitboards.occupied_tables[opposing_turn]) {
                 int row = 7 - to_square / 8;
-                if ((row == 7 && turn == black) || (row == 0 && turn == white)) {
-                    int promotion_choices[4] = { ROOK, KNIGHT, BISHOP, QUEEN };
+                if ((row == 7 && turn == BLACK) || (row == 0 && turn == WHITE)) {
+                    int promotion_choices[4] = { P_ROOK, P_KNIGHT, P_BISHOP, P_QUEEN };
                     for (int piece: promotion_choices) {
                         Move move;
                         move.set_captured(board[to_square]);
@@ -423,7 +423,7 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
                         moves.list[local_counter++] = move;
                     }
                 }
-            } else if (7 - from_square / 8 == 3 && turn == white && game.move_record.size() > 0) {
+            } else if (7 - from_square / 8 == 3 && turn == WHITE && game.move_record.size() > 0) {
                 Move prev_move = game.move_record.back();
                 if (prev_move.get_to_square() - prev_move.get_from_square() == -16 && prev_move.get_piece() == BLACK_PAWN && 
                     std::abs(prev_move.get_to_square() % 8 - from_square % 8) == 1) {
@@ -442,7 +442,7 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
                         }
                     } 
                 }
-            } else if (7 - from_square / 8 == 4 && turn == black && game.move_record.size() > 0){
+            } else if (7 - from_square / 8 == 4 && turn == BLACK && game.move_record.size() > 0){
                 Move prev_move = game.move_record.back();
                 if (prev_move.get_to_square() - prev_move.get_from_square() == 16 && prev_move.get_piece() == WHITE_PAWN && 
                     std::abs(prev_move.get_to_square() % 8 - from_square % 8) == 1) {
@@ -465,9 +465,8 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
             int to_square = __builtin_ctzll(non_captures);
             if (mask << to_square & ~bitboards.occupied) {
                 int row = 7 - to_square / 8;
-                if ((row == 7 && turn == black) || (row == 0 && turn == white)) {
-                    int promotion_choices[4] = { KNIGHT, 
-                        BISHOP, ROOK, QUEEN };
+                if ((row == 7 && turn == BLACK) || (row == 0 && turn == WHITE)) {
+                    int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
                     for (int piece: promotion_choices) {
                         Move move;
                         move.set_move_type(PROMOTION);
@@ -490,10 +489,10 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
                         if (std::abs(from_square - to_square) == 8) {
                             moves.list[local_counter++] = move;
                         } else if (std::abs(from_square - to_square) == 16) {
-                            if ((turn == white && mask << to_square & ~bitboards.occupied) && 
+                            if ((turn == WHITE && mask << to_square & ~bitboards.occupied) && 
                             (mask << (to_square - 8) & ~bitboards.occupied) && mask << from_square & RANK_2) {
                                 moves.list[local_counter++] = move;
-                            } else if ((turn == black && mask << to_square & ~bitboards.occupied) && 
+                            } else if ((turn == BLACK && mask << to_square & ~bitboards.occupied) && 
                             (mask << (to_square + 8) & ~bitboards.occupied) && mask << from_square & RANK_7) {
                                 moves.list[local_counter++] = move;
                             }
@@ -511,7 +510,7 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
 __attribute__((always_inline)) void add_knight_moves(Game& game, Move_list& moves) {
     //std::cout << "checking knight moves\n";
     uint64_t mask = 1ULL;
-    uint8_t piece = (game.turn == white) ? WHITE_KNIGHT: BLACK_KNIGHT;
+    uint8_t piece = piece_array[game.turn][KNIGHT];
     uint64_t current_pieces = game.bitboards.bitboards[piece];
     int local_counter = moves.num_moves;
     while (current_pieces) {
@@ -541,7 +540,7 @@ __attribute__((always_inline)) void add_knight_moves(Game& game, Move_list& move
 
 __attribute__((always_inline)) void add_bishop_moves(Game& game, Move_list& moves) {
     uint64_t mask = 1ULL;
-    uint8_t piece = (game.turn == white) ? WHITE_BISHOP : BLACK_BISHOP;
+    uint8_t piece = piece_array[game.turn][BISHOP];
     uint64_t current_pieces = game.bitboards.bitboards[piece];
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
@@ -565,7 +564,7 @@ __attribute__((always_inline)) void add_bishop_moves(Game& game, Move_list& move
 
 __attribute__((always_inline)) void add_rook_moves(Game& game, Move_list& moves) {
     uint64_t mask = 1ULL;
-    uint8_t piece = (game.turn == white) ? WHITE_ROOK : BLACK_ROOK;
+    uint8_t piece = piece_array[game.turn][ROOK];
     uint64_t current_pieces = game.bitboards.bitboards[piece];
     int local_counter = moves.num_moves;
     while (current_pieces) {
@@ -592,7 +591,7 @@ __attribute__((always_inline)) void add_rook_moves(Game& game, Move_list& moves)
 
 __attribute__((always_inline)) void add_queen_moves(Game& game, Move_list& moves) {
     uint64_t mask = 1ULL;
-    uint8_t piece = (game.turn == white) ? WHITE_QUEEN : BLACK_QUEEN;
+    uint8_t piece = piece_array[game.turn][QUEEN];
     uint64_t current_pieces = game.bitboards.bitboards[piece];
     int local_counter = moves.num_moves;
     int to_square;
@@ -635,7 +634,7 @@ __attribute__((always_inline)) void add_queen_moves(Game& game, Move_list& moves
 __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves) {
 
     uint64_t mask = 1ULL;
-    uint8_t piece = (game.turn == white) ? WHITE_KING : BLACK_KING;
+    uint8_t piece = piece_array[game.turn][KING];
     uint64_t current_pieces = game.bitboards.bitboards[piece];
     int local_counter = moves.num_moves;
     while (current_pieces) {
@@ -656,7 +655,7 @@ __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves)
             }
             king_moves &= king_moves - 1;
         }
-        if (from_square == 4 && game.turn == white) {
+        if (from_square == 4 && game.turn == WHITE) {
             Move move1, move2;
             move1.set_from_square(from_square);
             move1.set_to_square(6);
@@ -674,7 +673,7 @@ __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves)
                 moves.list[local_counter++] = move2;
                 //std::cout << "here\n";
             }
-        } else if (from_square == 60 && game.turn == black) {
+        } else if (from_square == 60 && game.turn == BLACK) {
             Move move1, move2;
             move1.set_from_square(from_square);
             move1.set_to_square(62);

@@ -22,7 +22,7 @@ void Game::initialise() {
     plys_to_100 = 0;
     winner = piece_selected = -1;
     white_in_check = black_in_check = promoting_pawn = false;
-    turn = white;
+    turn = WHITE;
     game_status = 0b00000000;
     selected_square = -1;
     bitboards = {};
@@ -83,9 +83,9 @@ int handle_fen_string(Game& game) {
     }
     
     if (split_fen[1] == "b") {
-        proposed_game.turn = black;
+        proposed_game.turn = BLACK;
     } else if (split_fen[1] == "w") {
-        proposed_game.turn = white;
+        proposed_game.turn = WHITE;
     } else {
         return -1;
     }
@@ -224,7 +224,7 @@ int process_en_passant_square(Game& proposed_game, std::string& en_passant_squar
     
     if (square >= 16 && square <= 23) {
         if ((proposed_game.bitboards.bitboards[WHITE_PAWN] & (mask << (square + 8))) &&
-            ~proposed_game.bitboards.occupied & mask << (square - 8) && proposed_game.turn == black) {
+            ~proposed_game.bitboards.occupied & mask << (square - 8) && proposed_game.turn == BLACK) {
             Move prev_move;
             prev_move.set_from_square(square - 8);
             prev_move.set_to_square(square + 8);
@@ -236,7 +236,7 @@ int process_en_passant_square(Game& proposed_game, std::string& en_passant_squar
         }
     } else if (square >= 40 && square <= 47) {
         if ((proposed_game.bitboards.bitboards[BLACK_PAWN] & (mask << (square - 8))) &&
-            ~proposed_game.bitboards.occupied & mask << (square + 8) && proposed_game.turn == white) {
+            ~proposed_game.bitboards.occupied & mask << (square + 8) && proposed_game.turn == WHITE) {
             Move prev_move;
             prev_move.set_from_square(square + 8);
             prev_move.set_to_square(square - 8);
@@ -261,14 +261,14 @@ int check_position_validity(Game& proposed_game) {
     int black_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[BLACK_KING]);
     int white_king_square = __builtin_ctzll(proposed_game.bitboards.bitboards[WHITE_KING]);
 
-    if (is_square_attacked(proposed_game.bitboards, white_king_square, white)) {
+    if (is_square_attacked(proposed_game.bitboards, white_king_square, WHITE)) {
         proposed_game.white_in_check = true;
     }
-    if (is_square_attacked(proposed_game.bitboards, black_king_square, black)) {
+    if (is_square_attacked(proposed_game.bitboards, black_king_square, BLACK)) {
         proposed_game.black_in_check = true;
     }
-    if ((proposed_game.black_in_check && proposed_game.turn == white) || 
-        (proposed_game.white_in_check && proposed_game.turn == black)) {
+    if ((proposed_game.black_in_check && proposed_game.turn == WHITE) || 
+        (proposed_game.white_in_check && proposed_game.turn == BLACK)) {
         return -1;
     }
     return 0;
@@ -325,34 +325,34 @@ void print_all_bitboards(Bitboards& bitboards) {
     std::cout << "-----------------------------------------------\n";
     for (int i = 1; i <= 6; i++) {
         if (i == 1) {
-            std::cout << "white pawns";
+            std::cout << "WHITE pawns";
         } else if (i == 2) {
-            std::cout << "white knights";
+            std::cout << "WHITE knights";
         } else if (i == 3) {
-            std::cout << "white bishops";
+            std::cout << "WHITE bishops";
         } else if (i == 4) {
-            std::cout << "white rooks";
+            std::cout << "WHITE rooks";
         } else if (i == 5) {
-            std::cout << "white queens";
+            std::cout << "WHITE queens";
         } else if (i == 6) {
-            std::cout << "white king";
+            std::cout << "WHITE king";
         }
         std::cout << '\n';
         print_bitboard(bitboards.bitboards[i]);
     }
     for (int i = 9; i <= 14; i++) {
         if (i == 9) {
-            std::cout << "black pawns";
+            std::cout << "BLACK pawns";
         } else if (i == 10) {
-            std::cout << "black knights";
+            std::cout << "BLACK knights";
         } else if (i == 11) {
-            std::cout << "black bishops";
+            std::cout << "BLACK bishops";
         } else if (i == 12) {
-            std::cout << "black rooks";
+            std::cout << "BLACK rooks";
         } else if (i == 13) {
-            std::cout << "black queens";
+            std::cout << "BLACK queens";
         } else if (i == 14) {
-            std::cout << "black king";
+            std::cout << "BLACK king";
         }
         std::cout << '\n';
         print_bitboard(bitboards.bitboards[i]);
