@@ -248,6 +248,8 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         } else {
             game.invalid_fen_position = true;
         }
+        //print_all_bitboards(game.bitboards);
+        is_game_over(game);
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
         game.view = WHITE;
@@ -574,7 +576,7 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& as
 void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, 
     int x, int y, uint8_t piece, bool dragging) {
     //std::string piece_type = piece->piece_type;
-    assert(piece >= 0 && piece <= 5);
+    //assert(piece >= 0 && piece <= 5);
     sf::Texture texture = assets.array[piece];
 
     sf::Sprite sprite(texture);

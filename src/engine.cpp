@@ -174,9 +174,14 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
         int move_eval = 0;
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
-            //return move1.eval > move2.eval;
-            return 0;
+                //return move1.eval > move2.eval;
+            return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
         });
+        for (int i { 1 }; i < possible_moves.num_moves; i++) {
+            if (possible_moves.list[i] == current_best_move) {
+                std::swap(possible_moves.list[i], possible_moves.list[0]);
+            }
+        }
         current_best_move = possible_moves.list[0];
 
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
@@ -232,6 +237,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     if (depth == 0) {
         positions_searched++;
         int perspective = (game.turn == WHITE) ? 1 : -1;
+        //return perspective * evaluate(game);
         return perspective * evaluate(game);
     }
     nodes_searched++;
@@ -256,14 +262,19 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     }
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        if (move1 == stored_move) {
+       /* if (move1 == stored_move) {
             return true;
         }
         if (move2 == stored_move) {
             return false;
-        }
+        }*/
         return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
     });
+    for (int i { 1 }; i < possible_moves.num_moves; i++) {
+        if (possible_moves.list[i] == stored_move) {
+            std::swap(possible_moves.list[i], possible_moves.list[0]);
+        }
+    }
  
     int max_eval = -600000;
     int move_eval;
@@ -317,27 +328,31 @@ inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, i
 
 int evaluate(Game& game) {
     int eval { 0 };
-    
+    for (int piece { 1 }; piece < 6; piece++) {
+        game.value_white_pieces = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
+        eval += game.value_white_pieces;
+        //eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
+    }
+    for (int piece { 9 }; piece < 14; piece++) {
+        game.value_black_pieces = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece - 8];
+        eval -= game.value_black_pieces;
+        //eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8, true);
+    }
     for (int piece { 1 }; piece <= 6; piece++) {
-        eval += __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
         eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
     }
     for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
-        eval -= positional_eval(game, game.bitboards.bitboards[piece], piece);
+        eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8);
     }
 
     return eval;
 }
 
-__attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard, uint8_t piece) {
+__attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard, uint8_t piece, bool black) {
     int eval { 0 };
-    if ((piece >> 3) & 1) {
-        piece -= 8;
-    }
     while (bitboard) {
-        int square = ((piece >> 3) == WHITE) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
-        eval += (start_value_tables[piece - 1][square] + (7800 - game.value_white_pieces + game.value_black_pieces) / 7800.0 *
+        int square = (!black) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
+        eval += (start_value_tables[piece - 1][square] + (8000 - game.value_white_pieces - game.value_black_pieces) / 8000.0 *
         (endgame_value_tables[piece - 1][square] - start_value_tables[piece - 1][square]));
         bitboard &= bitboard - 1;
     }

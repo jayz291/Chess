@@ -203,7 +203,6 @@ void replace_piece(Game& game, uint8_t prev_piece, uint8_t new_piece, int target
 }
 
 void remove_piece(Game& game, int turn, uint8_t target_piece, int target_square) {
-    //int zobrist_offset = (turn == WHITE) ? 0 : 6;
 
     // update bitboards
     game.bitboards.bitboards[target_piece] &= ~(1ULL << target_square);
@@ -302,6 +301,7 @@ void undo_game_move(Game& game) {
     if (game.move_record.size() == 0) {
         return;
     }
+    game.selected_square = -1;
     //std::cout << "size: " << game.move_record.size() << '\n';
     Move prev_move = game.move_record[game.move_record.size() - 1];
     std::cout << game.move_record.size() - 1 << '\n';
@@ -434,11 +434,11 @@ bool determine_insufficient_material(Game& game) {
         game.value_white_pieces += __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
     }
     for (int piece { 9 }; piece < 14; piece++) {
-        game.value_black_pieces += __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
+        game.value_black_pieces += __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece - 8];
     }
     bool pawns_on_board = ((game.bitboards.bitboards[WHITE_PAWN] | game.bitboards.bitboards[BLACK_PAWN]) == 0) ? 
     false : true;
-    if (game.value_black_pieces <= 300 && game.value_white_pieces <= 300 && !pawns_on_board) {
+    if (game.value_black_pieces <= 330 && game.value_white_pieces <= 330 && !pawns_on_board) {
         game.game_status |= 1UL;
         std::cout << "insufficient material\n";
         return true;
@@ -789,13 +789,9 @@ int validate_castling(Game &game, Move& move) {
 }
 
 int is_in_check(Game& game, Move& move) {
-    int king = piece_array[move.get_turn()][KING];
+    int king = (move.get_turn() == WHITE) ? WHITE_KING : BLACK_KING;
     make_test_move(game, move); 
     int king_square = __builtin_ctzll(game.bitboards.bitboards[king]);
-    /*if (king_square > 63) {
-        print_all_bitboards(game.bitboards);
-        exit(2);
-    }*/
     int in_check = is_square_attacked(game.bitboards, king_square, move.get_turn());
     undo_test_move(game, move);
     return in_check;

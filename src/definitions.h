@@ -121,15 +121,12 @@ struct Move {
         return data & MASK;
     }
     void set_from_square(int from_square) {
-        //data &= ~(SQUARE_MASK << FROM_SHIFT);
         data |= (from_square & SQUARE_MASK) << FROM_SHIFT;
     }
     void set_to_square(int to_square) {
-        //data &= ~(SQUARE_MASK << TO_SHIFT);
         data |= (to_square & SQUARE_MASK) << TO_SHIFT;
     }
     void set_piece(uint8_t piece) {
-        //data &= ~(MASK << PIECE_SHIFT);
         data |= (piece & MASK) << PIECE_SHIFT;
     }
     void set_another_piece(uint8_t piece) {
@@ -141,11 +138,9 @@ struct Move {
         data |= (captured & MASK) << CAPTURED_SHIFT;
     }
     void set_move_type(uint8_t move_type) {
-        //data &= ~(TWO_BIT_MASK << SPECIAL_MOVE_SHIFT);
         data |= (move_type & TWO_BIT_MASK) << SPECIAL_MOVE_SHIFT;
     }
     void set_promotion_piece(uint8_t promotion_piece) {
-        //data &= ~(TWO_BIT_MASK << PROMOTION_PIECE_SHIFT);
         data |= (promotion_piece & TWO_BIT_MASK) << PROMOTION_PIECE_SHIFT;
     }
     void set_castling_flags(uint8_t castling_rights) {
@@ -185,14 +180,14 @@ struct table_entry {
 constexpr int TABLE_SIZE = 1048576;
 inline table_entry transposition_table[TABLE_SIZE];
 
-const int piece_values[16] = { 0, 100, 300, 300, 500, 900, 20000, 0, 0, 100, 300, 300, 500, 900, 20000, 0 };
+const int piece_values[8] = { 0, 100, 320, 330, 500, 900, 20000, 0 };
 
 const int start_value_tables[6][64] = {
     // pawn 
     { 0, 0, 0, 0, 0, 0, 0, 0,
     5, 10, 10, -20, -20, 10, 10, 5,
     5, -5, -10, 0, 0, -10, -5, 5, 
-    0, 0, 0, 20, 20, 0, 0, 0,
+    -5, 0, 0, 20, 20, 0, 0, -5,
     5, 5, 10, 25, 25, 10, 5, 5,
     10, 10, 20, 30, 30, 20, 10, 10, 
     50, 50, 50, 50, 50, 50, 50, 50,
