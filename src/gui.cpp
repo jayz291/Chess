@@ -248,6 +248,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         } else {
             game.invalid_fen_position = true;
         }
+        run_perft_suite(game, 5);
         //print_all_bitboards(game.bitboards);
         is_game_over(game);
     }
