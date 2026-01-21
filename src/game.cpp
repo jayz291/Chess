@@ -67,8 +67,8 @@ int handle_fen_string(Game& game) {
     std::cout << fen_string << '\n';
     std::vector<std::string> split_fen;
     if (fen_string.size() == 0) {
-        find_position_hash(game);
         game.initialise_default_board();
+        find_position_hash(game);
         return 0;
     }
     std::stringstream ss(fen_string);
@@ -82,9 +82,7 @@ int handle_fen_string(Game& game) {
 
     Game proposed_game;
     proposed_game.castling_rights = 0b00000000;
-    /*for (int i { 0 }; i < 64; i++) {
-        proposed_game.board[i] = EMPTY_SQUARE;
-    }*/
+
     memset(proposed_game.bitboards.bitboards, 0, sizeof(proposed_game.bitboards.bitboards));
 
     if (fill_board(proposed_game, split_fen[0]) == -1) {
@@ -367,4 +365,102 @@ void print_all_bitboards(Bitboards& bitboards) {
         print_bitboard(bitboards.bitboards[i]);
     }
 }
+
+void verify_board_sync(Game& game) {
+    int piece;
+    std::vector<int> bitboards_filled;
+    for (int square { 0 }; square < 63; square++) {
+        bitboards_filled.clear();
+        piece = game.board[square];
+        if (piece != EMPTY_SQUARE) {
+            if (!(game.bitboards.bitboards[game.board[square]] & (1ULL << square))) {
+                std::cout << "[DESYNC] Missing piece number " << piece << "at square " << square << '\n';
+            }
+            if (bit_filled_count(game, bitboards_filled, square) > 1) {
+                std::cout << "[DESYNC] The following piece bitboards are filled at square " << square << ": ";
+                for (int piece_num : bitboards_filled) {
+                    std::cout << piece_num << ' ';
+                }
+                std::cout << "\nBut the piece is " << piece << '\n';
+            }
+        } else {
+            if (bit_filled_count(game, bitboards_filled, square) > 0) {
+                std::cout << "[DESYNC] 1D array says the board is empty at square " << square <<
+                " but the following bitboards are filled: ";
+                for (int piece_num : bitboards_filled) {
+                    std::cout << piece_num << ' ';
+                }
+                std::cout << '\n';
+            }
+        }
+    }
+}
+
+int bit_filled_count(Game& game, std::vector<int>& bitboards_filled, int square) {
+    int count = 0;
+    for (int i { 1 }; i < 6; i++) {
+        if (game.bitboards.bitboards[i] & (1ULL << square)) {
+            count++;
+            bitboards_filled.push_back(i);
+        }
+    }
+    for (int i { 9 }; i < 14; i++) {
+        if (game.bitboards.bitboards[i] & (1ULL << square)) {
+            count++;
+            bitboards_filled.push_back(i);
+        }
+    }
+    return count;
+}
+
+bool verify_zobrist_sync(Game& game) {
+
+    uint64_t stored_hash = game.zobrist_hash;
+
+    game.zobrist_hash = 0; 
+    find_position_hash(game);
+    uint64_t calculated_hash = game.zobrist_hash;
+
+    game.zobrist_hash = stored_hash;
+
+    if (calculated_hash != stored_hash) {
+        std::cout << "HASH MISMATCH!\n";
+        std::cout << "Stored (Incremental):   " << stored_hash << "\n";
+        std::cout << "Calculated (Scratch):   " << calculated_hash << "\n";
+        std::cout << "Difference (XOR):       " << (stored_hash ^ calculated_hash) << "\n";
+        debug_diff(stored_hash ^ calculated_hash);
+        return false;
+    }
+    return true;
+}
+
+void debug_diff(uint64_t diff) {
+    if (diff == zobrist_black_turn) {
+        std::cout << "[ERROR] Side-to-move is flipped incorrectly.\n";
+        return;
+    }
+
+    for (int piece = 1; piece < 14; piece++) { 
+        if (piece == 7 || piece == 8) {
+            continue;
+        }
+        for (int square = 0; square < 64; square++) {
+            if (diff == zobrist_table[piece][square]) {
+                std::cout << "[ERROR] Discrepancy matches Piece-Type-" << piece 
+                          << " at square " << square << "\n";
+                return;
+            }
+        }
+    }
+    
+    for (int col = 0; col < 9; col++) {
+         if (diff == zobrist_en_passant[col]) {
+             std::cout << "[ERROR] En Passant file discrepancy at col " << col << "\n";
+             return;
+         }
+    }
+
+    std::cout << "[ERROR] Complex desync\n";
+}
+
 

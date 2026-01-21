@@ -116,14 +116,12 @@ void generate_computer_move(Game& game) {
         return;
     }
     thinking_in_progress = true;
-    
     positions_searched = 0;
     Game game_copy = game;
     auto start = std::chrono::steady_clock::now();
     std::thread computer_thread([game_copy, start]() mutable {
         Move chosen_move = get_best_move(game_copy, 2000);
-        computer_turn = false;
-        thinking_in_progress = false;
+        computer_turn = thinking_in_progress = false;
         finished = true;
         calculated_move = chosen_move;
         auto end = std::chrono::steady_clock::now();
@@ -148,7 +146,8 @@ void make_computer_move(Game& game) {
             chosen_move.set_promotion_piece(game.piece_selected);
             handle_pawn_promotion(game, chosen_move);
         }
-
+        verify_board_sync(game);
+        verify_zobrist_sync(game);
         is_game_over(game);
     }
     finished = false;
@@ -237,7 +236,6 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     if (depth == 0) {
         positions_searched++;
         int perspective = (game.turn == WHITE) ? 1 : -1;
-        //return perspective * evaluate(game);
         return perspective * evaluate(game);
     }
     nodes_searched++;

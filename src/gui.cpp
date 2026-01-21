@@ -3,6 +3,9 @@
 #include "logic.h"
 #include "gui.h"
 #include "perft.h"
+#include <atomic>
+
+extern std::atomic<bool> thinking_in_progress;
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
     while (const std::optional event = window.pollEvent()) {
@@ -241,13 +244,14 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         game.initialise();
         int result = handle_fen_string(game);
         if (result == 0) {
-            std::cout << "passed\n";
-            std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
+            //std::cout << "passed\n";
+            //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
             run_perft_suite(game, 5);
             is_game_over(game);
-            print_board(game.board);
+            verify_board_sync(game);
+            verify_zobrist_sync(game);
         } else {
             game.invalid_fen_position = true;
         }
@@ -285,7 +289,9 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     }
     //print_all_bitboards(game.bitboards);
     if (result >= 0) {
-        std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
+        //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
+        verify_board_sync(game);
+        verify_zobrist_sync(game);
         is_game_over(game);
     }
 }
@@ -299,7 +305,6 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         square = square ^ 56;
     }
     if (square != game.selected_square) {
-        //Move move { game.selected_square, square, game.turn, game.dragged_piece };
         Move move;
         move.set_from_square(game.selected_square);
         move.set_to_square(square);
@@ -312,7 +317,6 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         int result = validate_move(game, move);
         if (result >= 0) {
             game.current_move = move;
-            //game.board[game.selected_square].selected = false;
             game.selected_square = -1;
             make_game_move(game, result, game.current_move);  
         }
@@ -332,7 +336,7 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
     if (selection_made) {
         game.state = Gamestate::Playing;
         is_game_over(game);
-        std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
+        //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }
     //print_all_bitboards(game.bitboards);
 }
@@ -363,11 +367,15 @@ void handle_clicks_undoing(Game& game, sf::Vector2i mouse_pos) {
             undo_game_move(game);
             undo_game_move(game);
         }
-        //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
+        verify_board_sync(game);
+        verify_zobrist_sync(game);
     }
 }
 
 void handle_clicks_returning(Game& game, sf::Vector2i mouse_pos) {
+    if (thinking_in_progress) {
+        return; 
+    }
     if (10 <= mouse_pos.x && mouse_pos.x <= 114 && 55 <= mouse_pos.y && mouse_pos.y <= 90) {
         game.state = Gamestate::Intro;
     }
@@ -389,18 +397,22 @@ void draw_reset_button(sf::RenderWindow& window, Assets& assets) {
 }
 
 void draw_undo_button(sf::RenderWindow& window, Assets& assets) {
+    sf::Color rectangle_colour = thinking_in_progress ? sf::Color(128, 128, 128) : sf::Color::White;
+    sf::Color text_colour = thinking_in_progress ? sf::Color(59, 59, 59) : sf::Color::Red;
 
-    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, sf::Color::White);
-    sf::Text text = configure_text(assets.font, "Undo", {953, 13}, 15, sf::Color::Red);
+    sf::RectangleShape undo_button = make_rectangle({950, 10}, {44, 35}, rectangle_colour);
+    sf::Text text = configure_text(assets.font, "Undo", {953, 13}, 15, text_colour);
 
     window.draw(undo_button);
     window.draw(text);
 }
 
 void draw_return_to_home_button(sf::RenderWindow& window, Assets& assets) {
+    sf::Color rectangle_colour = thinking_in_progress ? sf::Color(128, 128, 128) : sf::Color::White;
+    sf::Color text_colour = thinking_in_progress ? sf::Color(59, 59, 59) : sf::Color::Red;
 
-    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, sf::Color::White);
-    sf::Text text = configure_text(assets.font, "Back to Home", {13, 58}, 15, sf::Color::Red);
+    sf::RectangleShape return_button = make_rectangle({10, 55}, {104, 35}, rectangle_colour);
+    sf::Text text = configure_text(assets.font, "Back to Home", {13, 58}, 15, text_colour);
 
     window.draw(return_button);
     window.draw(text);
@@ -473,15 +485,13 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                     }
                 }
             }
-            if (square == game.selected_square && game.view == WHITE) {
+            if ((square == game.selected_square && game.view == WHITE) ||
+                ((square ^ 56) == game.selected_square && game.view == BLACK)) {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
-            } else if ((square ^ 56) == game.selected_square && game.view == BLACK) {
-                cell.setOutlineThickness(-3.0f);
-                cell.setOutlineColor(sf::Color::Black);             
-            }
+            } 
             cell.setPosition({x_offset, y_offset});
             window.draw(cell);
         }
@@ -493,30 +503,8 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             uint64_t mask = 1ULL << square;
             
             if (!game.is_dragging || square != game.selected_square) {
-                if (game.bitboards.bitboards[WHITE_PAWN] & mask) {
-                    draw_piece(game, window, assets, rank, file, WHITE_PAWN);
-                } else if (game.bitboards.bitboards[BLACK_PAWN] & mask) {
-                    draw_piece(game, window, assets, rank, file, BLACK_PAWN);
-                } else if (game.bitboards.bitboards[WHITE_KNIGHT] & mask) {
-                    draw_piece(game, window, assets, rank, file, WHITE_KNIGHT);
-                } else if (game.bitboards.bitboards[BLACK_KNIGHT] & mask) {
-                    draw_piece(game, window, assets, rank, file, BLACK_KNIGHT);
-                } else if (game.bitboards.bitboards[WHITE_BISHOP] & mask) {
-                    draw_piece(game, window, assets, rank, file, WHITE_BISHOP);
-                } else if (game.bitboards.bitboards[BLACK_BISHOP] & mask) {
-                    draw_piece(game, window, assets, rank, file, BLACK_BISHOP);
-                } else if (game.bitboards.bitboards[WHITE_ROOK] & mask) {
-                    draw_piece(game, window, assets, rank, file, WHITE_ROOK);
-                } else if (game.bitboards.bitboards[BLACK_ROOK] & mask) {
-                    draw_piece(game, window, assets, rank, file, BLACK_ROOK);
-                } else if (game.bitboards.bitboards[WHITE_QUEEN] & mask) {
-                    draw_piece(game, window, assets, rank, file, WHITE_QUEEN);
-                } else if (game.bitboards.bitboards[BLACK_QUEEN] & mask) {
-                    draw_piece(game, window, assets, rank, file, BLACK_QUEEN);
-                } else if (game.bitboards.bitboards[WHITE_KING] & mask) {
-                    draw_piece(game, window, assets, rank, file, WHITE_KING);
-                } else if (game.bitboards.bitboards[BLACK_KING] & mask) {
-                    draw_piece(game, window, assets, rank, file, BLACK_KING);
+                if (game.board[square] != EMPTY_SQUARE) {
+                    draw_piece(game, window, assets, rank, file, game.board[square]);
                 }
             } else {
                 continue;
@@ -580,7 +568,6 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& as
 
 void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, 
     int x, int y, uint8_t piece, bool dragging) {
-    //std::string piece_type = piece->piece_type;
     //assert(piece >= 0 && piece <= 5);
     sf::Texture texture = assets.array[piece];
 
@@ -602,14 +589,10 @@ void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets,
         sprite.setPosition(assets.current_mouse_pos);
     }
 
-    if (piece == WHITE_KING) {
-        if (game.white_in_check && game.turn == WHITE) {
-            sprite.setColor(sf::Color(255, 0, 0, 100));
-        } 
-    } else if (piece == BLACK_KING) {
-        if (game.black_in_check && game.turn == BLACK) {
-            sprite.setColor(sf::Color(255, 0, 0, 100));
-        }
+    if (piece == WHITE_KING && game.white_in_check && game.turn == WHITE) {
+        sprite.setColor(sf::Color(255, 0, 0, 100));
+    } else if (piece == BLACK_KING && game.black_in_check && game.turn == BLACK) {
+        sprite.setColor(sf::Color(255, 0, 0, 100));
     }
     window.draw(sprite);
 
@@ -631,13 +614,11 @@ int select_square(int x, int y, Game& game) {
     //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
     if (game.selected_square != -1) {
         
-        //Move move { game.selected_square, square, game.turn, game.board[game.selected_square].piece };
         Move move;
         move.set_from_square(game.selected_square);
         move.set_to_square(square);
         move.set_piece(game.board[game.selected_square]);
         if (game.board[square] != EMPTY_SQUARE) {
-            //move.get_captured_piece() = game.board[square];
             move.set_captured(game.board[square]);
         }
         int result = validate_move(game, move);
@@ -658,13 +639,9 @@ int select_square(int x, int y, Game& game) {
 }
 
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos) {
-    int x, y;
-
-    x = mouse_pos.x;
-    y = mouse_pos.y;
     
-    int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
-    int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
+    int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
+    int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
 
     if (row == 4 && col == 2) {
         game.piece_selected = P_ROOK;

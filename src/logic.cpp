@@ -304,7 +304,7 @@ void undo_game_move(Game& game) {
     game.selected_square = -1;
     //std::cout << "size: " << game.move_record.size() << '\n';
     Move prev_move = game.move_record[game.move_record.size() - 1];
-    std::cout << game.move_record.size() - 1 << '\n';
+    //std::cout << game.move_record.size() - 1 << '\n';
 
     restore_zobrist_en_passant_and_castling(game, prev_move);
 
@@ -409,15 +409,11 @@ void update_castling_flags(Game& game, Move& move) {
 void is_game_over(Game& game) {
     evaluate_king_checks(game);
     game.board_record.push_back(game.zobrist_hash);
-    //record_board(game);
     
     Game game_copy = game;
     Move_list moves = determine_possible_moves(game_copy);
-    std::cout << "is game over\n";
-
-    if (moves.num_moves > 0) {
-        std::cout << moves.num_moves << '\n';
-    }
+    //std::cout << moves.num_moves << '\n';
+    
     if (moves.num_moves == 0 || determine_repetition(game) || 
         determine_insufficient_material(game) || game.plys_to_100 == 100) {
     
@@ -449,16 +445,14 @@ bool determine_insufficient_material(Game& game) {
 bool determine_repetition(Game& game) {
     int occurrences { 1 };
     int latest_move { static_cast<int>(game.board_record.size() - 1)};
-    std::cout << occurrences << '\n';
+    // std::cout << occurrences << '\n';
     //std::cout << "Latest move: " << latest_move << '\n';
     for (int i { latest_move - 1 }; i >= 0; i--) {
         if (game.board_record[i] == game.board_record[latest_move]) {
             occurrences++;
         }
         if (occurrences == 3) {
-            std::cout << "Occurences: " << occurrences << '\n';
             game.game_status |= (1UL << 1);
-            std::cout << "I am in here now\n";
             return true;
         }
     }

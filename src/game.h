@@ -54,6 +54,12 @@ int handle_fen_string(Game& game);
 int fill_board(Game& proposed_game, std::string& fen_board_section);
 int check_position_validity(Game& proposed_game);
 int process_en_passant_square(Game& proposed_game, std::string& en_passant_square);
+
+// for debugging
 void print_bitboard(uint64_t bitboard);
 void print_all_bitboards(Bitboards& bitboards);
 void print_board(std::array<uint8_t, 64> board);
+void verify_board_sync(Game& game);
+int bit_filled_count(Game& game, std::vector<int>& bitboards_filled, int square);
+bool verify_zobrist_sync(Game& game);
+void debug_diff(uint64_t diff);
