@@ -40,20 +40,19 @@ class Game {
     uint8_t castling_rights;
     bool is_dragging { false };
     uint8_t dragged_piece;
-    sf::String fen_string;
+    sf::String entered_fen;
+    std::string final_fen;
     int en_passant_index; // (0 - 7 for col of en passant square, 8 if there is none )
-    bool default_position;
     bool invalid_fen_position { false };
     uint64_t zobrist_hash;
     Game();
     void initialise();
-    void initialise_default_board();
 };
 
 int handle_fen_string(Game& game);
-int fill_board(Game& proposed_game, std::string& fen_board_section);
-int check_position_validity(Game& proposed_game);
-int process_en_passant_square(Game& proposed_game, std::string& en_passant_square);
+int fill_board(Game& game, std::string& fen_board_section);
+int check_position_validity(Game& game);
+int process_en_passant_square(Game& game, std::string& en_passant_square);
 
 // for debugging
 void print_bitboard(uint64_t bitboard);

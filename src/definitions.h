@@ -379,7 +379,7 @@ struct Bitboards {
     };
     static bool initialised;
     Bitboards() {
-        set_default_bitboards();
+        init_bitboards();
         update_occupied();
         if (!initialised) {
             find_valid_knight_moves();
@@ -390,19 +390,10 @@ struct Bitboards {
             initialised = true;
         }
     }
-    void set_default_bitboards() {
-        bitboards[WHITE_PAWN] = 0x000000000000FF00ULL;
-        bitboards[WHITE_KNIGHT] = 0x0000000000000042ULL;
-        bitboards[WHITE_BISHOP] = 0x0000000000000024ULL;
-        bitboards[WHITE_ROOK] = 0x0000000000000081ULL;
-        bitboards[WHITE_QUEEN] = 0x0000000000000008ULL;
-        bitboards[WHITE_KING] = 0x0000000000000010ULL;
-        bitboards[BLACK_PAWN] = 0x00FF000000000000ULL;
-        bitboards[BLACK_KNIGHT] = 0x4200000000000000ULL;
-        bitboards[BLACK_BISHOP] = 0x2400000000000000ULL;
-        bitboards[BLACK_ROOK] = 0x8100000000000000ULL;
-        bitboards[BLACK_QUEEN] = 0x0800000000000000ULL;
-        bitboards[BLACK_KING] = 0x1000000000000000ULL;
+    void init_bitboards() {
+        for (int i { 0 }; i <= 14; i++) {
+            bitboards[i] = 0ULL;
+        }
     }
     void update_occupied() {
         occupied_tables[WHITE] = bitboards[WHITE_PAWN] | bitboards[WHITE_KNIGHT] | bitboards[WHITE_BISHOP] | 
