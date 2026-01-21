@@ -77,7 +77,8 @@ enum : uint8_t {
     PROMOTION = 0b11
 };
 
-struct Move {
+class Move {
+    private:
     uint32_t data {};
     static constexpr int FROM_SHIFT = 26;
     static constexpr int TO_SHIFT = 20;
@@ -89,7 +90,7 @@ struct Move {
     static constexpr uint32_t SQUARE_MASK = 0x3F;
     static constexpr uint32_t MASK = 0xF;
     static constexpr uint32_t TWO_BIT_MASK = 0x3;
-
+    public:
     int get_from_square() const {
         return (data >> FROM_SHIFT) & SQUARE_MASK;
     }
@@ -378,6 +379,18 @@ struct Bitboards {
     };
     static bool initialised;
     Bitboards() {
+        set_default_bitboards();
+        update_occupied();
+        if (!initialised) {
+            find_valid_knight_moves();
+            find_valid_king_moves();
+            make_between_table();
+            find_pawn_attacks();
+            fill_attack_tables();
+            initialised = true;
+        }
+    }
+    void set_default_bitboards() {
         bitboards[WHITE_PAWN] = 0x000000000000FF00ULL;
         bitboards[WHITE_KNIGHT] = 0x0000000000000042ULL;
         bitboards[WHITE_BISHOP] = 0x0000000000000024ULL;
@@ -390,15 +403,6 @@ struct Bitboards {
         bitboards[BLACK_ROOK] = 0x8100000000000000ULL;
         bitboards[BLACK_QUEEN] = 0x0800000000000000ULL;
         bitboards[BLACK_KING] = 0x1000000000000000ULL;
-        update_occupied();
-        if (!initialised) {
-            find_valid_knight_moves();
-            find_valid_king_moves();
-            make_between_table();
-            find_pawn_attacks();
-            fill_attack_tables();
-            initialised = true;
-        }
     }
     void update_occupied() {
         occupied_tables[WHITE] = bitboards[WHITE_PAWN] | bitboards[WHITE_KNIGHT] | bitboards[WHITE_BISHOP] | 

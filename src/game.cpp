@@ -15,18 +15,26 @@ Game::Game() {
 void Game::initialise() {
     //state = Gamestate::Playing;
     current_move = {};
+    calculated_move = {}, 
+    dragged_piece = EMPTY_SQUARE, 
+    en_passant_index = 8,
+    default_position = true, 
+    zobrist_hash = 0ULL,
+    value_white_pieces = value_black_pieces = 0;
+    plys_to_100 = 0;
+    winner = piece_selected = selected_square = -1;
+    white_in_check = black_in_check = promoting_pawn = move_ready = false;
+    turn = WHITE;
+    game_status = 0b00000000;
+    bitboards = {};
+    castling_rights = 0b00001111;
     move_record.clear();
     board_record.clear();
     clear_transposition_table();
-    value_white_pieces = value_black_pieces = 0;
-    plys_to_100 = 0;
-    winner = piece_selected = -1;
-    white_in_check = black_in_check = promoting_pawn = false;
-    turn = WHITE;
-    game_status = 0b00000000;
-    selected_square = -1;
     bitboards = {};
-    castling_rights = 0b00001111;
+}
+
+void Game::initialise_default_board() {
     for (int i { 0 }; i < 64; i++) {
         board[i] = EMPTY_SQUARE;
     }
@@ -60,6 +68,7 @@ int handle_fen_string(Game& game) {
     std::vector<std::string> split_fen;
     if (fen_string.size() == 0) {
         find_position_hash(game);
+        game.initialise_default_board();
         return 0;
     }
     std::stringstream ss(fen_string);
@@ -73,9 +82,9 @@ int handle_fen_string(Game& game) {
 
     Game proposed_game;
     proposed_game.castling_rights = 0b00000000;
-    for (int i { 0 }; i < 64; i++) {
+    /*for (int i { 0 }; i < 64; i++) {
         proposed_game.board[i] = EMPTY_SQUARE;
-    }
+    }*/
     memset(proposed_game.bitboards.bitboards, 0, sizeof(proposed_game.bitboards.bitboards));
 
     if (fill_board(proposed_game, split_fen[0]) == -1) {

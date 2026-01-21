@@ -15,41 +15,39 @@ extern int positions_searched;
 
 class Game {
     public:
-        //std::vector<Piece> pieces{32}; 
-        Gamestate state {};
-        Gamemode mode { Gamemode::Twoplayer };
-        Chessboard board {};
-        Bitboards bitboards {};
-        int selected_square {};
-        int turn {};
-        bool white_in_check {};
-        bool black_in_check {};
-        uint8_t game_status {}; // 8th bit: is game over, 4th bit: checkmate, 3rd bit: stalemate, 2nd bit: repetition
-        int winner { -1 };
-        bool promoting_pawn {};
-        int piece_selected {};
-        std::vector<Move> move_record {};
-        std::vector<uint64_t> board_record {};
-        int plys_to_100 {};
-        int value_white_pieces {};
-        int value_black_pieces {};
-        Move current_move {};
-        int view { WHITE };
-        Move calculated_move {};
-        bool move_ready { false };
-        uint8_t castling_rights;
-        bool is_dragging { false };
-        uint8_t dragged_piece = EMPTY_SQUARE;
-        sf::Vector2f current_mouse_pos;
-        sf::String fen_string;
-        int en_passant_index { 8 }; // (0 - 7 for col of en passant square, 8 if there is none )
-        bool typing { false };
-        std::size_t cursor_index;
-        bool default_position { true };
-        bool invalid_fen_position { false };
-        uint64_t zobrist_hash = 0ULL;
-        Game();
-        void initialise();
+    //std::vector<Piece> pieces{32}; 
+    Gamestate state {};
+    Gamemode mode { Gamemode::Twoplayer };
+    Chessboard board {};
+    Bitboards bitboards {};
+    int selected_square;
+    int turn;
+    bool white_in_check;
+    bool black_in_check;
+    uint8_t game_status; // 8th bit: is game over, 4th bit: checkmate, 3rd bit: stalemate, 2nd bit: repetition
+    int winner;
+    bool promoting_pawn;
+    int piece_selected;
+    std::vector<Move> move_record {};
+    std::vector<uint64_t> board_record {};
+    int plys_to_100;
+    int value_white_pieces;
+    int value_black_pieces;
+    Move current_move;
+    int view { WHITE };
+    Move calculated_move;
+    bool move_ready;
+    uint8_t castling_rights;
+    bool is_dragging { false };
+    uint8_t dragged_piece;
+    sf::String fen_string;
+    int en_passant_index; // (0 - 7 for col of en passant square, 8 if there is none )
+    bool default_position;
+    bool invalid_fen_position { false };
+    uint64_t zobrist_hash;
+    Game();
+    void initialise();
+    void initialise_default_board();
 };
 
 int handle_fen_string(Game& game);

@@ -6,6 +6,9 @@ struct Assets {
     sf::Font font;
     sf::Texture array[16];
     sf::Clock cursor_clock;
+    sf::Vector2f current_mouse_pos;
+    bool typing { false };
+    std::size_t cursor_index;
     Assets() {
         if (!array[BLACK_PAWN].loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;

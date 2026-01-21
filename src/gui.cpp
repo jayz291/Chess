@@ -12,7 +12,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
         if (const auto* mouse_move = event->getIf<sf::Event::MouseMoved>()) {
             sf::Vector2f world_pos = window.mapPixelToCoords(mouse_move->position);
             sf::Vector2f game_pos = {world_pos.x, world_pos.y};
-            game.current_mouse_pos = game_pos;
+            assets.current_mouse_pos = game_pos;
         }
    
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
@@ -27,7 +27,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                     handle_clicks_playing(game, window, game_pos, assets);
                     if (game.selected_square != -1) {
                         game.is_dragging = true;
-                        game.current_mouse_pos = world_pos;
+                        assets.current_mouse_pos = world_pos;
                         game.dragged_piece = game.board[game.selected_square];
                     }
                     handle_clicks_undoing(game, game_pos);
@@ -48,7 +48,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             }
         }
         if (const auto* key_event = event->getIf<sf::Event::KeyPressed>()) {
-            if (game.state == Gamestate::Intro && game.typing) {
+            if (game.state == Gamestate::Intro && assets.typing) {
                 if (key_event->system) {
                     if (key_event->code == sf::Keyboard::Key::V) {
                         sf::String raw_text = sf::Clipboard::getString();
@@ -60,8 +60,8 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                         }
                         std::cout << (game.fen_string + sf::Clipboard::getString()).getSize() << '\n';
                         if ((game.fen_string + filtered_text).getSize() <= 105) {
-                            game.fen_string.insert(game.cursor_index, filtered_text);
-                            game.cursor_index += filtered_text.getSize();
+                            game.fen_string.insert(assets.cursor_index, filtered_text);
+                            assets.cursor_index += filtered_text.getSize();
                         }
                     } else if (key_event->code == sf::Keyboard::Key::C) {
                         sf::Clipboard::setString(game.fen_string);
@@ -69,28 +69,28 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                 }
                 if (key_event->code == sf::Keyboard::Key::Left) {
                     if (game.fen_string.getSize() > 0) {
-                        game.cursor_index--;
+                        assets.cursor_index--;
                     }
                 } else if (key_event->code == sf::Keyboard::Key::Right) {
-                    if (game.cursor_index < game.fen_string.getSize()) {
-                        game.cursor_index++;
+                    if (assets.cursor_index < game.fen_string.getSize()) {
+                        assets.cursor_index++;
                     }
                 }
             }
         }
         if (const auto* text_event = event->getIf<sf::Event::TextEntered>()) {
-            if (game.state == Gamestate::Intro && game.typing) {
+            if (game.state == Gamestate::Intro && assets.typing) {
                 if (text_event->unicode < 32 && text_event->unicode != 8) {
                     continue;
                 }
                 if (text_event->unicode == 8) {
-                    if (!game.fen_string.isEmpty() && game.cursor_index > 0) {
-                        game.fen_string.erase(game.cursor_index - 1, 1);
-                        game.cursor_index--;
+                    if (!game.fen_string.isEmpty() && assets.cursor_index > 0) {
+                        game.fen_string.erase(assets.cursor_index - 1, 1);
+                        assets.cursor_index--;
                     }
                 } else if (text_event->unicode < 128 && game.fen_string.getSize() <= 110) {
-                    game.fen_string.insert(game.cursor_index, text_event->unicode);
-                    game.cursor_index++;
+                    game.fen_string.insert(assets.cursor_index, text_event->unicode);
+                    assets.cursor_index++;
                 }
             }
         }
@@ -169,7 +169,7 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
         choice3_button.setOutlineThickness(-5.0f);
         choice3_button.setOutlineColor(sf::Color::Black);       
     }
-    if (game.typing) {
+    if (assets.typing) {
         text_box.setOutlineThickness(-5.0f);
         text_box.setOutlineColor(sf::Color::Black);
     }
@@ -184,14 +184,14 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
     window.draw(choice3_text);
     window.draw(text_box);
     window.draw(entered_fen);
-    if (!game.typing && game.fen_string.getSize() == 0) {
+    if (!assets.typing && game.fen_string.getSize() == 0) {
         sf::Text fen_instruction_text = configure_text(assets.font, "Enter FEN here for a custom position\n", 
             {70, 700}, 16, sf::Color(142, 142, 142));
         window.draw(fen_instruction_text);
     }
-    if (game.typing) {
+    if (assets.typing) {
         if (assets.cursor_clock.getElapsedTime().asSeconds() < 0.5f) {
-            sf::Vector2f cursor_pos = entered_fen.findCharacterPos(game.cursor_index);
+            sf::Vector2f cursor_pos = entered_fen.findCharacterPos(assets.cursor_index);
             sf::RectangleShape cursor_shape = make_rectangle({cursor_pos.x, cursor_pos.y}, {2, 15}, sf::Color::Black);
             window.draw(cursor_shape);
         } else if (assets.cursor_clock.getElapsedTime().asSeconds() > 1.0f) {
@@ -245,12 +245,14 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
             std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
+            run_perft_suite(game, 5);
+            is_game_over(game);
+            print_board(game.board);
         } else {
             game.invalid_fen_position = true;
         }
-        run_perft_suite(game, 5);
+
         //print_all_bitboards(game.bitboards);
-        is_game_over(game);
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
         game.view = WHITE;
@@ -263,11 +265,11 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         game.mode = Gamemode::Twoplayer;
     }
     if (100 <= x && x <= 920 && 690 <= y && y <= 740) {
-        game.typing = true;
+        assets.typing = true;
         sf::Text text_copy = configure_text(assets.font, game.fen_string.toAnsiString(), {70, 700}, 15, sf::Color::Black);
-        game.cursor_index = get_cursor_index_from_click(text_copy, (float) mouse_pos.x);
+        assets.cursor_index = get_cursor_index_from_click(text_copy, (float) mouse_pos.x);
     } else {
-        game.typing = false;
+        assets.typing = false;
     }
 }
 
@@ -344,6 +346,8 @@ void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
             game.default_position = default_position;
             game.fen_string = fen_string;
             handle_fen_string(game);
+        } else {
+            game.initialise_default_board();
         }
         game.state = Gamestate::Playing;
         is_game_over(game);
@@ -595,7 +599,7 @@ void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets,
     } else {
         sf::FloatRect bounds = sprite.getLocalBounds();
         sprite.setOrigin({bounds.size.x / 2, bounds.size.y / 2});
-        sprite.setPosition(game.current_mouse_pos);
+        sprite.setPosition(assets.current_mouse_pos);
     }
 
     if (piece == WHITE_KING) {
