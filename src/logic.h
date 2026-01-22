@@ -38,7 +38,7 @@ void make_game_move(Game& game, int result, Move move);
 void move_piece(Game& game, uint8_t target_piece, int from_square, int to_square, int turn);
 void undo_game_move(Game& game);
 void undo_move(Game& game, Move& prev_move);
-void handle_pawn_promotion(Game& game, Move& move);
+void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected = false);
 
 bool determine_repetition(Game& game);
 bool determine_insufficient_material(Game& game);

@@ -57,6 +57,10 @@ void run_perft_suite(Game& game, int depth) {
 
 
 std::string to_chess_notation(const Move& move) {
+
+    if (move.get_from_square() == move.get_to_square()) {
+        return "(none)";
+    }
     std::string s = "";
 
     int prev_row = 7 - move.get_from_square() / 8;

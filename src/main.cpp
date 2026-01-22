@@ -1,14 +1,19 @@
 #include "game.h"
 #include "gui.h"
 #include "logic.h"
+#include "uci.h"
 
 void run_game_loop();
 void check_build_mode();
 
-int main() {
+int main(int argc, char* argv[]) {
     std::srand(std::time(nullptr));
     check_build_mode();
-    run_game_loop();
+    if (argc > 1 && (std::strcmp("uci", argv[1]) == 0)) {
+        run_uci_loop();
+    } else {
+        run_game_loop();
+    }
 }
 
 void run_game_loop() {
@@ -18,8 +23,6 @@ void run_game_loop() {
     sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
     init_zobrist_table();
     window.setFramerateLimit(60);
-    //game.zobrist_hash = 0;
-   // find_position_hash(game);
 
     while (window.isOpen()) {
         if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == WHITE) ||

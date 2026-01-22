@@ -33,7 +33,7 @@ void Game::initialise() {
 int handle_fen_string(Game& game) {
     std::string fen_string = game.entered_fen.toAnsiString();
     game.final_fen = game.entered_fen.toAnsiString();
-    std::cout << fen_string << '\n';
+    //std::cout << fen_string << '\n';
     std::vector<std::string> split_fen;
     if (fen_string.size() == 0) {
         game.final_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

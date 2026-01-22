@@ -157,6 +157,7 @@ uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask) {
     return occupancy;
 }
 
+// rook attack table lookup using magic nums
 uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards) {
     occupancy &= bitboards.rook_masks[square];
     occupancy *= bitboards.rook_magic_nums[square];
@@ -164,6 +165,7 @@ uint64_t get_rook_attacks(int square, uint64_t occupancy, Bitboards& bitboards) 
     return bitboards.rook_attack_table[square][occupancy];
 }
 
+// bishop attack table lookup using magic nums
 uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards) {
     occupancy &= bitboards.bishop_masks[square];
     occupancy *= bitboards.bishop_magic_nums[square];
@@ -459,14 +461,17 @@ bool determine_repetition(Game& game) {
     return false;
 }
 
-void handle_pawn_promotion(Game& game, Move& move) {
+void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected) {
 
     assert(move.get_turn() == game.turn);
 
     move_piece(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
     //u_int64_t square = (1ULL << move.get_to_square())
     move.set_move_type(PROMOTION);
-    move.set_promotion_piece(game.piece_selected);
+
+    if (!piece_already_selected) {
+        move.set_promotion_piece(game.piece_selected);
+    }
     uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
 
     replace_piece(game, move.get_piece(), promotion_piece, move.get_to_square());

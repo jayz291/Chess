@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "logic.h"
 #include "perft.h"
+#include "uci.h"
 #include <iostream>
 
 std::chrono::steady_clock::time_point search_start_time;
@@ -153,7 +154,7 @@ void make_computer_move(Game& game) {
     finished = false;
 }
 
-Move get_best_move(Game& game, int search_allocated_time_ms) {
+Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
     Move current_best_move {};
     Move overall_best_move {};
     search_start_time = std::chrono::steady_clock::now();
@@ -167,7 +168,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
     }*/
 
     //std::cout << "generating\n";
-    for (int depth { 1 }; depth < 40; depth++) {
+    for (int depth { 1 }; depth <= search_depth; depth++) {
         depth_best_score = -500000;
         int alpha = -500000, beta = 500000;
         int move_eval = 0;
@@ -197,7 +198,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
             //move_eval += (std::rand() % 5) - 2;
             //move.eval = move_eval;
 
-            std::cout << "depth:" <<  depth << " e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
+            //std::cout << "depth:" <<  depth << " e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
         
             //alpha = std::max(move_eval, alpha);
             if (move_eval > depth_best_score) {
@@ -213,12 +214,20 @@ Move get_best_move(Game& game, int search_allocated_time_ms) {
         if (!terminate_search) {
             overall_best_move = current_best_move;
             overall_best_score = depth_best_score;
+            auto end = std::chrono::steady_clock::now();
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - search_start_time).count();
+            
+            std::cout << "info depth " << depth 
+                      << " score " << format_score(overall_best_score)  
+                      << " nodes " << nodes_searched 
+                      << " time " << elapsed_ms
+                      << " pv " << to_chess_notation(overall_best_move) << std::endl;
         } else {
             break;
         }
     }
     assert(overall_best_move.get_to_square() != overall_best_move.get_from_square());
-    std::cout << "Best score: " << overall_best_score << '\n';
+    //std::cout << "Best score: " << overall_best_score << '\n';
     return overall_best_move;
 }
 
@@ -326,21 +335,24 @@ inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, i
 
 int evaluate(Game& game) {
     int eval { 0 };
+    game.value_white_pieces = game.value_black_pieces = 0;
     for (int piece { 1 }; piece < 6; piece++) {
-        game.value_white_pieces = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
-        eval += game.value_white_pieces;
+        int current_material = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
+        game.value_white_pieces += current_material;
+        eval += current_material;
         //eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
     }
     for (int piece { 9 }; piece < 14; piece++) {
-        game.value_black_pieces = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece - 8];
-        eval -= game.value_black_pieces;
+        int current_material = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece - 8];
+        game.value_black_pieces += current_material;
+        eval -= current_material;
         //eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8, true);
     }
     for (int piece { 1 }; piece <= 6; piece++) {
         eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
     }
     for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8);
+        eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8, true);
     }
 
     return eval;

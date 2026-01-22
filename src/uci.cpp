@@ -1,0 +1,139 @@
+#include "game.h"
+#include "logic.h"
+#include "perft.h"
+#include "engine.h"
+#include "uci.h"
+
+void parse_position(Game& game, std::istringstream& stream);
+void parse_go(Game& game, std::istringstream& stream);
+
+void run_uci_loop() {
+    Game game {};
+    init_zobrist_table();
+    std::string line, command;
+
+    std::setbuf(stdout, NULL);
+    std::setbuf(stdin, NULL);
+
+    while (std::getline(std::cin, line)) {
+        std::istringstream stream(line);
+        stream >> command;
+
+        if (command == "uci") {
+            std::cout << "id name chess_engine" << std::endl;
+            std::cout << "id author __ " << std::endl;
+            std::cout << "uciok" << std::endl;
+        } else if (command == "isready") {
+            std::cout << "readyok" << std::endl; 
+        } else if (command == "ucinewgame") {
+            game.initialise();
+            //game.final_fen = fen_string;
+            handle_fen_string(game);
+        } else if (command == "position") {
+            parse_position(game, stream);
+        } else if (command == "go") {
+            parse_go(game, stream);
+        } else if (command == "stop") {
+            terminate_search = true;
+        } else if (command == "quit") {
+            break;
+        } else if (command == "perft") {
+            int depth;
+            if (stream >> depth) {
+                run_perft_suite(game, 5);
+            } else {
+                std::cout << "no depth specified" << std::endl;
+            }
+        }
+    }
+}
+
+void parse_position(Game& game, std::istringstream& stream) {
+    std::string token, fen;
+    stream >> token;
+    if (token == "startpos") {
+        game.initialise();
+        game.entered_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        handle_fen_string(game);
+        stream >> token;
+    } else if (token == "fen") {
+        std::string fen_part;
+        while (stream >> fen_part && fen_part != "moves") {
+            fen += fen_part + " ";
+        }
+        game.entered_fen = fen;
+        if (handle_fen_string(game) != 0) {
+            std::cout << "invalid fen string" << std::endl;
+        };
+        if (fen_part == "moves") {
+            token = "moves";
+        }
+    }
+    if (token == "moves") {
+        std::string move_string;
+        while (stream >> move_string) {
+            Move move = parse_move_string(game, game.bitboards, game.board, move_string);
+            int result = validate_move(game, move);
+            if (result >= 0) {
+                make_game_move(game, result, move);
+                if (game.promoting_pawn) {
+                    handle_pawn_promotion(game, move, true);
+                }
+            } else {
+                std::cout << "invalid move inputted" << std::endl;
+            }
+        }
+    }
+}
+
+void parse_go(Game& game, std::istringstream& stream) {
+    std::string token;
+    int wtime = -1, btime = -1, winc = 0, binc = 0;
+    int movetime = -1, depth = -1;
+    while (stream >> token) {
+        if (token == "wtime") {
+            stream >> wtime;
+        } else if (token == "btime") {
+            stream >> btime;
+        } else if (token == "winc") {
+            stream >> winc;
+        } else if (token == "binc") {
+            stream >> binc;
+        } else if (token == "movetime") {
+            stream >> movetime;
+        } else if (token == "depth") {
+            stream >> depth;
+        }
+    }
+    int allocated_time = std::numeric_limits<int>::max();
+    if (movetime != -1) {
+        allocated_time = movetime;
+    } else if (wtime != -1 && btime != -1) {
+        int time_left = (game.turn == WHITE) ? wtime : btime;
+        int inc = (game.turn == WHITE) ? winc : binc;
+        allocated_time = (time_left / 20) + inc;
+    }
+
+    int search_depth = (depth != -1) ? depth : 40;
+   
+    std::thread search_thread([game, allocated_time, search_depth]() mutable {
+        Move best_move = get_best_move(game, allocated_time, search_depth);
+        std::cout << "bestmove " << to_chess_notation(best_move) << std::endl;
+    });
+
+    search_thread.detach();
+}
+
+std::string format_score(int score) {
+    if (score > 300000) {
+        int plies_to_mate = (score - 400000) / 50; 
+        int moves_to_mate = (plies_to_mate + 1) / 2;
+        return "mate " + std::to_string(moves_to_mate);
+    } else if (score < -300000) {
+        int plies_to_mate = (400000 + score) / 50; 
+        int moves_to_mate = (plies_to_mate + 1) / 2;
+        return "mate -" + std::to_string(moves_to_mate);
+    }
+    return "cp " + std::to_string(score);
+}
+
