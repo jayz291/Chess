@@ -40,7 +40,7 @@ void run_uci_loop() {
         } else if (command == "perft") {
             int depth;
             if (stream >> depth) {
-                run_perft_suite(game, 5);
+                run_perft_suite(game, depth);
             } else {
                 std::cout << "no depth specified" << std::endl;
             }
@@ -72,7 +72,7 @@ void parse_position(Game& game, std::istringstream& stream) {
     if (token == "moves") {
         std::string move_string;
         while (stream >> move_string) {
-            Move move = parse_move_string(game, game.bitboards, game.board, move_string);
+            Move move = parse_move_string(game, move_string);
             int result = validate_move(game, move);
             if (result >= 0) {
                 make_game_move(game, result, move);

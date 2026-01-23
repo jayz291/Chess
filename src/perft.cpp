@@ -88,7 +88,7 @@ std::string to_chess_notation(const Move& move) {
     return s;
 }
 
-Move parse_move_string(Game& game, Bitboards& bitboards, Chessboard& board, const std::string& s) {
+Move parse_move_string(Game& game, const std::string& s) {
 
     int prev_col = s[0] - 'a';
     int prev_row = '8' - s[1];
@@ -97,8 +97,8 @@ Move parse_move_string(Game& game, Bitboards& bitboards, Chessboard& board, cons
 
     int prev_square = 56 - 8 * prev_row + prev_col;
     int new_square = 56 - 8 * new_row + new_col;
-    int piece_type = board[prev_square];
-    uint8_t captured = board[new_square];
+    int piece_type = game.board[prev_square];
+    uint8_t captured = game.board[new_square];
 
     Move move;
     move.set_move(prev_square, new_square, piece_type, captured);
@@ -126,7 +126,7 @@ Move parse_move_string(Game& game, Bitboards& bitboards, Chessboard& board, cons
 
     if ((piece_type == BLACK_PAWN || piece_type == WHITE_PAWN) && prev_col != new_col && captured == EMPTY_SQUARE) {
         move.set_move_type(EN_PASSANT);
-        move.set_captured(board[56 - 8 * prev_row + new_col]); 
+        move.set_captured(game.board[56 - 8 * prev_row + new_col]); 
     }
 
     return move;

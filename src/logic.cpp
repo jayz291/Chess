@@ -19,16 +19,21 @@ uint64_t zobrist_castling[16];
 uint64_t zobrist_en_passant[9];
 uint64_t zobrist_black_turn;
 
-uint64_t FILE_H = 0x8080808080808080ULL;
-uint64_t FILE_A = 0x0101010101010101ULL;
-uint64_t FILE_B = 0x0202020202020202ULL;
-uint64_t FILE_G = 0x4040404040404040ULL;
-uint64_t FILE_AB = FILE_A | FILE_B;
-uint64_t FILE_GH = FILE_G | FILE_H;
-uint64_t RANK_2 = 0x000000000000FF00ULL;
-uint64_t RANK_7 = 0x00FF000000000000ULL;
-uint64_t RANK_4 = 0x00000000FF000000ULL;
-uint64_t RANK_5 = 0x000000FF00000000ULL;
+const uint64_t FILE_MASKS[8] = {
+    0x0101010101010101ULL, 0x0202020202020202ULL, 0x0404040404040404ULL, 0x0808080808080808ULL,
+    0x1010101010101010ULL, 0x2020202020202020ULL, 0x4040404040404040ULL, 0x8080808080808080ULL
+};
+const uint64_t ADJACENT_FILE_MASKS[8] = {
+    FILE_MASKS[1], FILE_MASKS[0] | FILE_MASKS[2], FILE_MASKS[1] | FILE_MASKS[3], FILE_MASKS[2] | FILE_MASKS[4],
+    FILE_MASKS[3] | FILE_MASKS[5], FILE_MASKS[4] | FILE_MASKS[6], FILE_MASKS[5] | FILE_MASKS[7], FILE_MASKS[6]
+};
+const uint64_t RANK_MASKS[8] = {
+    0x00000000000000FFULL, 0x000000000000FF00ULL, 0x0000000000FF0000ULL, 0x00000000FF000000ULL,
+    0x000000FF00000000ULL, 0x0000FF0000000000ULL, 0x00FF000000000000ULL, 0xFF00000000000000ULL      
+};
+
+uint64_t FILE_AB = FILE_MASKS[0] | FILE_MASKS[1];
+uint64_t FILE_GH = FILE_MASKS[6] | FILE_MASKS[7];
 
 void init_zobrist_table() {
     std::mt19937_64 rng(12345);
@@ -621,7 +626,7 @@ int validate_pawn_move(Game& game, Move& move) {
             }
         } else if (to - from == 16) {
             if ((mask << to & ~bitboards.occupied) && (mask << (to - 8) & ~bitboards.occupied) &&
-                mask << from & RANK_2) {
+                mask << from & RANK_MASKS[1]) {
                 return 0;
             }
         } else if (to - from == 7 || to - from == 9) {
@@ -637,7 +642,7 @@ int validate_pawn_move(Game& game, Move& move) {
             }
         } else if (to - from == -16) {
             if ((mask << to & ~bitboards.occupied) && (mask << (to + 8) & ~bitboards.occupied) && 
-                mask << from & RANK_7) {
+                mask << from & RANK_MASKS[6]) {
                 return 0;
             }
         } else if (to - from == -7 || to - from == -9) {

@@ -349,7 +349,6 @@ void handle_clicks_resetting(Game& game, sf::Vector2i mouse_pos) {
         game.initialise();
         game.final_fen = fen_string;
         handle_fen_string(game);
-        //find_position_hash(game);
  
         game.state = Gamestate::Playing;
         is_game_over(game);
@@ -498,8 +497,6 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
         for (int file = 0; file < 8; file++) {
             int square = 56 - rank * 8 + file;
             
-            uint64_t mask = 1ULL << square;
-            
             if (!game.is_dragging || square != game.selected_square) {
                 if (game.board[square] != EMPTY_SQUARE) {
                     draw_piece(game, window, assets, rank, file, game.board[square]);
@@ -553,14 +550,10 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& as
     window.draw(pawn_promotion_screen);
     window.draw(text);
     int rank = ((game.view == WHITE) ? 4 : 3);
-    uint8_t piece1 = piece_array[game.turn][ROOK];
-    uint8_t piece2 = piece_array[game.turn][KNIGHT];
-    uint8_t piece3 = piece_array[game.turn][BISHOP];
-    uint8_t piece4 = piece_array[game.turn][QUEEN];
-    draw_piece(game, window, assets, rank, 2, piece1);
-    draw_piece(game, window, assets, rank, 3, piece2);
-    draw_piece(game, window, assets, rank, 4, piece3);
-    draw_piece(game, window, assets, rank, 5, piece4);
+    draw_piece(game, window, assets, rank, 2, piece_array[game.turn][ROOK]);
+    draw_piece(game, window, assets, rank, 3, piece_array[game.turn][KNIGHT]);
+    draw_piece(game, window, assets, rank, 4, piece_array[game.turn][BISHOP]);
+    draw_piece(game, window, assets, rank, 5, piece_array[game.turn][QUEEN]);
  
 }
 

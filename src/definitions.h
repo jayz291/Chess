@@ -297,16 +297,11 @@ const int endgame_value_tables[6][64] = {
     -50,-30,-30,-30,-30,-30,-30,-50 },
 };
 
-extern uint64_t FILE_H;
-extern uint64_t FILE_A;
-extern uint64_t FILE_B;
-extern uint64_t FILE_G;
 extern uint64_t FILE_AB;
 extern uint64_t FILE_GH;
-extern uint64_t RANK_4;
-extern uint64_t RANK_5;
-extern uint64_t RANK_2;
-extern uint64_t RANK_7;
+extern const uint64_t FILE_MASKS[8];
+extern const uint64_t ADJACENT_FILE_MASKS[8];
+extern const uint64_t RANK_MASKS[8];
 
 struct Bitboards {
     uint64_t bitboards[16];
@@ -406,14 +401,14 @@ struct Bitboards {
         for (int cell { 0 }; cell < 64; cell++) {
             uint64_t position = 1ULL << cell;
             uint64_t moves = 0;
-            moves |= (position >> 17 & ~FILE_H);
-            moves |= (position >> 15 & ~FILE_A);
+            moves |= (position >> 17 & ~FILE_MASKS[7]);
+            moves |= (position >> 15 & ~FILE_MASKS[0]);
             moves |= (position >> 10 & ~FILE_GH);
             moves |= (position >> 6 & ~FILE_AB);
             moves |= (position << 6 & ~FILE_GH);
             moves |= (position << 10 & ~FILE_AB);
-            moves |= (position << 15 & ~FILE_H);
-            moves |= (position << 17 & ~FILE_A);
+            moves |= (position << 15 & ~FILE_MASKS[7]);
+            moves |= (position << 17 & ~FILE_MASKS[0]);
             knight_attacks[cell] = moves;
         }
     }
@@ -421,14 +416,14 @@ struct Bitboards {
         for (int cell { 0 }; cell < 64; cell++) {
             uint64_t position = 1ULL << cell;
             uint64_t moves = 0;
-            moves |= (position >> 9 & ~FILE_H);
+            moves |= (position >> 9 & ~FILE_MASKS[7]);
             moves |= (position >> 8);
-            moves |= (position >> 7 & ~FILE_A);
-            moves |= (position >> 1 & ~FILE_H);
-            moves |= (position << 1 & ~FILE_A);
-            moves |= (position << 7 & ~FILE_H);
+            moves |= (position >> 7 & ~FILE_MASKS[0]);
+            moves |= (position >> 1 & ~FILE_MASKS[7]);
+            moves |= (position << 1 & ~FILE_MASKS[0]);
+            moves |= (position << 7 & ~FILE_MASKS[7]);
             moves |= (position << 8);
-            moves |= (position << 9 & ~FILE_A);
+            moves |= (position << 9 & ~FILE_MASKS[0]);
             king_moves[cell] = moves;
         }
     }
@@ -471,9 +466,9 @@ struct Bitboards {
             uint64_t non_capture_moves = 0ULL;
             uint64_t capture_moves = 0ULL;
             non_capture_moves |= (position << 8);
-            capture_moves |= (position << 7 & ~FILE_H);
-            capture_moves |= (position << 9 & ~FILE_A);
-            if (position & RANK_2) {
+            capture_moves |= (position << 7 & ~FILE_MASKS[7]);
+            capture_moves |= (position << 9 & ~FILE_MASKS[0]);
+            if (position & RANK_MASKS[1]) {
                 non_capture_moves |= (position << 16);
             }
             pawn_attacks[WHITE][cell] = capture_moves;
@@ -484,9 +479,9 @@ struct Bitboards {
             uint64_t non_capture_moves = 0ULL;
             uint64_t capture_moves = 0ULL;
             non_capture_moves |= (position >> 8);
-            capture_moves |= (position >> 7 & ~FILE_A);
-            capture_moves |= (position >> 9 & ~FILE_H);
-            if (position & RANK_7) {
+            capture_moves |= (position >> 7 & ~FILE_MASKS[0]);
+            capture_moves |= (position >> 9 & ~FILE_MASKS[7]);
+            if (position & RANK_MASKS[6]) {
                 non_capture_moves |= (position >> 16);
             }
             pawn_attacks[BLACK][cell] = capture_moves;

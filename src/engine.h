@@ -27,4 +27,5 @@ inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, i
 int evaluate(Game& game);
 int sort_moves_by_priority(Game& game, Move& move);
 inline int positional_eval(Game& game, uint64_t bitboard, uint8_t piece, bool black = false);
+int quiescence_search(Game& game, int alpha, int beta);
 

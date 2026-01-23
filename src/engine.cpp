@@ -196,8 +196,6 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
                 break; 
             }
             //move_eval += (std::rand() % 5) - 2;
-            //move.eval = move_eval;
-
             //std::cout << "depth:" <<  depth << " e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
         
             //alpha = std::max(move_eval, alpha);
@@ -231,6 +229,9 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
     return overall_best_move;
 }
 
+// negamax function:
+// - alpha: the highest score that the maximising player can guarantee
+// - beta: the lowest score that the minimising player can guarantee
 int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms) { 
 
     Move stored_move {};
@@ -244,8 +245,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
 
     if (depth == 0) {
         positions_searched++;
-        int perspective = (game.turn == WHITE) ? 1 : -1;
-        return perspective * evaluate(game);
+        return quiescence_search(game, alpha, beta);
     }
     nodes_searched++;
     if ((nodes_searched & 2047) == 0) {
@@ -269,19 +269,14 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     }
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-       /* if (move1 == stored_move) {
+        if (move1 == stored_move) {
             return true;
         }
         if (move2 == stored_move) {
             return false;
-        }*/
+        }
         return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
     });
-    for (int i { 1 }; i < possible_moves.num_moves; i++) {
-        if (possible_moves.list[i] == stored_move) {
-            std::swap(possible_moves.list[i], possible_moves.list[0]);
-        }
-    }
  
     int max_eval = -600000;
     int move_eval;
@@ -395,6 +390,38 @@ int sort_moves_by_priority(Game& game, Move& move) {
     return move_score_guess;
 }
 
+// search captures deeper, until the position is "quiet"
+int quiescence_search(Game& game, int alpha, int beta) {
+    int stand_pat = evaluate(game) * ((game.turn == WHITE) ? 1 : -1);
+    positions_searched++;
+    if (stand_pat >= beta) {
+        return beta;
+    }
+    if (stand_pat > alpha) {
+        alpha = stand_pat;
+    }
+    Move_list possible_moves = determine_possible_moves(game);
+    std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
+    [&](Move& move1, Move& move2) {
+        return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
+    });
+    //std::cout << possible_moves.num_moves << '\n';
+    for (int i { 0 }; i < possible_moves.num_moves; i++) {
+        if (possible_moves.list[i].get_captured_piece() != EMPTY_SQUARE) {
+            make_test_move(game, possible_moves.list[i]);
+            int score = -quiescence_search(game, -beta, -alpha);
+            undo_test_move(game, possible_moves.list[i]);
+            if (score >= beta) {
+                return beta;
+            } 
+            if (score > alpha) {
+                alpha = score;
+            }
+        }
+    }
+    return alpha;
+}
+
 Move_list determine_possible_moves(Game& game) {
     Move_list moves;
     add_pawn_moves(game, moves);
@@ -498,10 +525,10 @@ __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves)
                             moves.list[local_counter++] = move;
                         } else if (std::abs(from_square - to_square) == 16) {
                             if ((turn == WHITE && mask << to_square & ~bitboards.occupied) && 
-                            (mask << (to_square - 8) & ~bitboards.occupied) && mask << from_square & RANK_2) {
+                            (mask << (to_square - 8) & ~bitboards.occupied) && mask << from_square & RANK_MASKS[1]) {
                                 moves.list[local_counter++] = move;
                             } else if ((turn == BLACK && mask << to_square & ~bitboards.occupied) && 
-                            (mask << (to_square + 8) & ~bitboards.occupied) && mask << from_square & RANK_7) {
+                            (mask << (to_square + 8) & ~bitboards.occupied) && mask << from_square & RANK_MASKS[6]) {
                                 moves.list[local_counter++] = move;
                             }
                         }
@@ -675,6 +702,8 @@ __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves)
     }
     moves.num_moves = local_counter;
 }
+
+
 
 
 
