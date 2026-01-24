@@ -12,12 +12,7 @@ void make_test_move(Game& game, Move& move);
 void undo_test_move(Game& game, Move& prev_move);
 
 Move_list determine_possible_moves(Game& game);
-inline void add_pawn_moves(Game& game, Move_list& moves);
-inline void add_knight_moves(Game& game, Move_list& moves);
-inline void add_bishop_moves(Game& game, Move_list& moves);
-inline void add_rook_moves(Game& game, Move_list& moves);
-inline void add_queen_moves(Game& game, Move_list& moves);
-inline void add_king_moves(Game& game, Move_list& moves);
+Move_list generate_captures_only(Game& game);
 
 void generate_computer_move(Game& game);
 void make_computer_move(Game& game);

@@ -29,7 +29,7 @@ int validate_en_passant(Game& game, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 void update_castling_flags(Game& game, Move& move);
 
-void replace_piece(Game& game, uint8_t prev_piece, uint8_t new_piece, int target_square);
+void replace_piece(Game& game, int turn, uint8_t prev_piece, uint8_t new_piece, int target_square);
 void remove_piece(Game& game, int turn, uint8_t target_piece, int target_square);
 void place_piece(Game& game, int turn, uint8_t target_piece, int target_square);
 void restore_zobrist_en_passant_and_castling(Game& game, Move& prev_move);
