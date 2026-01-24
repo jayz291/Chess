@@ -124,16 +124,17 @@ void parse_go(Game& game, std::istringstream& stream) {
     search_thread.detach();
 }
 
-std::string format_score(int score) {
-    if (score > 300000) {
-        int plies_to_mate = (score - 400000) / 50; 
+std::string format_score(int score, int depth) {
+    if (score > 300000 || score < -300000) {
+        int remaining_depth = (std::abs(score) - 400000) / 50; 
+        int plies_to_mate = depth - remaining_depth;
         int moves_to_mate = (plies_to_mate + 1) / 2;
-        return "mate " + std::to_string(moves_to_mate);
-    } else if (score < -300000) {
-        int plies_to_mate = (400000 + score) / 50; 
-        int moves_to_mate = (plies_to_mate + 1) / 2;
-        return "mate -" + std::to_string(moves_to_mate);
-    }
+        if (score > 0) {
+            return "mate " + std::to_string(moves_to_mate);
+        } else {
+            return "mate -" + std::to_string(moves_to_mate);
+        }
+    } 
     return "cp " + std::to_string(score);
 }
 

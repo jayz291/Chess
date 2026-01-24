@@ -22,10 +22,11 @@ inline void add_king_moves(Game& game, Move_list& moves);
 void generate_computer_move(Game& game);
 void make_computer_move(Game& game);
 Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth = 40);
-int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms);
-inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms);
+int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms, int ply, int& seldepth);
+inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms,
+    int ply, int& seldepth);
 int evaluate(Game& game);
 int sort_moves_by_priority(Game& game, Move& move);
 inline int positional_eval(Game& game, uint64_t bitboard, uint8_t piece, bool black = false);
-int quiescence_search(Game& game, int alpha, int beta);
+int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth);
 

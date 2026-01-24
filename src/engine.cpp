@@ -159,7 +159,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
     Move overall_best_move {};
     search_start_time = std::chrono::steady_clock::now();
     terminate_search = false;
-    nodes_searched = 0;
+    nodes_searched = 0, positions_searched = 0;
     int overall_best_score, depth_best_score = -50000;
     Move_list possible_moves = determine_possible_moves(game);
 
@@ -169,6 +169,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
 
     //std::cout << "generating\n";
     for (int depth { 1 }; depth <= search_depth; depth++) {
+        int seldepth = 0;
         depth_best_score = -500000;
         int alpha = -500000, beta = 500000;
         int move_eval = 0;
@@ -189,7 +190,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
             auto& move = possible_moves.list[i];
 
             make_test_move(game, move);
-            move_eval = find_eval(game, i, depth, beta, alpha, search_allocated_time_ms);
+            move_eval = find_eval(game, i, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
             undo_test_move(game, move);
 
             if (terminate_search) {
@@ -214,10 +215,12 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
             overall_best_score = depth_best_score;
             auto end = std::chrono::steady_clock::now();
             auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - search_start_time).count();
+            long long total_nodes = nodes_searched + positions_searched;
             
             std::cout << "info depth " << depth 
-                      << " score " << format_score(overall_best_score)  
-                      << " nodes " << nodes_searched 
+                      << " seldepth " << seldepth
+                      << " score " << format_score(overall_best_score, depth)  
+                      << " nodes " << total_nodes 
                       << " time " << elapsed_ms
                       << " pv " << to_chess_notation(overall_best_move) << std::endl;
         } else {
@@ -232,7 +235,8 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
 // negamax function:
 // - alpha: the highest score that the maximising player can guarantee
 // - beta: the lowest score that the minimising player can guarantee
-int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms) { 
+int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms, int ply,
+    int& seldepth) { 
 
     Move stored_move {};
     int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move);
@@ -243,9 +247,16 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         return 0;
     }
 
-    if (depth == 0) {
-        positions_searched++;
-        return quiescence_search(game, alpha, beta);
+    uint8_t piece = (game.turn == WHITE) ? WHITE_KING : BLACK_KING;
+    int king_square = __builtin_ctzll(game.bitboards.bitboards[piece]);
+    bool in_check = is_square_attacked(game.bitboards, king_square, game.turn);
+    int extension = 0;
+    if (in_check && ply <= 50) {
+        extension = 1;
+    }
+
+    if (depth + extension == 0) {
+        return quiescence_search(game, alpha, beta, ply, seldepth);
     }
     nodes_searched++;
     if ((nodes_searched & 2047) == 0) {
@@ -285,9 +296,8 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
 
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
-        
         make_test_move(game, possible_move);
-        move_eval = find_eval(game, i, depth, beta, alpha, search_allocated_time_ms);
+        move_eval = find_eval(game, i, depth + extension, beta, alpha, search_allocated_time_ms, ply, seldepth);
         undo_test_move(game, possible_move);
 
         if (move_eval > max_eval) {
@@ -315,14 +325,15 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
 }
 
 // principal variation search
-inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms) {
+inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms,
+    int ply, int& seldepth) {
     int move_eval;
     if (move_num == 0) {
-        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms);
+        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
     } else {
-        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms);
+        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply, seldepth);
         if (move_eval > alpha && move_eval < beta) {
-            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms);
+            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
         }
     }
     return move_eval;
@@ -335,13 +346,11 @@ int evaluate(Game& game) {
         int current_material = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
         game.value_white_pieces += current_material;
         eval += current_material;
-        //eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
     }
     for (int piece { 9 }; piece < 14; piece++) {
         int current_material = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece - 8];
         game.value_black_pieces += current_material;
         eval -= current_material;
-        //eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8, true);
     }
     for (int piece { 1 }; piece <= 6; piece++) {
         eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
@@ -349,7 +358,6 @@ int evaluate(Game& game) {
     for (int piece { 9 }; piece <= 14; piece++) {
         eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8, true);
     }
-
     return eval;
 }
 
@@ -391,9 +399,12 @@ int sort_moves_by_priority(Game& game, Move& move) {
 }
 
 // search captures deeper, until the position is "quiet"
-int quiescence_search(Game& game, int alpha, int beta) {
+int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth) {
     int stand_pat = evaluate(game) * ((game.turn == WHITE) ? 1 : -1);
     positions_searched++;
+    if (ply > seldepth) {
+        seldepth = ply;
+    }
     if (stand_pat >= beta) {
         return beta;
     }
@@ -409,7 +420,7 @@ int quiescence_search(Game& game, int alpha, int beta) {
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         if (possible_moves.list[i].get_captured_piece() != EMPTY_SQUARE) {
             make_test_move(game, possible_moves.list[i]);
-            int score = -quiescence_search(game, -beta, -alpha);
+            int score = -quiescence_search(game, -beta, -alpha, ply + 1, seldepth);
             undo_test_move(game, possible_moves.list[i]);
             if (score >= beta) {
                 return beta;

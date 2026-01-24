@@ -7,5 +7,5 @@
 #define UCI_H
 
 void run_uci_loop(); 
-std::string format_score(int score);
+std::string format_score(int score, int depth);
 #endif
