@@ -408,13 +408,11 @@ void is_game_over(Game& game) {
     
     Game game_copy = game;
     Move_list moves = determine_possible_moves(game_copy);
-    //std::cout << moves.num_moves << '\n';
-    
-    if (moves.num_moves == 0 || determine_repetition(game) || 
+
+    if (!more_moves_available(game_copy, moves) || determine_repetition(game) || 
         determine_insufficient_material(game) || game.plys_to_100 == 100) {
     
-        std::cout << "ending game\n";
-        std::cout << "moves possible: " << moves.num_moves << '\n';
+        //std::cout << "ending game\n";
         end_game(game);
     }
 }
@@ -782,6 +780,15 @@ uint8_t convert_promotion_piece(Move& move, const uint8_t& promotion_piece) {
 
 int get_piece_colour(uint8_t piece) {
     return (piece >> 3);
+}
+
+bool more_moves_available(Game& game, Move_list moves) {
+    for (int i { 0 }; i < moves.num_moves; i++) {
+        if (!is_in_check(game, moves.list[i])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 

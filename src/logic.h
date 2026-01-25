@@ -41,6 +41,7 @@ void undo_move(Game& game, Move& prev_move);
 void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected = false);
 
 bool determine_repetition(Game& game);
+bool more_moves_available(Game& game, Move_list moves);
 bool determine_insufficient_material(Game& game);
 void end_game(Game& game);
 void is_game_over(Game& game);

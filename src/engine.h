@@ -8,7 +8,7 @@ void clear_transposition_table();
 void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move);
 int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move);
 
-void make_test_move(Game& game, Move& move);
+bool make_test_move(Game& game, Move& move);
 void undo_test_move(Game& game, Move& prev_move);
 
 Move_list determine_possible_moves(Game& game);
