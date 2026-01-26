@@ -12,9 +12,9 @@ long long perft(Game& game, int depth) {
     for (int i { 0 }; i < moves.num_moves; i++) {
         auto& move = moves.list[i];
 
-        if (make_test_move(game, move)) {
+        if (make_test_move<false>(game, move)) {
             nodes += perft(game, depth - 1);
-            undo_test_move(game, move);
+            undo_test_move<false>(game, move);
         }
     }
 
@@ -37,11 +37,11 @@ void run_perft_suite(Game& game, int depth) {
     
     for (int i { 0 }; i < moves.num_moves; i++) {
         auto& move = moves.list[i];
-        if (make_test_move(game, moves.list[i])) {
+        if (make_test_move<false>(game, moves.list[i])) {
             long long branches = perft(game, depth - 1);
             total_nodes += branches;
             std::cout << to_chess_notation(move) << ": " << branches << "\n";
-            undo_test_move(game, move);
+            undo_test_move<false>(game, move);
         } 
     }
     

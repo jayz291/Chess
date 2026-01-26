@@ -257,8 +257,6 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         } else {
             game.invalid_fen_position = true;
         }
-
-        //print_all_bitboards(game.bitboards);
     }
     if (110 <= x && x <= 360 && 530 <= y && y <= 640) {
         game.view = WHITE;

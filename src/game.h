@@ -43,6 +43,7 @@ class Game {
     sf::String entered_fen;
     std::string final_fen;
     int en_passant_index; // (0 - 7 for col of en passant square, 8 if there is none )
+    int en_passant_square;
     bool invalid_fen_position { false };
     uint64_t zobrist_hash;
     Game();

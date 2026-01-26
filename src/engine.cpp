@@ -48,20 +48,22 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
     return -999999;
 }
 
-void undo_test_move(Game& game, Move& prev_move) {
+template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move) {
 
-    undo_move(game, prev_move);
-    restore_zobrist_en_passant_and_castling(game, prev_move);
-
+    undo_move<update_zobrist>(game, prev_move);
+    restore_zobrist_en_passant_and_castling<update_zobrist>(game, prev_move);
+    
+    game.turn = ((game.turn == BLACK) ? WHITE : BLACK);
     if (!game.move_record.empty()) {
         game.move_record.pop_back();
     }
 
-    game.turn = ((game.turn == BLACK) ? WHITE : BLACK);
-    game.zobrist_hash ^= zobrist_black_turn;
+    if constexpr (update_zobrist) {
+        game.zobrist_hash ^= zobrist_black_turn;
+    }
 }
 
-bool make_test_move(Game& game, Move& move) {
+template<bool update_zobrist> bool make_test_move(Game& game, Move& move) {
 
     assert(game.board[move.get_from_square()] != EMPTY_SQUARE);
     int to_square = move.get_to_square();
@@ -69,24 +71,26 @@ bool make_test_move(Game& game, Move& move) {
     int turn = move.get_turn();
     uint8_t move_type = move.get_move_type();
 
-    update_zobrist_en_passant(game, move);
+    update_zobrist_en_passant<update_zobrist>(game, move);
 
     if (move_type == PROMOTION) {
         //std::cout << "promoting pawn\n";
     
-        move_piece(game, move.get_piece(), from_square, to_square, turn);
+        move_piece<update_zobrist>(game, move.get_piece(), from_square, to_square, turn);
         uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
-        replace_piece(game, turn, move.get_piece(), promotion_piece, to_square);
+        replace_piece<update_zobrist>(game, turn, move.get_piece(), promotion_piece, to_square);
 
-        update_castling_flags(game, move);
-        game.move_record.push_back(move);
+        update_castling_flags<update_zobrist>(game, move);
         game.piece_selected = EMPTY_SQUARE;
         game.turn = WHITE + BLACK - game.turn; // flip the turn
-        game.zobrist_hash ^= zobrist_black_turn;
+        if constexpr (update_zobrist) {
+            game.zobrist_hash ^= zobrist_black_turn;
+        }
+        game.move_record.push_back(move);
 
         if (is_square_attacked(game.bitboards, 
             __builtin_ctzll(game.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
-            undo_test_move(game, move); 
+            undo_test_move<update_zobrist>(game, move); 
             return false; 
         }
         return true;
@@ -94,15 +98,15 @@ bool make_test_move(Game& game, Move& move) {
 
     //std::cout << "just before moving piece\n";
     assert(from_square != to_square);
-    move_piece(game, move.get_piece(), from_square, to_square, turn);
+    move_piece<update_zobrist>(game, move.get_piece(), from_square, to_square, turn);
 
     if (move_type == CASTLING) {
         uint8_t piece = (turn == WHITE) ? WHITE_ROOK : BLACK_ROOK;
-        int row = 7 - to_square / 8;
+        int row = 7 - (to_square >> 3);
         if (to_square - from_square == 2) {
-            move_piece(game, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, turn);
+            move_piece<update_zobrist>(game, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, turn);
         } else if (to_square - from_square == -2) {
-            move_piece(game, piece, 56 - 8 * row, 56 - 8 * row + 3, turn);
+            move_piece<update_zobrist>(game, piece, 56 - 8 * row, 56 - 8 * row + 3, turn);
         }
     }
 
@@ -110,16 +114,19 @@ bool make_test_move(Game& game, Move& move) {
         int captured_square = ((game.turn == WHITE) ? to_square - 8 : to_square + 8);
         int opposing_turn = ((game.turn == WHITE)) ? BLACK : WHITE;
         uint8_t captured_piece = (game.turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
-        remove_piece(game, opposing_turn, captured_piece, captured_square);
+        remove_piece<update_zobrist>(game, opposing_turn, captured_piece, captured_square);
     } 
-    update_castling_flags(game, move);
-    game.move_record.push_back(move);
+    update_castling_flags<update_zobrist>(game, move);
     game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
-    game.zobrist_hash ^= zobrist_black_turn;
+
+    if constexpr (update_zobrist) {
+        game.zobrist_hash ^= zobrist_black_turn;
+    }
+    game.move_record.push_back(move);
 
     if (is_square_attacked(game.bitboards, 
         __builtin_ctzll(game.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
-        undo_test_move(game, move); 
+        undo_test_move<update_zobrist>(game, move); 
         return false; 
     }
     return true;
@@ -185,6 +192,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
         depth_best_score = -500000;
         int alpha = -500000, beta = 500000;
         int move_eval = 0;
+        int move_num = 0;
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
             return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
@@ -199,12 +207,13 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
             auto& move = possible_moves.list[i];
 
-            if (!make_test_move(game, move)) {
+            if (!make_test_move<true>(game, move)) {
                 continue;
             };
 
-            move_eval = find_eval(game, i, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
-            undo_test_move(game, move);
+            move_eval = find_eval(game, move_num, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
+            move_num++;
+            undo_test_move<true>(game, move);
 
             if (terminate_search) {
                 break; 
@@ -250,6 +259,9 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
 // - beta: the lowest score that the minimising player can guarantee
 int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms, int ply,
     int& seldepth) { 
+    if (ply > seldepth) {
+        seldepth = ply;
+    }
     Move stored_move {};
     int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move);
     if (stored_eval != -999999) {
@@ -302,12 +314,13 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
 
-        if (!make_test_move(game, possible_move)) {
+        if (!make_test_move<true>(game, possible_move)) {
             continue;
         };
+        move_eval = find_eval(game, num_legal_moves, depth + extension, beta, alpha, 
+            search_allocated_time_ms, ply, seldepth);
         num_legal_moves++;
-        move_eval = find_eval(game, i, depth + extension, beta, alpha, search_allocated_time_ms, ply, seldepth);
-        undo_test_move(game, possible_move);
+        undo_test_move<true>(game, possible_move);
 
         if (move_eval > max_eval) {
             max_eval = move_eval;
@@ -348,11 +361,11 @@ inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, i
     int ply, int& seldepth) {
     int move_eval;
     if (move_num == 0) {
-        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
+        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply + 1, seldepth);
     } else {
-        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply, seldepth);
+        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply + 1, seldepth);
         if (move_eval > alpha && move_eval < beta) {
-            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
+            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply + 1, seldepth);
         }
     }
     return move_eval;
@@ -382,10 +395,12 @@ int evaluate(Game& game) {
 
 __attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard, uint8_t piece, bool black) {
     int eval { 0 };
+    double material_phase = (8000 - game.value_white_pieces - game.value_black_pieces) / 8000.0;
+    int idx = piece - 1;
     while (bitboard) {
         int square = (!black) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
-        eval += (start_value_tables[piece - 1][square] + (8000 - game.value_white_pieces - game.value_black_pieces) / 8000.0 *
-        (endgame_value_tables[piece - 1][square] - start_value_tables[piece - 1][square]));
+        eval += (start_value_tables[idx][square] + material_phase *
+        (endgame_value_tables[idx][square] - start_value_tables[idx][square]));
         bitboard &= bitboard - 1;
     }
     return eval;
@@ -403,7 +418,7 @@ int sort_moves_by_priority(Game& game, Move& move) {
         captured -= 8;
     }
     move_score_guess += 30 * (start_value_tables[piece - 1][square] + 
-        (7800 - game.value_white_pieces - game.value_black_pieces) / 7800.0 *
+        (8000 - game.value_white_pieces - game.value_black_pieces) / 8000.0 *
         (start_value_tables[piece - 1][square] - endgame_value_tables[piece - 1][square]));
     if (captured != EMPTY_SQUARE) {
         move_score_guess += (10000 * piece_values[captured] - piece_values[piece]);
@@ -437,11 +452,11 @@ int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth) {
     });
     //std::cout << possible_moves.num_moves << '\n';
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
-        if (!make_test_move(game, possible_moves.list[i])) {
+        if (!make_test_move<true>(game, possible_moves.list[i])) {
             continue;
         }
         int score = -quiescence_search(game, -beta, -alpha, ply + 1, seldepth);
-        undo_test_move(game, possible_moves.list[i]);
+        undo_test_move<true>(game, possible_moves.list[i]);
         if (score >= beta) {
             return beta;
         } 
@@ -492,7 +507,8 @@ Move_list generate_captures_only(Game& game) {
     return moves;
 }
 
-
-
-
+template void undo_test_move<false>(Game& game, Move& prev_move);
+template void undo_test_move<true>(Game& game, Move& prev_move);
+template bool make_test_move<false>(Game& game, Move& move);
+template bool make_test_move<true>(Game& game, Move& move);
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "game.h"
-#include "logic.h"
 
 extern int terminate_search;
 
@@ -8,8 +7,8 @@ void clear_transposition_table();
 void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move);
 int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move);
 
-bool make_test_move(Game& game, Move& move);
-void undo_test_move(Game& game, Move& prev_move);
+template<bool update_zobrist> bool make_test_move(Game& game, Move& move);
+template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move);
 
 Move_list determine_possible_moves(Game& game);
 Move_list generate_captures_only(Game& game);

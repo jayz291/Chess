@@ -1,94 +1,145 @@
 #include "definitions.h"
 #include "game.h"
+#include "logic.h"
 
 template<int colour, bool generate_captures_only>
 __attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves) {
     Bitboards& bitboards = game.bitboards;
     Chessboard& board = game.board;
-    uint64_t mask = 1ULL;
-
-    constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
-    constexpr int promotion_rank = (colour == WHITE) ? 0 : 7;
-    constexpr int en_passant_rank = (colour == WHITE) ? 4 : 3;
-    constexpr int rank_change = (colour == WHITE) ? 8 : -8;
-    constexpr int double_pawn_push = (colour == WHITE) ? -16 : 16;
-    constexpr uint8_t desired_prev_piece = (colour == WHITE) ? BLACK_PAWN : WHITE_PAWN;
-
-    uint64_t current_pieces = bitboards.bitboards[target_piece];
+    
     int local_counter = moves.num_moves;
-    while (current_pieces) {
-        int from_square = __builtin_ctzll(current_pieces);
-        constexpr int opposing_turn = ((colour == WHITE) ? BLACK : WHITE);
-        uint64_t captures = bitboards.pawn_attacks[colour][from_square];
-        uint64_t non_captures = bitboards.pawn_moves[colour][from_square];
-        while (captures) {
-            int to_square = __builtin_ctzll(captures);
-            if (mask << to_square & bitboards.occupied_tables[opposing_turn]) {
-                int row = 7 - to_square / 8;
-                if (row == promotion_rank) {
-                    int promotion_choices[4] = { P_ROOK, P_KNIGHT, P_BISHOP, P_QUEEN };
+    constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
+    constexpr int promotion_rank = (colour == WHITE) ? 7 : 0;
+    constexpr int opposing_turn = ((colour == WHITE) ? BLACK : WHITE);
+    constexpr int left_shift = (colour == WHITE) ? 7 : -9;
+    constexpr int right_shift = (colour == WHITE) ? 9 : -7;
+    uint64_t wrap_mask_left  = ~FILE_MASKS[7];
+    uint64_t wrap_mask_right = ~FILE_MASKS[0];
+    uint64_t en_passant_mask = (game.en_passant_square != -1) ? (1ULL << game.en_passant_square) : 0ULL;
+    uint64_t enemy_pieces = bitboards.occupied_tables[opposing_turn] | en_passant_mask;
+    uint64_t pawns = bitboards.bitboards[target_piece];
+    uint64_t left_attacks, right_attacks;
+    if constexpr (colour == WHITE) {
+        left_attacks = (pawns << 7) & wrap_mask_left & enemy_pieces;
+    } else {
+        left_attacks = (pawns >> 9) & wrap_mask_left & enemy_pieces;
+    }
+    while (left_attacks) {
+        int to_square = __builtin_ctzll(left_attacks);
+        int from_square = (colour == WHITE) ? to_square - 7 : to_square + 9;
+        if (to_square == game.en_passant_square) {
+            Move move;
+            move.set_move(from_square, to_square, target_piece, board[to_square]);
+            move.set_move_type(EN_PASSANT);
+            moves.list[local_counter++] = move;
+        } else if ((to_square >> 3) == promotion_rank) {
+            int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
+            for (int piece: promotion_choices) {
+                Move move;
+                move.set_move_type(PROMOTION);
+                move.set_promotion_piece(piece);
+                move.set_move(from_square, to_square, target_piece, board[to_square]);
+                moves.list[local_counter++] = move;
+            }
+        } else {
+            Move move;
+            move.set_move(from_square, to_square, target_piece, board[to_square]);
+            moves.list[local_counter++] = move;
+        }
+        left_attacks &= left_attacks - 1;
+    }
+    if constexpr (colour == WHITE) {
+        right_attacks = (pawns << 9) & wrap_mask_right & enemy_pieces;
+    } else {
+        right_attacks = (pawns >> 7) & wrap_mask_right & enemy_pieces;
+    }
+    while (right_attacks) {
+        int to_square = __builtin_ctzll(right_attacks);
+        int from_square = (colour == WHITE) ? to_square - 9 : to_square + 7;
+        if (to_square == game.en_passant_square) {
+            Move move;
+            move.set_move(from_square, to_square, target_piece, board[to_square]);
+            move.set_move_type(EN_PASSANT);
+            moves.list[local_counter++] = move;
+        } else if (to_square / 8 == promotion_rank) {
+            int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
+            for (int piece: promotion_choices) {
+                Move move;
+                move.set_move_type(PROMOTION);
+                move.set_promotion_piece(piece);
+                move.set_move(from_square, to_square, target_piece, board[to_square]);
+                moves.list[local_counter++] = move;
+            }
+        } else {
+            Move move;
+            move.set_move(from_square, to_square, target_piece, board[to_square]);
+            moves.list[local_counter++] = move;
+        }
+        right_attacks &= right_attacks - 1;
+    }
+    if (!generate_captures_only) {
+        uint64_t single_pushes, double_pushes;
+        if constexpr (colour == WHITE) {
+            single_pushes = (bitboards.bitboards[WHITE_PAWN] << 8) & ~game.bitboards.occupied;
+            double_pushes = ((single_pushes & RANK_MASKS[2]) << 8) & ~game.bitboards.occupied;
+            while (single_pushes) {
+                int to_square = __builtin_ctzll(single_pushes);
+                int from_square = to_square - 8;
+                if (to_square / 8 == promotion_rank) {
+                    int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
                     for (int piece: promotion_choices) {
                         Move move;
-                        move.set_move(from_square, to_square, target_piece, board[to_square]);
                         move.set_move_type(PROMOTION);
                         move.set_promotion_piece(piece);
+                        move.set_move(from_square, to_square, target_piece, EMPTY_SQUARE);
                         moves.list[local_counter++] = move;
                     }
                 } else {
                     Move move;
-                    move.set_move(from_square, to_square, target_piece, board[to_square]);
+                    move.set_move(from_square, to_square, target_piece, EMPTY_SQUARE);
                     moves.list[local_counter++] = move;
                 }
-            } else if ((from_square >> 3) == en_passant_rank && game.move_record.size() > 0) {
-                Move prev_move = game.move_record.back();
-                if (prev_move.get_to_square() - prev_move.get_from_square() == double_pawn_push 
-                    && prev_move.get_piece() == desired_prev_piece && 
-                    std::abs(prev_move.get_to_square() % 8 - from_square % 8) == 1) {
-                    if (to_square - prev_move.get_to_square() == rank_change) {
-                        int en_passant_target_square = (colour == WHITE) ? to_square - 8 : to_square + 8;
-                        Move move;
-                        move.set_move_type(EN_PASSANT);
-                        move.set_move(from_square, to_square, target_piece, board[en_passant_target_square]);
-                        moves.list[local_counter++] = move;
-                    } 
-                }
-            } 
-            captures &= captures - 1;
-        }
-        if constexpr (!generate_captures_only) {
-            while (non_captures) {
-                int to_square = __builtin_ctzll(non_captures);
-                if (mask << to_square & ~bitboards.occupied) {
-                    int row = 7 - to_square / 8;
-                    if (row == promotion_rank) {
-                        int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
-                        for (int piece: promotion_choices) {
-                            Move move;
-                            move.set_move_type(PROMOTION);
-                            move.set_promotion_piece(piece);
-                            move.set_move(from_square, to_square, target_piece, board[to_square]);
-                            moves.list[local_counter++] = move;
-                        }
-                    } else {
-                        Move move;
-                        move.set_move(from_square, to_square, target_piece, board[to_square]);
-                        if (std::abs(from_square - to_square) == 8) {
-                            moves.list[local_counter++] = move;
-                        } else if (std::abs(from_square - to_square) == 16) {
-                            if ((colour == WHITE && mask << to_square & ~bitboards.occupied) && 
-                            (mask << (to_square - 8) & ~bitboards.occupied) && mask << from_square & RANK_MASKS[1]) {
-                                moves.list[local_counter++] = move;
-                            } else if ((colour == BLACK && mask << to_square & ~bitboards.occupied) && 
-                            (mask << (to_square + 8) & ~bitboards.occupied) && mask << from_square & RANK_MASKS[6]) {
-                                moves.list[local_counter++] = move;
-                            }
-                        }
-                    }
-                }
-                non_captures &= non_captures - 1;
+                single_pushes &= single_pushes - 1;
             }
+            while (double_pushes) {
+                int to_square = __builtin_ctzll(double_pushes);
+                int from_square = to_square - 16;
+                Move move;
+                move.set_move(from_square, to_square, target_piece, EMPTY_SQUARE);
+                moves.list[local_counter++] = move;
+                double_pushes &= double_pushes - 1;
+            }
+        } else {
+            single_pushes = (bitboards.bitboards[BLACK_PAWN] >> 8) & ~game.bitboards.occupied;
+            double_pushes = ((single_pushes & RANK_MASKS[5]) >> 8) & ~game.bitboards.occupied;
+            while (single_pushes) {
+                int to_square = __builtin_ctzll(single_pushes);
+                int from_square = to_square + 8;
+                if (to_square / 8 == promotion_rank) {
+                    int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
+                    for (int piece: promotion_choices) {
+                        Move move;
+                        move.set_move_type(PROMOTION);
+                        move.set_promotion_piece(piece);
+                        move.set_move(from_square, to_square, target_piece, EMPTY_SQUARE);
+                        moves.list[local_counter++] = move;
+                    }
+                } else {
+                    Move move;
+                    move.set_move(from_square, to_square, target_piece, EMPTY_SQUARE);
+                    moves.list[local_counter++] = move;
+                }
+                single_pushes &= single_pushes - 1;
+            }
+            while (double_pushes) {
+                int to_square = __builtin_ctzll(double_pushes);
+                int from_square = to_square + 16;
+                Move move;
+                move.set_move(from_square, to_square, target_piece, EMPTY_SQUARE);
+                moves.list[local_counter++] = move;
+                double_pushes &= double_pushes - 1;
+            } 
         }
-        current_pieces &= current_pieces - 1;
     }
     moves.num_moves = local_counter;
 }

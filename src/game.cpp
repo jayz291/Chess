@@ -26,6 +26,7 @@ void Game::initialise() {
     bitboards = {};
     castling_rights = 0b00001111;
     move_record.clear();
+    en_passant_square = -1;
     board_record.clear();
     clear_transposition_table();
 }
@@ -201,6 +202,7 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
             prev_move.set_castling_flags(game.castling_rights);
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
+            game.en_passant_square = square;
             return 0;
         }
     } else if (square >= 40 && square <= 47) {
@@ -213,6 +215,7 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
             prev_move.set_castling_flags(game.castling_rights);
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
+            game.en_passant_square = square;
             return 0;
         }
     }
