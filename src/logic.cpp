@@ -487,7 +487,6 @@ void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected) 
     assert(move.get_turn() == game.turn);
 
     move_piece<true>(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
-    //u_int64_t square = (1ULL << move.get_to_square())
     move.set_move_type(PROMOTION);
 
     if (!piece_already_selected) {
@@ -581,7 +580,7 @@ int validate_move(Game& game, Move& move) {
         }
         if (result >= 0) {
             Game game_copy = game;
-            if (!is_in_check(game_copy, move)) {
+            if (make_test_move<false>(game_copy, move)) {
                 return result;
             }
             return -1;
@@ -789,15 +788,6 @@ int validate_castling(Game &game, Move& move) {
     return -1;
 }
 
-int is_in_check(Game& game, Move& move) {
-    int king = (move.get_turn() == WHITE) ? WHITE_KING : BLACK_KING;
-    make_test_move<false>(game, move); 
-    int king_square = __builtin_ctzll(game.bitboards.bitboards[king]);
-    int in_check = is_square_attacked(game.bitboards, king_square, move.get_turn());
-    undo_test_move<false>(game, move);
-    return in_check;
-}
-
 uint8_t convert_promotion_piece(Move& move, const uint8_t& promotion_piece) {
     uint8_t converted = promotion_piece + 2;
     if (move.get_turn() == BLACK) {
@@ -813,7 +803,7 @@ int get_piece_colour(uint8_t piece) {
 
 bool more_moves_available(Game& game, Move_list moves) {
     for (int i { 0 }; i < moves.num_moves; i++) {
-        if (!is_in_check(game, moves.list[i])) {
+        if (make_test_move<false>(game, moves.list[i])) {
             return true;
         }
     }
