@@ -4,8 +4,8 @@
 extern int terminate_search;
 
 void clear_transposition_table();
-void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move);
-int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move);
+void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply);
+int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move, int ply);
 
 template<bool update_zobrist> bool make_test_move(Game& game, Move& move);
 template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move);

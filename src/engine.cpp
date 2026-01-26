@@ -16,27 +16,38 @@ void clear_transposition_table() {
     }
 }
 
-void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move) {
+void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
-
+    int stored_score = eval;
+    if (eval > 300000) {
+        stored_score = eval + ply;
+    } else {
+        stored_score = eval - ply;
+    }
     if (transposition_table[index].zobrist_key != 0 && transposition_table[index].depth > depth) {
         return;
     }
     transposition_table[index].best_move = best_move;
-    transposition_table[index].eval = eval;
+    transposition_table[index].eval = stored_score;
     transposition_table[index].zobrist_key = key;
     transposition_table[index].flag = flag;
     transposition_table[index].depth = depth;
 }
 
-int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move) {
+int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     table_entry entry = transposition_table[index];
+    int return_eval = entry.eval;
+    if (return_eval > 300000) {
+        return_eval -= ply; 
+    } else if (return_eval < -300000) {
+        return_eval += ply;
+    }
     if (key == entry.zobrist_key) {
         best_move = entry.best_move;
         if (entry.depth >= depth) {
             if (entry.flag == tt_flag::tt_exact) {
-                return entry.eval;
+                return return_eval;
             } else if (entry.flag == tt_flag::tt_alpha && entry.eval <= alpha) {
                 return alpha;
             } else if (entry.flag == tt_flag::tt_beta && entry.eval >= beta) {
@@ -241,7 +252,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
             
             std::cout << "info depth " << depth 
                       << " seldepth " << seldepth
-                      << " score " << format_score(overall_best_score, depth)  
+                      << " score " << format_score(overall_best_score)  
                       << " nodes " << total_nodes 
                       << " time " << elapsed_ms
                       << " pv " << to_chess_notation(overall_best_move) << std::endl;
@@ -259,11 +270,12 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
 // - beta: the lowest score that the minimising player can guarantee
 int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms, int ply,
     int& seldepth) { 
+    nodes_searched++;
     if (ply > seldepth) {
         seldepth = ply;
     }
     Move stored_move {};
-    int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move);
+    int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move, ply);
     if (stored_eval != -999999) {
         return stored_eval;
     }
@@ -282,7 +294,6 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     if (depth + extension == 0) {
         return quiescence_search(game, alpha, beta, ply, seldepth);
     }
-    nodes_searched++;
     if ((nodes_searched & 2047) == 0) {
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
@@ -318,7 +329,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
             continue;
         };
         move_eval = find_eval(game, num_legal_moves, depth + extension, beta, alpha, 
-            search_allocated_time_ms, ply, seldepth);
+            search_allocated_time_ms, ply + 1, seldepth);
         num_legal_moves++;
         undo_test_move<true>(game, possible_move);
 
@@ -336,7 +347,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     if (num_legal_moves == 0) {
         int king_square = __builtin_ctzll(game.bitboards.bitboards[king]);
         if (is_square_attacked(game.bitboards, king_square, game.turn)) {
-            return -400000 - depth * 50;   // favour quick checkmates
+            return -400000 + ply;
         } else {
             return 0;
         }
@@ -350,9 +361,8 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     } else {
         flag = tt_flag::tt_exact;
     }
-    if (max_eval <= 20000) {
-        record_entry(game.zobrist_hash, max_eval, depth, flag, best_move_this_node);
-    }
+   
+    record_entry(game.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
     return max_eval;
 }
 
@@ -361,16 +371,17 @@ inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, i
     int ply, int& seldepth) {
     int move_eval;
     if (move_num == 0) {
-        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply + 1, seldepth);
+        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
     } else {
-        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply + 1, seldepth);
+        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply, seldepth);
         if (move_eval > alpha && move_eval < beta) {
-            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply + 1, seldepth);
+            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
         }
     }
     return move_eval;
 }
 
+// evaluation function, based on material and piece square tables
 int evaluate(Game& game) {
     int eval { 0 };
     game.value_white_pieces = game.value_black_pieces = 0;
