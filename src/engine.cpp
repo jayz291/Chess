@@ -21,7 +21,7 @@ void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_mov
     int stored_score = eval;
     if (eval > 300000) {
         stored_score = eval + ply;
-    } else {
+    } else if (eval < -300000) {
         stored_score = eval - ply;
     }
     if (transposition_table[index].zobrist_key != 0 && transposition_table[index].depth > depth) {
@@ -48,9 +48,9 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
         if (entry.depth >= depth) {
             if (entry.flag == tt_flag::tt_exact) {
                 return return_eval;
-            } else if (entry.flag == tt_flag::tt_alpha && entry.eval <= alpha) {
+            } else if (entry.flag == tt_flag::tt_alpha && return_eval <= alpha) {
                 return alpha;
-            } else if (entry.flag == tt_flag::tt_beta && entry.eval >= beta) {
+            } else if (entry.flag == tt_flag::tt_beta && return_eval >= beta) {
                 return beta;
             }
         }
@@ -143,6 +143,26 @@ template<bool update_zobrist> bool make_test_move(Game& game, Move& move) {
     return true;
 }
 
+void make_null_move(Game& game, int& stored_ep_square, uint64_t& stored_hash) {
+    stored_ep_square = game.en_passant_square;
+    stored_hash = game.zobrist_hash;
+
+    game.turn = (game.turn == WHITE) ? BLACK : WHITE;
+    game.zobrist_hash ^= zobrist_black_turn;
+
+    if (game.en_passant_square != -1) {
+        int file = game.en_passant_square % 8;
+        game.zobrist_hash ^= zobrist_en_passant[file];
+        game.en_passant_square = -1;
+    }
+}
+
+void undo_null_move(Game& game, int stored_ep_square, uint64_t stored_hash) {
+    game.zobrist_hash = stored_hash;
+    game.en_passant_square = stored_ep_square;
+    game.turn = (game.turn == WHITE) ? BLACK : WHITE;
+}
+
 void generate_computer_move(Game& game) {
     if (thinking_in_progress) {
         return;
@@ -193,10 +213,6 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
     nodes_searched = 0, positions_searched = 0;
     int overall_best_score, depth_best_score = -50000;
     Move_list possible_moves = determine_possible_moves(game);
-
-    /*for (int i { 0 }; i < possible_moves.num_moves; i++) {
-        possible_moves.list[i].eval = sort_moves_by_priority(game, possible_moves.list[i]);
-    }*/
 
     for (int depth { 1 }; depth <= search_depth; depth++) {
         int seldepth = 0;
@@ -300,6 +316,30 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         if (elapsed > search_allocated_time_ms) {
             terminate_search = true;
             return 0;
+        }
+    }
+    bool has_major_pieces = false;
+    if (game.turn == WHITE) {
+        has_major_pieces = (game.bitboards.bitboards[WHITE_KNIGHT] | game.bitboards.bitboards[WHITE_BISHOP] | 
+            game.bitboards.bitboards[WHITE_ROOK] | game.bitboards.bitboards[WHITE_QUEEN]);
+    } else {
+        has_major_pieces = (game.bitboards.bitboards[BLACK_KNIGHT] | game.bitboards.bitboards[BLACK_BISHOP] | 
+            game.bitboards.bitboards[BLACK_ROOK] | game.bitboards.bitboards[BLACK_QUEEN]);
+    }
+
+    if (depth >= 3 && !in_check && ply > 0 && has_major_pieces) {
+        int stored_ep_square;
+        uint64_t stored_hash;
+        int reduction = 2;
+        make_null_move(game, stored_ep_square, stored_hash);
+        int eval = -negamax(game, depth - 1 - reduction, -beta, -beta + 1, search_allocated_time_ms, 
+            ply + 1, seldepth);
+        undo_null_move(game, stored_ep_square, stored_hash);
+        if (terminate_search) {
+            return 0;
+        }
+        if (eval >= beta) {
+            return beta;
         }
     }
     int num_legal_moves = 0;

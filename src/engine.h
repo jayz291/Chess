@@ -9,6 +9,8 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
 
 template<bool update_zobrist> bool make_test_move(Game& game, Move& move);
 template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move);
+void make_null_move(Game& game, int& stored_ep_square, uint64_t& stored_hash);
+void undo_null_move(Game& game, int stored_ep_square, uint64_t stored_hash);
 
 Move_list determine_possible_moves(Game& game);
 Move_list generate_captures_only(Game& game);
