@@ -27,7 +27,6 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             sf::Vector2f world_pos = window.mapPixelToCoords(mouse_press->position);
             delegate_click_event(game, window, assets, world_pos);
-            //std::cout << "clicked\n";
         }
             
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
@@ -165,11 +164,10 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         game.initialise();
         int result = handle_fen_string(game);
         if (result == 0) {
-            //std::cout << "passed\n";
             //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.invalid_fen_position = false;
             game.state = Gamestate::Playing;
-            run_perft_suite(game, 5);
+            //run_perft_suite(game, 5);
             is_game_over(game);
             verify_board_sync(game);
             verify_zobrist_sync(game);

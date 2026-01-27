@@ -13,7 +13,6 @@ Game::Game() {
 }
 
 void Game::initialise() {
-    //state = Gamestate::Playing;
     current_move = {};
     calculated_move = {}, 
     dragged_piece = EMPTY_SQUARE, 
