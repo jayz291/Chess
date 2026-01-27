@@ -178,6 +178,7 @@ uint64_t get_bishop_attacks(int square, uint64_t occupancy, Bitboards& bitboards
     return bitboards.bishop_attack_table[square][occupancy];
 }
 
+// function to prevent board wraparounds
 bool determine_square_validity(int square, int direction) {
     int rank = square / 8;
     int file = square % 8;
@@ -199,6 +200,7 @@ template<bool update_zobrist> void replace_piece(Game& game, int turn, uint8_t p
     place_piece<update_zobrist>(game, turn, new_piece, target_square);
 }
 
+// remove piece from all representations of the board
 template<bool update_zobrist> void remove_piece(Game& game, int turn, uint8_t target_piece, int target_square) {
 
     // update bitboards
@@ -215,6 +217,7 @@ template<bool update_zobrist> void remove_piece(Game& game, int turn, uint8_t ta
     }
 }
 
+// place piece on all representations of the board
 template<bool update_zobrist> void place_piece(Game& game, int turn, uint8_t target_piece, int target_square) {
     //int zobrist_offset = (turn == WHITE) ? 0 : 6;
 
@@ -358,32 +361,30 @@ void make_game_move(Game& game, int result, Move move) {
 
     update_zobrist_en_passant<true>(game, move);
 
-    if ((game.turn == BLACK && board[move.get_from_square()] == BLACK_PAWN 
-        && 7 - move.get_from_square() / 8 == 6) || 
-        (game.turn == WHITE && board[move.get_from_square()] == WHITE_PAWN 
-        && 7 - move.get_from_square() / 8 == 1) &&
+    if ((game.turn == BLACK && move.get_piece() == BLACK_PAWN && move.get_to_square() / 8 == 0) || 
+        (game.turn == WHITE && move.get_piece() == WHITE_PAWN && move.get_to_square() / 8 == 7) /*&&
         7 <= std::abs(move.get_to_square() - move.get_from_square()) && 
-        std::abs(move.get_to_square() - move.get_from_square()) <= 9) {
-            game.promoting_pawn = true;
-            return;
+        std::abs(move.get_to_square() - move.get_from_square()) <= 9*/) {
+        game.promoting_pawn = true;
+        return;
     }
 
     if (move.get_from_square() != move.get_to_square()) {
         move_piece<true>(game, move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
     }   
 
-    if (result > 0 && result < 3) {
-        if (result == 1 && game.turn == WHITE) { 
+    if (result == KINGSIDE_CASTLING_MOVE || result == QUEENSIDE_CASTLING_MOVE) {
+        if (result == KINGSIDE_CASTLING_MOVE && game.turn == WHITE) { 
             move_piece<true>(game, WHITE_ROOK, 7, 5, WHITE);
-        } else if (result == 2 && game.turn == WHITE) {
+        } else if (result == QUEENSIDE_CASTLING_MOVE && game.turn == WHITE) {
             move_piece<true>(game, WHITE_ROOK, 0, 3, WHITE);
-        } else if (result == 1 && game.turn == BLACK) {
+        } else if (result == KINGSIDE_CASTLING_MOVE && game.turn == BLACK) {
             move_piece<true>(game, BLACK_ROOK, 63, 61, BLACK);
-        } else if (result == 2 && game.turn == BLACK) {
+        } else if (result == QUEENSIDE_CASTLING_MOVE && game.turn == BLACK) {
             move_piece<true>(game, BLACK_ROOK, 56, 59, BLACK);
         }
         move.set_move_type(CASTLING);
-    } else if (result == 3) {
+    } else if (result == EN_PASSANT_MOVE) {
         
         int captured_square = ((game.turn == WHITE) ? move.get_to_square() - 8 : move.get_to_square() + 8);
         int opposing_turn = ((game.turn == WHITE)) ? BLACK : WHITE;
@@ -556,42 +557,40 @@ template<bool update_zobrist> void move_piece(Game& game, uint8_t target_piece, 
 int validate_move(Game& game, Move& move) {
     int result { 0 };
     if (move.get_to_square() < 0 || move.get_to_square() > 63) {
-        return -1;
+        return INVALID;
     }
+    uint8_t piece = move.get_piece();
 
     if ((move.get_from_square() != move.get_to_square()) && 
         (game.board[move.get_to_square()] == EMPTY_SQUARE || 
         get_piece_colour(game.board[move.get_to_square()]) != move.get_turn())) {
         
-        if (move.get_piece() == WHITE_PAWN || move.get_piece() == BLACK_PAWN) {
+        if (piece == WHITE_PAWN || piece == BLACK_PAWN) {
             result = validate_pawn_move(game, move);
-        } else if (move.get_piece() == WHITE_KNIGHT || move.get_piece() == BLACK_KNIGHT) {
+        } else if (piece == WHITE_KNIGHT || piece == BLACK_KNIGHT) {
             result = validate_knight_move(game.bitboards, move);
-        } else if (move.get_piece() == WHITE_BISHOP || move.get_piece() == BLACK_BISHOP) {
+        } else if (piece == WHITE_BISHOP || piece == BLACK_BISHOP) {
             result = validate_bishop_move(game.bitboards, move);
-        } else if (move.get_piece() == WHITE_ROOK || move.get_piece() == BLACK_ROOK) {
+        } else if (piece == WHITE_ROOK || piece == BLACK_ROOK) {
             result = validate_rook_move(game.bitboards, move);
-        } else if (move.get_piece() == WHITE_QUEEN || move.get_piece() == BLACK_QUEEN) {
+        } else if (piece == WHITE_QUEEN || piece == BLACK_QUEEN) {
             result = validate_queen_move(game.bitboards, move);
-        } else if (move.get_piece() == WHITE_KING || move.get_piece() == BLACK_KING) {
+        } else if (piece == WHITE_KING || piece == BLACK_KING) {
             result = validate_king_move(game, move);
         } else {
-            return 0;
+            return INVALID;
         }
         if (result >= 0) {
             Game game_copy = game;
             if (make_test_move<false>(game_copy, move)) {
                 return result;
             }
-            return -1;
-        } else if (result != 0) {
-            return -1;
+            return INVALID;
         } else {
-            return 0;
-        }
+            return INVALID;
+        } 
     } else {
-        //std::cout << "ruledinvalid\n";
-        return -1;
+        return INVALID;
     }
 }
 
@@ -599,46 +598,44 @@ int validate_pawn_move(Game& game, Move& move) {
     Bitboards& bitboards = game.bitboards;
     uint64_t mask = 1ULL;
     int direction = (game.turn == WHITE) ? 1 : -1;
-
-    if (move.get_to_square() == game.en_passant_square && 
-    ((move.get_to_square() - move.get_from_square() == 7 * direction) || 
-    (move.get_to_square() - move.get_from_square() == 9 * direction)) &&
-    (std::abs(move.get_to_square() % 8 - move.get_from_square() % 8) == 1)) {
-        move.set_move_type(EN_PASSANT);
-        if (game.board[move.get_to_square() - 8 * direction] == EMPTY_SQUARE) {
-            return -1;
-        }
-        return 3; 
-    } 
-
     int from = move.get_from_square();
     int to = move.get_to_square();
+
+    if (to == game.en_passant_square && ((to - from == 7 * direction) || 
+    (to - from == 9 * direction)) && (std::abs(to % 8 - from % 8) == 1)) {
+        move.set_move_type(EN_PASSANT);
+        if (game.board[move.get_to_square() - 8 * direction] == EMPTY_SQUARE) {
+            return INVALID;
+        }
+        return EN_PASSANT_MOVE; 
+    } 
+
     int opposing_turn = (game.turn == WHITE) ? BLACK : WHITE;
     int rank = (game.turn == WHITE) ? 1 : 6;
     //std::cout << to - from << '\n';
     if (to - from == 8 * direction) {
         if (mask << to & ~bitboards.occupied) {
-            return 0;
+            return VALID;
         }
     } else if (to - from == 16 * direction) {
         if ((mask << to & ~bitboards.occupied) && (mask << (to - 8 * direction) & ~bitboards.occupied) &&
             mask << from & RANK_MASKS[rank]) {
-            return 0;
+            return VALID;
         }
     } else if (to - from == 7 * direction || to - from == 9 * direction) {
         if (mask << to & bitboards.occupied_tables[opposing_turn]) {
-            return 0;
+            return VALID;
         }
     }
-    return -1;
+    return INVALID;
 }
 
 int validate_knight_move(Bitboards& bitboards, Move& move) {
     u_int64_t mask = 1ULL << move.get_to_square();
     if (bitboards.knight_attacks[move.get_from_square()] & mask) {
-        return 0;
+        return VALID;
     }
-    return -1;
+    return INVALID;
 }
 
 int validate_bishop_move(Bitboards& bitboards, Move& move) {
@@ -646,39 +643,39 @@ int validate_bishop_move(Bitboards& bitboards, Move& move) {
         std::abs(move.get_to_square() % 8 - move.get_from_square() % 8)) {
         uint64_t path = bitboards.between_table[move.get_from_square()][move.get_to_square()];
         if (path & bitboards.occupied) {
-            return -1;
+            return INVALID;
         }
-        return 0;
+        return VALID;
     }
-    return -1;
+    return INVALID;
 }
 
 int validate_rook_move(Bitboards& bitboards, Move& move) {
     if ((move.get_to_square() / 8 - move.get_from_square() / 8) == 0 || (move.get_to_square() % 8 - move.get_from_square() % 8) == 0) {
         uint64_t path = bitboards.between_table[move.get_from_square()][move.get_to_square()];
         if (path & bitboards.occupied) {
-            return -1;
+            return INVALID;
         }
-        return 0;
+        return VALID;
     }
-    return -1;
+    return INVALID;
 }
 
 int validate_queen_move(Bitboards& bitboards, Move& move) {
-    if (validate_rook_move(bitboards, move) == 0 || validate_bishop_move(bitboards, move) == 0) {
-        return 0;
+    if (validate_rook_move(bitboards, move) == VALID || validate_bishop_move(bitboards, move) == VALID) {
+        return VALID;
     } 
-    return -1;
+    return INVALID;
 }
 
 int validate_king_move(Game &game, Move& move) {
     if (game.bitboards.king_moves[move.get_from_square()] & 1ULL << move.get_to_square()) {
-        return 0;
+        return VALID;
     } else if (move.get_from_square() / 8 == move.get_to_square() / 8 && std::abs(move.get_to_square() - move.get_from_square()) == 2) {
         Bitboards bitboard_copy = game.bitboards;
         return validate_castling(game, move);
     }
-    return -1;
+    return INVALID;
 }
 
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn) {
@@ -724,13 +721,13 @@ int validate_castling(Game &game, Move& move) {
         if (new_square == 2 && (mask << 2 & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_left_w) == 0) {
                 if (!is_square_attacked(bitboards, 3, turn) && !is_square_attacked(bitboards, 2, turn)) {
-                    return 2;
+                    return QUEENSIDE_CASTLING_MOVE;
                 }
             }
         } else if (new_square == 6 && (mask << 3 & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_right_w) == 0) {
                 if (!is_square_attacked(bitboards, 5, turn) && !is_square_attacked(bitboards, 6, turn)) {
-                    return 1;
+                    return KINGSIDE_CASTLING_MOVE;
                 }
             }
         }
@@ -738,18 +735,18 @@ int validate_castling(Game &game, Move& move) {
         if (new_square == 58 && (mask & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_left_b) == 0) {
                 if (!is_square_attacked(bitboards, 59, turn) && !is_square_attacked(bitboards, 58, turn)) {
-                    return 2;
+                    return QUEENSIDE_CASTLING_MOVE;
                 }
             }
         } else if (new_square == 62 && (mask << 1 & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_right_b) == 0) {
                 if (!is_square_attacked(bitboards, 61, turn) && !is_square_attacked(bitboards, 62, turn)) {
-                    return 1;
+                    return KINGSIDE_CASTLING_MOVE;
                 }
             }
         }
     }
-    return -1;
+    return INVALID;
 }
 
 uint8_t convert_promotion_piece(Move& move, const uint8_t& promotion_piece) {

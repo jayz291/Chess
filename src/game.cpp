@@ -23,7 +23,7 @@ void Game::initialise() {
     white_in_check = black_in_check = promoting_pawn = move_ready = false;
     game_status = 0b00000000;
     bitboards = {};
-    castling_rights = 0b00001111;
+    castling_rights = 0b00000000;
     move_record.clear();
     en_passant_square = -1;
     board_record.clear();
@@ -45,11 +45,11 @@ int handle_fen_string(Game& game) {
         split_fen.push_back(section);
     }
     if (split_fen.size() != 6) {
-        return -1;
+        return INVALID;
     }
 
-    if (fill_board(game, split_fen[0]) == -1) {
-        return -1;
+    if (fill_board(game, split_fen[0]) == INVALID) {
+        return INVALID;
     }
     
     if (split_fen[1] == "b") {
@@ -57,7 +57,7 @@ int handle_fen_string(Game& game) {
     } else if (split_fen[1] == "w") {
         game.turn = WHITE;
     } else {
-        return -1;
+        return INVALID;
     }
     
     uint64_t mask = 1ULL;
@@ -73,22 +73,22 @@ int handle_fen_string(Game& game) {
         } else if (letter == '-') {
             game.castling_rights = 0b00000000;
         } else {
-            return -1;
+            return INVALID;
         }  
     }
     //std::cout << std::bitset<8>(game.castling_rights);
-    if (process_en_passant_square(game, split_fen[3]) == -1) {
-        return -1;
+    if (process_en_passant_square(game, split_fen[3]) == INVALID) {
+        return INVALID;
     }
     game.plys_to_100 = std::stoi(split_fen[4]);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
     int move_num = std::stoi(split_fen[5]);
 
-    if (check_position_validity(game) == -1) {
-        return -1;
+    if (check_position_validity(game) == INVALID) {
+        return INVALID;
     }
     find_position_hash(game);
-    return 0;
+    return VALID;
 }
 
 int fill_board(Game& game, std::string& fen_board_section) {
@@ -141,7 +141,7 @@ int fill_board(Game& game, std::string& fen_board_section) {
         } 
         //std::cout << curr_square << '\n';
         if (curr_square >= 65) {
-            return -1;
+            return INVALID;
         }
 
         if (letter >= 49 && letter <= 56) {
@@ -153,7 +153,7 @@ int fill_board(Game& game, std::string& fen_board_section) {
         if (letter == '/') {
             ranks++;
             if (row_squares_recorded != 8) {
-                return -1;
+                return INVALID;
             }
             int row = curr_square / 8;
             curr_square = 8 * (row - 2);
@@ -163,73 +163,72 @@ int fill_board(Game& game, std::string& fen_board_section) {
         if (letter > 57) {
             curr_square++;
             row_squares_recorded++;
-            //std::cout << "added\n";
         }
     }
     if (row_squares_recorded != 8 || ranks != 8) {
-        return -1;
+        return INVALID;
     }
     game.bitboards.update_occupied();
-    return 0;
+    return VALID;
 }
 
 int process_en_passant_square(Game& game, std::string& en_passant_square) {
 
     if (en_passant_square == "-") {
         game.en_passant_index = 8;
-        return 0;
+        return VALID;
     }
     int col = en_passant_square[0] - 'a';
     int row = '8' - en_passant_square[1];
     int square = 56 - 8 * row + col;
     if (square < 16 || (square > 23 && square < 40) || square > 47) {
-        return -1;
+        return INVALID;
     }
     uint64_t mask = 1ULL;
     if (mask << square & game.bitboards.occupied) {
-        return -1;
+        return INVALID;
     }
     
     if (square >= 16 && square <= 23) {
         if ((game.bitboards.bitboards[WHITE_PAWN] & (mask << (square + 8))) &&
             ~game.bitboards.occupied & mask << (square - 8) && game.turn == BLACK) {
             Move prev_move;
-            prev_move.set_from_square(square - 8);
-            prev_move.set_to_square(square + 8);
-            prev_move.set_piece(WHITE_PAWN);
+            prev_move.set_move(square - 8, square + 8, WHITE_PAWN, EMPTY_SQUARE);
             prev_move.set_castling_flags(game.castling_rights);
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
             game.en_passant_square = square;
-            return 0;
+            return VALID;
         }
     } else if (square >= 40 && square <= 47) {
         if ((game.bitboards.bitboards[BLACK_PAWN] & (mask << (square - 8))) &&
             ~game.bitboards.occupied & mask << (square + 8) && game.turn == WHITE) {
             Move prev_move;
-            prev_move.set_from_square(square + 8);
-            prev_move.set_to_square(square - 8);
-            prev_move.set_piece(BLACK_PAWN);
+            prev_move.set_move(square + 8, square - 8, BLACK_PAWN, EMPTY_SQUARE);
             prev_move.set_castling_flags(game.castling_rights);
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
             game.en_passant_square = square;
-            return 0;
+            return VALID;
         }
     }
-    return -1;
+    return INVALID;
 }
 
+// ensures that:
+// - there is exactly one king for each side on the board
+// - no pawns on its colour's promotion rank
+// - the king cannot be captured on the next turn 
 int check_position_validity(Game& game) {
     if (game.bitboards.bitboards[BLACK_KING] == 0 || 
         (game.bitboards.bitboards[BLACK_KING] & (game.bitboards.bitboards[BLACK_KING] - 1)) != 0 ||
         game.bitboards.bitboards[WHITE_KING] == 0 || 
         ((game.bitboards.bitboards[WHITE_KING] & (game.bitboards.bitboards[WHITE_KING] - 1)) != 0)) {
-        return -1;
+        return INVALID;
     }
     if ((game.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||
         (game.bitboards.bitboards[WHITE_PAWN] & RANK_MASKS[7])) {
-        return -1;
+        return INVALID;
     }
 
     int black_king_square = __builtin_ctzll(game.bitboards.bitboards[BLACK_KING]);
@@ -243,9 +242,9 @@ int check_position_validity(Game& game) {
     }
     if ((game.black_in_check && game.turn == WHITE) || 
         (game.white_in_check && game.turn == BLACK)) {
-        return -1;
+        return INVALID;
     }
-    return 0;
+    return VALID;
 }
 
 

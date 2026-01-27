@@ -17,6 +17,11 @@ uint64_t get_bishop_mask(int square);
 uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask);
 
 constexpr int SQUARE_SIZE = 95;
+constexpr int INVALID = -1;
+constexpr int VALID = 0;
+constexpr int KINGSIDE_CASTLING_MOVE = 1;
+constexpr int QUEENSIDE_CASTLING_MOVE = 2;
+constexpr int EN_PASSANT_MOVE = 3;
 
 enum {
     WHITE = 0,

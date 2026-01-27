@@ -518,6 +518,7 @@ int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth) {
     return alpha;
 }
 
+// generates all possible pseudolegal moves (does not care if it leaves king in check)
 Move_list determine_possible_moves(Game& game) {
     Move_list moves;
     if (game.turn == WHITE) {
@@ -538,6 +539,7 @@ Move_list determine_possible_moves(Game& game) {
     return moves;
 }
 
+// generates all possible pseudolegal capture moves (does not care if it leaves king in check)
 Move_list generate_captures_only(Game& game) {
     Move_list moves;
     if (game.turn == WHITE) {
