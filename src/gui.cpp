@@ -84,36 +84,46 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     sf::RectangleShape board({760, 760});
     sf::Color rectangle_colour = thinking_in_progress ? sf::Color(128, 128, 128) : sf::Color::White;
     sf::Color text_colour = thinking_in_progress ? sf::Color(59, 59, 59) : sf::Color::Red;
+    sf::Vector2i mouse_pos = {static_cast<int>(assets.current_mouse_pos.x), 
+                static_cast<int>(assets.current_mouse_pos.y)};
     if (game.state == Gamestate::Intro) {
-        draw_intro_screen(window, game, assets);
+        draw_intro_screen(window, game, assets, mouse_pos);
     }
     if (game.state != Gamestate::Intro) {
         draw_board(game, window, assets);
   
         assets.home_button.set_rec_colour(rectangle_colour);
         assets.home_button.set_text_colour(text_colour);
-        assets.home_button.draw(window);
+        if (thinking_in_progress) {
+            assets.home_button.draw(window);
+        } else {
+            assets.home_button.update(window, mouse_pos);
+        }
     }
     if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting && game.state != Gamestate::Intro) {
         assets.undo_button.set_rec_colour(rectangle_colour);
         assets.undo_button.set_text_colour(text_colour);
-        assets.undo_button.draw(window);
+        if (thinking_in_progress) {
+            assets.undo_button.draw(window);
+        } else {
+            assets.undo_button.update(window, mouse_pos);
+        }
     }
     if (game.state == Gamestate::Gameover) {
         draw_end_screen(game, window, assets);
     } else if (game.state == Gamestate::Resetting) {
-        assets.reset_button.draw(window);
+        assets.reset_button.update(window, mouse_pos);
     }
     if (game.state == Gamestate::Promoting_pawn) {
         draw_pawn_promotion_screen(game, window, assets);
     }
     if (game.mode == Gamemode::Twoplayer && game.state != Gamestate::Intro) {
-        assets.flip_view_button.draw(window);
+        assets.flip_view_button.update(window, mouse_pos);
     }
     window.display();
 }
 
-void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
+void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
  
     sf::Text title = configure_text(assets.font, "Chess", {200, 20}, 210, sf::Color::Black);
 
@@ -130,10 +140,10 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets) {
         assets.play_white_cpu.set_default_thickness();
         assets.play_black_cpu.set_default_thickness();  
     }
-    assets.play_black_cpu.draw(window);
-    assets.play_white_cpu.draw(window);
-    assets.play_two_player.draw(window);
-    assets.play_button.draw(window);
+    assets.play_black_cpu.update(window, mouse_pos);
+    assets.play_white_cpu.update(window, mouse_pos);
+    assets.play_two_player.update(window, mouse_pos);
+    assets.play_button.update(window, mouse_pos);
     window.draw(title);
     assets.fen_input.draw(game, window);
 }

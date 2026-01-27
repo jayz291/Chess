@@ -10,7 +10,7 @@ class Button {
     public:
     Button(const sf::Font& font, const std::string& string, sf::Vector2f text_pos, 
     int text_size, sf::Color text_colour, sf::Vector2f rec_pos, sf::Vector2f rec_size, sf::Color rec_colour) :
-        text(font), rectangle(rec_size) {
+        text(font), rectangle(rec_size), default_colour(rec_colour) {
         text = configure_text(font, string, text_pos, text_size, text_colour);
         rectangle = make_rectangle(rec_pos, rec_size, rec_colour);
     }
@@ -38,9 +38,18 @@ class Button {
         window.draw(rectangle);
         window.draw(text);
     }
+    void update(sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+        if (is_clicked(mouse_pos)) {
+            rectangle.setFillColor(sf::Color(255, 127, 0));
+        } else {
+            rectangle.setFillColor(default_colour);
+        }
+        draw(window);
+    }
     private:
     sf::Text text;
     sf::RectangleShape rectangle;
+    sf::Color default_colour;
 };
 
 using Screen = Button;
@@ -248,7 +257,7 @@ struct Assets {
 };
 
 void render(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets);
+void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
 void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, int x, int y, uint8_t piece, 
     bool dragging = false);
