@@ -165,11 +165,6 @@ struct Move_list {
     int num_moves {};
 };
 
-struct Move_record {
-    std::array<Move, 2048> history;
-    int moves_recorded {};
-};
-
 struct table_entry {
     uint64_t zobrist_key;
     int eval;

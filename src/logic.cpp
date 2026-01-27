@@ -596,75 +596,39 @@ int validate_move(Game& game, Move& move) {
 }
 
 int validate_pawn_move(Game& game, Move& move) {
-    int square = move.get_to_square();
     Bitboards& bitboards = game.bitboards;
     uint64_t mask = 1ULL;
+    int direction = (game.turn == WHITE) ? 1 : -1;
 
-    if (move.get_turn() == WHITE && 32 <= move.get_from_square() && move.get_from_square() <= 39 
-        && std::abs(move.get_to_square() % 8 - move.get_from_square() % 8) == 1 && 
-        (std::abs(move.get_to_square() - move.get_from_square()) == 7 || 
-        std::abs(move.get_to_square() - move.get_from_square()) == 9) && (~bitboards.occupied & mask << square)) {
-        return validate_en_passant(game, move);
-    } else if (move.get_turn() == BLACK && 24 <= move.get_from_square() && move.get_from_square() <= 31 
-        && std::abs(move.get_to_square() % 8 - move.get_from_square() % 8) == 1 && 
-        (std::abs(move.get_to_square() - move.get_from_square()) == 7 || 
-        std::abs(move.get_to_square() - move.get_from_square()) == 9) && (~bitboards.occupied & mask << square)) {
-        return validate_en_passant(game, move);  
-    }
+    if (move.get_to_square() == game.en_passant_square && 
+    ((move.get_to_square() - move.get_from_square() == 7 * direction) || 
+    (move.get_to_square() - move.get_from_square() == 9 * direction)) &&
+    (std::abs(move.get_to_square() % 8 - move.get_from_square() % 8) == 1)) {
+        move.set_move_type(EN_PASSANT);
+        if (game.board[move.get_to_square() - 8 * direction] == EMPTY_SQUARE) {
+            return -1;
+        }
+        return 3; 
+    } 
 
     int from = move.get_from_square();
     int to = move.get_to_square();
+    int opposing_turn = (game.turn == WHITE) ? BLACK : WHITE;
+    int rank = (game.turn == WHITE) ? 1 : 6;
     //std::cout << to - from << '\n';
-    if (game.turn == WHITE) {
-        if (to - from == 8) {
-            if (mask << to & ~bitboards.occupied) {
-                return 0;
-            }
-        } else if (to - from == 16) {
-            if ((mask << to & ~bitboards.occupied) && (mask << (to - 8) & ~bitboards.occupied) &&
-                mask << from & RANK_MASKS[1]) {
-                return 0;
-            }
-        } else if (to - from == 7 || to - from == 9) {
-            if (mask << to & bitboards.occupied_tables[BLACK]) {
-                return 0;
-            }
+    if (to - from == 8 * direction) {
+        if (mask << to & ~bitboards.occupied) {
+            return 0;
         }
-        return -1;
-    } else {
-        if (to - from == -8) {
-            if (mask << to & ~bitboards.occupied) {
-                return 0;
-            }
-        } else if (to - from == -16) {
-            if ((mask << to & ~bitboards.occupied) && (mask << (to + 8) & ~bitboards.occupied) && 
-                mask << from & RANK_MASKS[6]) {
-                return 0;
-            }
-        } else if (to - from == -7 || to - from == -9) {
-            if (mask << to & bitboards.occupied_tables[WHITE]) {
-                return 0;
-            }
+    } else if (to - from == 16 * direction) {
+        if ((mask << to & ~bitboards.occupied) && (mask << (to - 8 * direction) & ~bitboards.occupied) &&
+            mask << from & RANK_MASKS[rank]) {
+            return 0;
         }
-        return -1;
-    }
-}
-
-int validate_en_passant(Game& game, Move& move) {
-    //std::cout << "here\n";
-    int captured_square = ((move.get_turn() == WHITE) ? move.get_to_square() - 8 : move.get_to_square() + 8);
-    uint64_t mask = 1ULL;
-    int piece = ((move.get_turn() == WHITE) ? BLACK_PAWN : WHITE_PAWN);
-   
-    if (game.bitboards.bitboards[piece] & mask << captured_square) {
-        Move prev_move = game.move_record[game.move_record.size() - 1];
- 
-        if ((prev_move.get_piece() == WHITE_PAWN || prev_move.get_piece() == BLACK_PAWN)
-         && prev_move.get_to_square() == captured_square && 
-            std::abs(prev_move.get_to_square() - prev_move.get_from_square()) == 16) {
-            return 3;
+    } else if (to - from == 7 * direction || to - from == 9 * direction) {
+        if (mask << to & bitboards.occupied_tables[opposing_turn]) {
+            return 0;
         }
-        return -1;
     }
     return -1;
 }

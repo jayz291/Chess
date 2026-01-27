@@ -182,7 +182,6 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
     int col = en_passant_square[0] - 'a';
     int row = '8' - en_passant_square[1];
     int square = 56 - 8 * row + col;
-    std::cout << square << '\n';
     if (square < 16 || (square > 23 && square < 40) || square > 47) {
         return -1;
     }
@@ -226,6 +225,10 @@ int check_position_validity(Game& game) {
         (game.bitboards.bitboards[BLACK_KING] & (game.bitboards.bitboards[BLACK_KING] - 1)) != 0 ||
         game.bitboards.bitboards[WHITE_KING] == 0 || 
         ((game.bitboards.bitboards[WHITE_KING] & (game.bitboards.bitboards[WHITE_KING] - 1)) != 0)) {
+        return -1;
+    }
+    if ((game.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||
+        (game.bitboards.bitboards[WHITE_PAWN] & RANK_MASKS[7])) {
         return -1;
     }
 

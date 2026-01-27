@@ -24,7 +24,6 @@ int validate_queen_move(Bitboards& bitboards, Move& move);
 int validate_king_move(Game& game, Move& move);
 void evaluate_king_checks(Game& game);
 int validate_castling(Game& game, Move& move);
-int validate_en_passant(Game& game, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 
 void make_game_move(Game& game, int result, Move move);
