@@ -19,9 +19,9 @@ void clear_transposition_table() {
 void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     int stored_score = eval;
-    if (eval > 300000) {
+    if (eval > CHECKMATE_THRESHOLD) {
         stored_score = eval + ply;
-    } else if (eval < -300000) {
+    } else if (eval < -CHECKMATE_THRESHOLD) {
         stored_score = eval - ply;
     }
     if (transposition_table[index].zobrist_key != 0 && transposition_table[index].depth > depth) {
@@ -38,9 +38,9 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
     int index = key & (TABLE_SIZE - 1);
     table_entry entry = transposition_table[index];
     int return_eval = entry.eval;
-    if (return_eval > 300000) {
+    if (return_eval > CHECKMATE_THRESHOLD) {
         return_eval -= ply; 
-    } else if (return_eval < -300000) {
+    } else if (return_eval < -CHECKMATE_THRESHOLD) {
         return_eval += ply;
     }
     if (key == entry.zobrist_key) {
@@ -56,7 +56,7 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
         }
 
     }
-    return -999999;
+    return NO_ENTRY_FOUND;
 }
 
 template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move) {
@@ -292,7 +292,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     }
     Move stored_move {};
     int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move, ply);
-    if (stored_eval != -999999) {
+    if (stored_eval != NO_ENTRY_FOUND) {
         return stored_eval;
     }
     if (terminate_search) {
@@ -393,22 +393,26 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         }
     }
 
-    tt_flag flag;
-    if (max_eval <= original_alpha) {
-        flag = tt_flag::tt_alpha;
-    } else if (max_eval >= beta) {
-        flag = tt_flag::tt_beta;
-    } else {
-        flag = tt_flag::tt_exact;
+    if (!terminate_search) {
+        tt_flag flag;
+        if (max_eval <= original_alpha) {
+            flag = tt_flag::tt_alpha;
+        } else if (max_eval >= beta) {
+            flag = tt_flag::tt_beta;
+        } else {
+            flag = tt_flag::tt_exact;
+        }
+        record_entry(game.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
     }
-   
-    record_entry(game.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
     return max_eval;
 }
 
 // principal variation search
 inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms,
     int ply, int& seldepth) {
+    if (terminate_search) {
+        return 0;
+    }
     int move_eval;
     if (move_num == 0) {
         move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);

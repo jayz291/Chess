@@ -9,7 +9,7 @@ Chess in C++, with a basic frontend built using SFML and with a (seemingly) UCI-
 * **Evaluation:** Uses piece square tables and material value.
 
 ## Prerequisites
-* **C++ Compiler:** GCC, Clang, or MSVC supporting C++20 (or higher).
+* **C++ Compiler:** GCC or Clang supporting C++20 (or higher).
 * **CMake:** Version 3.15 or higher.
 * **Build System:** Make, Ninja, or Visual Studio.
 * **SFML:** Version 3.0 or higher.

@@ -101,9 +101,14 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         }
     }
     if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting && game.state != Gamestate::Intro) {
-        assets.undo_button.set_rec_colour(rectangle_colour);
-        assets.undo_button.set_text_colour(text_colour);
-        if (thinking_in_progress) {
+        if (assets.allow_takebacks) {
+            assets.undo_button.set_rec_colour(rectangle_colour);
+            assets.undo_button.set_text_colour(text_colour);
+        } else {
+            assets.undo_button.set_rec_colour(sf::Color(128, 128, 128));
+            assets.undo_button.set_text_colour(sf::Color(59, 59, 59));
+        }
+        if (thinking_in_progress || !assets.allow_takebacks) {
             assets.undo_button.draw(window);
         } else {
             assets.undo_button.update(window, mouse_pos);
@@ -146,6 +151,7 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
     assets.play_button.update(window, mouse_pos);
     window.draw(title);
     assets.fen_input.draw(game, window);
+    assets.toggle_takebacks.update(window, mouse_pos);
 }
 
 // set the font, content, position, size and colour of a text string
@@ -194,6 +200,15 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
     } else if (assets.play_two_player.is_clicked(mouse_pos)) {
         game.view = WHITE;
         game.mode = Gamemode::Twoplayer;
+    } else if (assets.toggle_takebacks.is_clicked(mouse_pos)) {
+        assets.allow_takebacks = (assets.allow_takebacks == true) ? false : true;
+        if (assets.allow_takebacks) {
+            assets.toggle_takebacks.set_text("Allow takebacks: Yes");
+            assets.toggle_takebacks.set_new_default_rec_colour(sf::Color::Green);
+        } else {
+            assets.toggle_takebacks.set_text("Allow takebacks: No");
+            assets.toggle_takebacks.set_new_default_rec_colour(sf::Color::Red);
+        }
     }
 }
 
@@ -275,7 +290,7 @@ void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos)
 }
 
 void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
-    if (assets.undo_button.is_clicked(mouse_pos)) {
+    if (assets.undo_button.is_clicked(mouse_pos) && assets.allow_takebacks) {
         if (game.mode == Gamemode::Twoplayer) {
             undo_game_move(game);
         } else {

@@ -220,10 +220,8 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
 // - no pawns on its colour's promotion rank
 // - the king cannot be captured on the next turn 
 int check_position_validity(Game& game) {
-    if (game.bitboards.bitboards[BLACK_KING] == 0 || 
-        (game.bitboards.bitboards[BLACK_KING] & (game.bitboards.bitboards[BLACK_KING] - 1)) != 0 ||
-        game.bitboards.bitboards[WHITE_KING] == 0 || 
-        ((game.bitboards.bitboards[WHITE_KING] & (game.bitboards.bitboards[WHITE_KING] - 1)) != 0)) {
+    if (__builtin_popcountll(game.bitboards.bitboards[BLACK_KING]) != 1 ||
+        __builtin_popcountll(game.bitboards.bitboards[WHITE_KING]) != 1) {
         return INVALID;
     }
     if ((game.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||

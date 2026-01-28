@@ -125,7 +125,7 @@ void parse_go(Game& game, std::istringstream& stream) {
 }
 
 std::string format_score(int score) {
-    if (score > 300000 || score < -300000) {
+    if (score > CHECKMATE_THRESHOLD || score < -CHECKMATE_THRESHOLD) {
         int plies_to_mate = 400000 - std::abs(score);
         int moves_to_mate = (plies_to_mate + 1) / 2;
         if (score > 0) {

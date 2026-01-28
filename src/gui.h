@@ -17,6 +17,9 @@ class Button {
     void set_rec_colour(sf::Color new_rec_colour) {
         rectangle.setFillColor(new_rec_colour);
     }
+    void set_new_default_rec_colour(sf::Color new_rec_colour) {
+        default_colour = new_rec_colour;
+    }
     void set_text_colour(sf::Color new_text_colour) {
         text.setFillColor(new_text_colour);
     }
@@ -193,6 +196,7 @@ struct Assets {
     sf::Font font;
     sf::Texture array[16];
     sf::Vector2f current_mouse_pos;
+    bool allow_takebacks { true };
     Assets() {
         if (!array[BLACK_PAWN].loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;
@@ -250,6 +254,8 @@ struct Assets {
         {950, 10}, {44, 35}, sf::Color::White};
     Button reset_button {font, "Reset", {13, 13}, 15, sf::Color::Red, 
         {10, 10}, {44, 35}, sf::Color::White};
+    Button toggle_takebacks {font, "Allow Takebacks: Yes", {753, 753}, 15, sf::Color::Black, 
+        {750, 750}, {157, 35}, sf::Color::Green};
     TextBox fen_input {font, {60, 690}, {870, 50}, {70, 700}, 15};
     Screen pawn_promotion_screen {font, "Choose Promotion Piece", {280, 280}, 40, sf::Color::White, 
         {250, 250}, {500, 300}, sf::Color::Blue};

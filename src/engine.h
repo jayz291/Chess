@@ -2,6 +2,8 @@
 #include "game.h"
 
 extern int terminate_search;
+constexpr int CHECKMATE_THRESHOLD = 300000;
+constexpr int NO_ENTRY_FOUND = -999999;
 
 void clear_transposition_table();
 void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply);
