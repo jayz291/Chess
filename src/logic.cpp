@@ -352,6 +352,7 @@ void undo_game_move(Game& game) {
 
 void make_game_move(Game& game, int result, Move move) {
     Chessboard& board = game.board;
+    disambiguate(game, move);
     
     if (move.get_piece() == WHITE_PAWN || move.get_piece() == BLACK_PAWN || board[move.get_to_square()] != EMPTY_SQUARE) {
         game.plys_to_100 = 0;
@@ -445,6 +446,10 @@ void is_game_over(Game& game) {
         //std::cout << "ending game\n";
         end_game(game);
     }
+    if (!game.move_record.empty()) {
+        std::string algebreic_move = to_algebreic_notation(game);
+        std::cout << algebreic_move << '\n';
+    }
 }
 
 bool determine_insufficient_material(Game& game) {
@@ -513,8 +518,10 @@ void evaluate_king_checks(Game& game) {
     int new_result = is_square_attacked(game.bitboards, square, game.turn);
     if (game.turn == WHITE) {
         game.white_in_check = ((new_result == 1) ? true : false);
+        game.black_in_check = false;
     } else {
         game.black_in_check = ((new_result == 1) ? true : false);
+        game.white_in_check = false;
     }
 }
 

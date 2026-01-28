@@ -45,6 +45,7 @@ class Game {
     int en_passant_index; // (0 - 7 for col of en passant square, 8 if there is none )
     int en_passant_square;
     bool invalid_fen_position { false };
+    bool rank_ambiguous, file_ambiguous, conflict;
     uint64_t zobrist_hash;
     Game();
     void initialise();
@@ -54,6 +55,8 @@ int handle_fen_string(Game& game);
 int fill_board(Game& game, std::string& fen_board_section);
 int check_position_validity(Game& game);
 int process_en_passant_square(Game& game, std::string& en_passant_square);
+std::string to_algebreic_notation(Game& game);
+void disambiguate(Game& game, Move& move);
 
 // for debugging
 void print_bitboard(uint64_t bitboard);

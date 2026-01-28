@@ -245,6 +245,108 @@ int check_position_validity(Game& game) {
     return VALID;
 }
 
+std::string to_algebreic_notation(Game& game) {
+    std::string s;
+    Move last_move = game.move_record.back();
+    int from_square = last_move.get_from_square();
+    int to_square = last_move.get_to_square();
+    uint8_t piece = last_move.get_piece();
+    if (last_move.get_move_type() == CASTLING) {
+        if (from_square - to_square > 0) {
+            s = "O-O-O";
+        } else {
+            s = "O-O";
+        }
+    } else {
+        int new_row = 7 - last_move.get_to_square() / 8;
+        int new_col = last_move.get_to_square() % 8;
+        int prev_row = 7 - last_move.get_from_square() / 8;
+        int prev_col = last_move.get_from_square() % 8;
+        std::string new_square_coords;
+      
+        new_square_coords += ('a' + new_col);
+        new_square_coords += ('8' - new_row);
+        if ((piece == WHITE_PAWN || piece == BLACK_PAWN) && last_move.get_captured_piece() != EMPTY_SQUARE) {
+            s += ('a' + prev_col);
+        } else if (piece == WHITE_KNIGHT || piece == BLACK_KNIGHT) {
+            s += "N";
+        } else if (piece == WHITE_BISHOP || piece == BLACK_BISHOP) {
+            s += "B";
+        } else if (piece == WHITE_ROOK || piece == BLACK_ROOK) {
+            s += "R";
+        } else if (piece == WHITE_QUEEN || piece == BLACK_QUEEN) {
+            s += "Q";
+        } else if (piece == WHITE_KING || piece == BLACK_KING) {
+            s += "K";
+        } 
+        if (game.conflict) {
+            if (!game.file_ambiguous) {
+                s += ('a' + prev_col);
+            } else if (!game.rank_ambiguous) {
+                s += ('8' - prev_row);
+            } else {
+                s += ('a' + prev_col);
+                s += ('8' - prev_row);
+            }
+        }
+        if (last_move.get_captured_piece() != EMPTY_SQUARE) {
+            s += "x";
+        }
+        s += new_square_coords;
+        if (last_move.get_move_type() == PROMOTION) {
+            s += "=";
+            uint8_t promotion_piece = last_move.get_promotion_piece();
+            if (promotion_piece == P_KNIGHT) {
+                s += "N";
+            } else if (promotion_piece == P_BISHOP) {
+                s += "B";
+            } else if (promotion_piece == P_ROOK) {
+                s += "R";
+            } else if (promotion_piece == P_QUEEN) {
+                s += "Q";
+            }
+        }
+    }
+    if (game.game_status & (1ULL << 3)) {
+        s += "#";
+    } else if (game.black_in_check || game.white_in_check) {
+        s += "+";
+    }
+    return s;
+}
+
+void disambiguate(Game& game, Move& move) {
+    int to_square = move.get_to_square();
+    int from_square = move.get_from_square();
+    game.file_ambiguous = false;
+    game.rank_ambiguous = false;
+    game.conflict = false;
+    uint8_t piece = move.get_piece();
+    if (piece == BLACK_PAWN || piece == WHITE_PAWN) {
+        return;
+    }
+
+    uint64_t pieces = game.bitboards.bitboards[piece];
+    while (pieces) {
+        int other_from_square = __builtin_ctzll(pieces);
+        if (other_from_square == from_square) {
+            pieces &= pieces - 1;
+            continue;
+        }
+        Move test_move;
+        test_move.set_move(other_from_square, to_square, piece, game.board[to_square]);
+        if (validate_move(game, test_move) == VALID) {
+            game.conflict = true;
+            if (other_from_square % 8 == from_square % 8) {
+                game.file_ambiguous = true;
+            } else if (other_from_square / 8 == from_square / 8) {
+                game.rank_ambiguous = true;
+            }
+        }
+        pieces &= pieces - 1;
+    }
+}
+
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
     os << "Piece: " << move.get_piece() << ' ';
