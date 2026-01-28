@@ -16,6 +16,10 @@ void Game::initialise() {
     current_move = {};
     calculated_move = {}, 
     dragged_piece = EMPTY_SQUARE, 
+    notation_history.clear(); 
+    history_scroll_offset = 0;
+    move_num = 1;
+    conflict = file_ambiguous = rank_ambiguous = false;
     //en_passant_index = 8,
     zobrist_hash = 0ULL,
     value_white_pieces = value_black_pieces = 0;
@@ -82,7 +86,7 @@ int handle_fen_string(Game& game) {
     }
     game.plys_to_100 = std::stoi(split_fen[4]);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
-    int move_num = std::stoi(split_fen[5]);
+    game.move_num = std::stoi(split_fen[5]);
 
     if (check_position_validity(game) == INVALID) {
         return INVALID;
@@ -176,6 +180,9 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
 
     if (en_passant_square == "-") {
         game.en_passant_index = 8;
+        if (game.turn == BLACK) {
+            game.notation_history.push_back("...");
+        }
         return VALID;
     }
     int col = en_passant_square[0] - 'a';
@@ -198,6 +205,9 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
             game.en_passant_square = square;
+            if (game.turn == WHITE) {
+                game.notation_history.push_back("...");
+            }
             return VALID;
         }
     } else if (square >= 40 && square <= 47) {
@@ -209,6 +219,9 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
             game.en_passant_square = square;
+            if (game.turn == WHITE) {
+                game.notation_history.push_back("...");
+            }
             return VALID;
         }
     }

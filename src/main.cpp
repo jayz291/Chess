@@ -20,7 +20,8 @@ void run_game_loop() {
     Game game {};
     Assets assets {};
     game.state = Gamestate::Intro;
-    sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+    sf::RenderWindow window(sf::VideoMode({1100, 800}), "Chess", sf::Style::Default);
     init_zobrist_table();
     window.setFramerateLimit(60);
 

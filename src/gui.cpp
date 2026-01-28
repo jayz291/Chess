@@ -17,6 +17,24 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             sf::Vector2f game_pos = {world_pos.x, world_pos.y};
             assets.current_mouse_pos = game_pos;
         }
+        if (const auto* scrolled = event->getIf<sf::Event::MouseWheelScrolled>()) {
+            if (scrolled->wheel == sf::Mouse::Wheel::Vertical) {
+                sf::Vector2i mouse_pos = sf::Mouse::getPosition(window);
+                if (mouse_pos.x >= 900 && mouse_pos.x <= 1080 && mouse_pos.y >= 120 && mouse_pos.y <= 770) {
+                    int total_lines = (game.notation_history.size() + 1) / 2;
+                    int max_scroll = std::max(0, total_lines - 26);
+                    if (scrolled->delta > 0) {
+                        if (game.history_scroll_offset > 0) {
+                            game.history_scroll_offset--;
+                        }
+                    } else if (scrolled->delta < 0) {
+                        if (game.history_scroll_offset < max_scroll) {
+                            game.history_scroll_offset++;
+                        }
+                    }
+                }
+            }
+        }
         if (game.state == Gamestate::Intro) {
             bool text_changed = assets.fen_input.handle_event(*event, window);
             if (text_changed) {
@@ -32,7 +50,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
             sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
             sf::View view(visibleArea); 
-            view.setCenter({500.f, 400.f});
+            view.setCenter({resized->size.x / 2.0f, resized->size.y / 2.0f});
             window.setView(view);
         }
         if (const auto* mouse_release = event->getIf<sf::Event::MouseButtonReleased>()) {
@@ -91,7 +109,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     }
     if (game.state != Gamestate::Intro) {
         draw_board(game, window, assets);
-  
+        draw_move_history_panel(game, window, assets);
         assets.home_button.set_rec_colour(rectangle_colour);
         assets.home_button.set_text_colour(text_colour);
         if (thinking_in_progress) {
@@ -130,7 +148,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
  
-    sf::Text title = configure_text(assets.font, "Chess", {200, 20}, 210, sf::Color::Black);
+    sf::Text title = configure_text(assets.font, "Chess", {270, 20}, 210, sf::Color::Black);
 
     if (game.mode == Gamemode::CPUblack) {
         assets.play_black_cpu.set_outline_thickness(-5.0f, sf::Color::Black);
@@ -152,6 +170,48 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
     window.draw(title);
     assets.fen_input.draw(game, window);
     assets.toggle_takebacks.update(window, mouse_pos);
+}
+
+void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& assets) {
+    sf::Text move_record_title = configure_text(assets.font, "Move Record", {935, 80}, 20, sf::Color::White);
+    window.draw(move_record_title);
+    sf::Vector2f panel_pos = {900.f, 118.f};
+    sf::Vector2f panel_size = {180.f, 660.f};
+    int line_height = 25;
+    int max_lines_visible = panel_size.y / line_height;
+
+    sf::RectangleShape background = make_rectangle(panel_pos, panel_size, sf::Color::White);
+    background.setOutlineThickness(2);
+    window.draw(background);
+
+    int total_pairs = (game.notation_history.size() + 1) / 2;
+    sf::Text text(assets.font2, "", 18);
+    text.setFillColor(sf::Color::Black);
+    int start_index = game.history_scroll_offset;
+    int end_index = std::min(total_pairs, start_index + max_lines_visible);
+
+    for (int i = start_index; i < end_index; ++i) {
+        std::string line_str = std::to_string(i + game.move_num) + ".  ";
+        if (i * 2 < game.notation_history.size()) {
+            line_str += game.notation_history[i * 2];
+        } 
+        if (i * 2 + 1 < game.notation_history.size()) {
+            line_str += "    " + game.notation_history[i * 2 + 1];
+        }
+        float x_pos = std::floor(panel_pos.x + 15);
+        float y_pos = std::floor(panel_pos.y + 5 + (i - start_index) * line_height);
+        text.setPosition({x_pos, y_pos});
+        text.setString(line_str);
+        window.draw(text);
+    }
+    if (total_pairs > max_lines_visible) {
+        float scroll_ratio = static_cast<float> (game.history_scroll_offset) / (total_pairs - max_lines_visible);
+        float bar_height = 40.f;
+        float bar_y_range = panel_size.y - bar_height;
+        sf::RectangleShape scroll_bar = make_rectangle({panel_pos.x + panel_size.x - 5, 
+            panel_pos.y + (bar_y_range * scroll_ratio)}, {5.f, bar_height}, sf::Color(100, 100, 100));
+        window.draw(scroll_bar);
+    }
 }
 
 // set the font, content, position, size and colour of a text string
@@ -312,7 +372,7 @@ void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos)
 }
 
 void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
-    if (920 <= mouse_pos.x && mouse_pos.x <= 994 && 55 <= mouse_pos.y && mouse_pos.y <= 90) {
+    if (assets.flip_view_button.is_clicked({mouse_pos})) {
         game.view = (game.view == WHITE) ? BLACK : WHITE;
     }
 }

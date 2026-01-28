@@ -30,6 +30,9 @@ class Game {
     int piece_selected;
     std::vector<Move> move_record {};
     std::vector<uint64_t> board_record {};
+    std::vector<std::string> notation_history {};
+    int move_num;
+    int history_scroll_offset;
     int plys_to_100;
     int value_white_pieces;
     int value_black_pieces;

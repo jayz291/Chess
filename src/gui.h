@@ -194,6 +194,7 @@ class TextBox {
 
 struct Assets {
     sf::Font font;
+    sf::Font font2;
     sf::Texture array[16];
     sf::Vector2f current_mouse_pos;
     bool allow_takebacks { true };
@@ -237,26 +238,29 @@ struct Assets {
         if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
             return;
         }
+        if (!font2.openFromFile("./assets/fonts/Roboto-Regular.ttf")) {
+            return;
+        }
     }
-    Button play_black_cpu {font, "Play CPU as\n WHITE", {105, 540}, 30, sf::Color::Black, 
-        {85, 530}, {250, 110}, sf::Color::White};
-    Button play_white_cpu {font, "Play CPU as\n BLACK", {395, 540}, 30, sf::Color::Black, 
-        {375, 530}, {250, 110}, sf::Color::White};
-    Button play_two_player {font, "Two player", {685, 540}, 30, sf::Color::Black, 
-        {665, 530}, {250, 110}, sf::Color::White};
-    Button play_button {font, "Play", {450, 380}, 60, sf::Color::Black, 
-        {330, 330}, {350, 160}, sf::Color::White};
-    Button flip_view_button {font, "Flip view", {924, 60}, 15, sf::Color::Red, 
-        {920, 55}, {74, 35}, sf::Color::White};
+    Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 540}, 30, sf::Color::Black, 
+        {135, 530}, {250, 110}, sf::Color::White};
+    Button play_white_cpu {font, "Play CPU as\n BLACK", {445, 540}, 30, sf::Color::Black, 
+        {425, 530}, {250, 110}, sf::Color::White};
+    Button play_two_player {font, "Two player", {735, 540}, 30, sf::Color::Black, 
+        {715, 530}, {250, 110}, sf::Color::White};
+    Button play_button {font, "Play", {500, 380}, 60, sf::Color::Black, 
+        {380, 330}, {350, 160}, sf::Color::White};
+    Button flip_view_button {font, "Flip view", {13, 148}, 15, sf::Color::Red, 
+        {10, 145}, {74, 35}, sf::Color::White};
     Button home_button {font, "Back to Home", {13, 58}, 15, sf::Color::Red, 
         {10, 55}, {104, 35}, sf::Color::White};
-    Button undo_button {font, "Undo", {953, 13}, 15, sf::Color::Red, 
-        {950, 10}, {44, 35}, sf::Color::White};
+    Button undo_button {font, "Undo", {13, 103}, 15, sf::Color::Red, 
+        {10, 100}, {44, 35}, sf::Color::White};
     Button reset_button {font, "Reset", {13, 13}, 15, sf::Color::Red, 
         {10, 10}, {44, 35}, sf::Color::White};
-    Button toggle_takebacks {font, "Allow Takebacks: Yes", {753, 753}, 15, sf::Color::Black, 
-        {750, 750}, {157, 35}, sf::Color::Green};
-    TextBox fen_input {font, {60, 690}, {870, 50}, {70, 700}, 15};
+    Button toggle_takebacks {font, "Allow Takebacks: Yes", {853, 753}, 15, sf::Color::Black, 
+        {850, 750}, {157, 35}, sf::Color::Green};
+    TextBox fen_input {font, {60, 690}, {930, 50}, {70, 700}, 15};
     Screen pawn_promotion_screen {font, "Choose Promotion Piece", {280, 280}, 40, sf::Color::White, 
         {250, 250}, {500, 300}, sf::Color::Blue};
     Screen end_screen {font, "", {280, 280}, 40, sf::Color::Red, {250, 250}, {500, 300}, sf::Color::Black};
@@ -269,6 +273,7 @@ void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, int x, int
     bool dragging = false);
 void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets);
 void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets);
+void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& assets);
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
 void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos);

@@ -345,6 +345,14 @@ void undo_game_move(Game& game) {
         game.board_record.pop_back();
     }
     game.move_record.pop_back();
+    game.notation_history.pop_back();
+    int total_lines = (game.notation_history.size() + 1) / 2;
+    
+    if (total_lines <= 26) {
+        game.history_scroll_offset = 0;
+    } else {
+        game.history_scroll_offset = total_lines - 26;
+    }
     game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
     game.zobrist_hash ^= zobrist_black_turn;
     evaluate_king_checks(game);
@@ -448,7 +456,13 @@ void is_game_over(Game& game) {
     }
     if (!game.move_record.empty()) {
         std::string algebreic_move = to_algebreic_notation(game);
-        std::cout << algebreic_move << '\n';
+        //std::cout << algebreic_move << '\n';
+        game.notation_history.push_back(algebreic_move);
+        int total_lines = (game.notation_history.size() + 1) / 2;
+        //std::cout << "here\n";
+        if (total_lines > 26) {
+            game.history_scroll_offset = total_lines - 26;
+        }
     }
 }
 
