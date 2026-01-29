@@ -340,7 +340,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
     int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
     int square = 56 - 8 * row + col;
     if (game.view == BLACK) {
-        square = square ^ 56;
+        square = square ^ 63;
     }
     if (square != game.selected_square) {
         Move move;
@@ -427,8 +427,6 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     Move prev_move;
     int to_square, from_square;
     if (game.move_record.size() > 0) {
-        
-        //prev_move = game.move_record.back();
         prev_move = game.move_record[game.current_ply_num - 1];
         to_square = prev_move.get_to_square();
         from_square = prev_move.get_from_square();
@@ -436,8 +434,8 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             prev_move_available = true;
         }
         if (game.view == BLACK) {
-            to_square ^= 56;
-            from_square ^= 56;
+            to_square ^= 63;
+            from_square ^= 63;
         } 
     }
     
@@ -448,9 +446,8 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             y_offset = 20 + i * (SQUARE_SIZE);
             int square = 56 - 8 * i + j;
             if (((i + j) & 1) != 0) {
-                if (game.view == WHITE) {
-                    if (prev_move_available && (square == from_square ||
-                        square == to_square)) {
+                if (prev_move_available && (square == from_square ||
+                    square == to_square)) {
                         cell.setFillColor(sf::Color(1, 140, 32));
                     } else {
                         cell.setFillColor(sf::Color(165, 42, 42));
@@ -461,27 +458,10 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                         cell.setFillColor(sf::Color(144, 238, 144));
                     } else {
                         cell.setFillColor(sf::Color::Yellow);
-                    }
                 }
-            } else {
-                if (game.view == WHITE) {
-                    if (prev_move_available && (square == from_square ||
-                        square == to_square)) {
-                        cell.setFillColor(sf::Color(144, 238, 144));
-                    } else {
-                        cell.setFillColor(sf::Color::Yellow);
-                    }
-                } else {
-                    if (prev_move_available && (square == from_square ||
-                        square == to_square)) {
-                        cell.setFillColor(sf::Color(1, 140, 32));
-                    } else {
-                        cell.setFillColor(sf::Color(165, 42, 42));
-                    }
-                }
-            }
+            } 
             if ((square == game.selected_square && game.view == WHITE) ||
-                ((square ^ 56) == game.selected_square && game.view == BLACK)) {
+                ((square ^ 63) == game.selected_square && game.view == BLACK)) {
                 //std::cout << i << " " << j << '\n';
                 //std::cout << x_offset << " " << y_offset << '\n';
                 cell.setOutlineThickness(-3.0f);
@@ -540,7 +520,6 @@ void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& as
     draw_piece(game, window, assets, rank, 3, piece_array[game.turn][KNIGHT]);
     draw_piece(game, window, assets, rank, 4, piece_array[game.turn][BISHOP]);
     draw_piece(game, window, assets, rank, 5, piece_array[game.turn][QUEEN]);
- 
 }
 
 void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, 
@@ -555,8 +534,10 @@ void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets,
         float x_offset { static_cast<float>(135 + y * (SQUARE_SIZE)) };
         if (game.view == WHITE) {
             y_offset = (30 + x * (SQUARE_SIZE));
+            x_offset = 135 + y * (SQUARE_SIZE);
         } else {
             y_offset = (695 - x * (SQUARE_SIZE));
+            x_offset = 135 + (7 - y) * SQUARE_SIZE;
         }
         sprite.setPosition({x_offset, y_offset});
     } else {
@@ -579,6 +560,7 @@ int select_square(int x, int y, Game& game) {
     
     if (game.mode == Gamemode::CPUwhite || game.view == BLACK) {
         row = 7 - row;
+        col = 7 - col;
     }
     int square = 56 - 8 * row + col;
     uint64_t mask = 1ULL << square;
