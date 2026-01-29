@@ -47,6 +47,7 @@ class Game {
     std::string final_fen;
     int en_passant_index; // (0 - 7 for col of en passant square, 8 if there is none )
     int en_passant_square;
+    int current_ply_num;
     bool invalid_fen_position { false };
     bool rank_ambiguous, file_ambiguous, conflict;
     uint64_t zobrist_hash;

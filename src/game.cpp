@@ -30,6 +30,7 @@ void Game::initialise() {
     castling_rights = 0b00000000;
     move_record.clear();
     en_passant_square = -1;
+    current_ply_num = 0;
     board_record.clear();
     clear_transposition_table();
 }

@@ -26,9 +26,9 @@ void evaluate_king_checks(Game& game);
 int validate_castling(Game& game, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 
-void make_game_move(Game& game, int result, Move move);
-void undo_game_move(Game& game);
-void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected = false);
+void make_game_move(Game& game, int result, Move move, bool is_game_over = false);
+void undo_game_move(Game& game, bool is_game_over = false);
+void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected = false, bool is_game_over = false);
 
 bool determine_repetition(Game& game);
 bool more_moves_available(Game& game, Move_list moves);

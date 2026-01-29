@@ -71,6 +71,9 @@ template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move) {
 
     if constexpr (update_zobrist) {
         game.zobrist_hash ^= zobrist_black_turn;
+        if (!game.board_record.empty()) {
+            game.board_record.pop_back();
+        }
     }
 }
 
@@ -96,6 +99,7 @@ template<bool update_zobrist> bool make_test_move(Game& game, Move& move) {
         game.turn = WHITE + BLACK - game.turn; // flip the turn
         if constexpr (update_zobrist) {
             game.zobrist_hash ^= zobrist_black_turn;
+            game.board_record.push_back(game.zobrist_hash);
         }
         game.move_record.push_back(move);
 
@@ -132,6 +136,7 @@ template<bool update_zobrist> bool make_test_move(Game& game, Move& move) {
 
     if constexpr (update_zobrist) {
         game.zobrist_hash ^= zobrist_black_turn;
+        game.board_record.push_back(game.zobrist_hash);
     }
     game.move_record.push_back(move);
 
@@ -289,6 +294,9 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     nodes_searched++;
     if (ply > seldepth) {
         seldepth = ply;
+    }
+    if (determine_repetition(game)) {
+        return 0;
     }
     Move stored_move {};
     int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move, ply);

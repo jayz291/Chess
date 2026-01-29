@@ -50,7 +50,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
             sf::FloatRect visibleArea({0.f, 0.f}, sf::Vector2f(resized->size));
             sf::View view(visibleArea); 
-            view.setCenter({resized->size.x / 2.0f, resized->size.y / 2.0f});
+            view.setCenter({550, 400});
             window.setView(view);
         }
         if (const auto* mouse_release = event->getIf<sf::Event::MouseButtonReleased>()) {
@@ -86,6 +86,21 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
         game.state = Gamestate::Resetting;
     } else if (game.state == Gamestate::Resetting) {
         handle_clicks_resetting(game, assets, game_pos);
+        if (assets.go_back_button.is_clicked({game_pos})) {
+            if (game.current_ply_num > 0) {
+                undo_game_move(game, true);
+            }
+        }
+        if (assets.go_forward_button.is_clicked({game_pos})) {
+            if (game.current_ply_num < game.move_record.size()) {
+                Move chosen_move = game.move_record[game.current_ply_num];
+                int result = validate_move(game, chosen_move);
+                make_game_move(game, result, chosen_move, true);
+                if (game.promoting_pawn) {
+                    handle_pawn_promotion(game, chosen_move, true, true);
+                }
+            }
+        }
     }
     if (game.state != Gamestate::Intro) {
         handle_clicks_returning(game, assets, game_pos);
@@ -136,6 +151,8 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         draw_end_screen(game, window, assets);
     } else if (game.state == Gamestate::Resetting) {
         assets.reset_button.update(window, mouse_pos);
+        assets.go_back_button.update(window, mouse_pos);
+        assets.go_forward_button.update(window, mouse_pos);
     }
     if (game.state == Gamestate::Promoting_pawn) {
         draw_pawn_promotion_screen(game, window, assets);
@@ -173,9 +190,9 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
 }
 
 void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& assets) {
-    sf::Text move_record_title = configure_text(assets.font, "Move Record", {935, 80}, 20, sf::Color::White);
+    sf::Text move_record_title = configure_text(assets.font, "Move Record", {935, 20}, 20, sf::Color::White);
     window.draw(move_record_title);
-    sf::Vector2f panel_pos = {900.f, 118.f};
+    sf::Vector2f panel_pos = {900.f, 58.f};
     sf::Vector2f panel_size = {180.f, 660.f};
     int line_height = 25;
     int max_lines_visible = panel_size.y / line_height;
@@ -185,24 +202,50 @@ void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& asset
     window.draw(background);
 
     int total_pairs = (game.notation_history.size() + 1) / 2;
-    sf::Text text(assets.font2, "", 18);
-    text.setFillColor(sf::Color::Black);
+    sf::Text text_white(assets.font2, "", 18);
+    sf::Text text_black(assets.font2, "", 18);
+    sf::Text number(assets.font2, "", 18);
     int start_index = game.history_scroll_offset;
     int end_index = std::min(total_pairs, start_index + max_lines_visible);
 
     for (int i = start_index; i < end_index; ++i) {
-        std::string line_str = std::to_string(i + game.move_num) + ".  ";
-        if (i * 2 < game.notation_history.size()) {
-            line_str += game.notation_history[i * 2];
-        } 
-        if (i * 2 + 1 < game.notation_history.size()) {
-            line_str += "    " + game.notation_history[i * 2 + 1];
-        }
         float x_pos = std::floor(panel_pos.x + 15);
         float y_pos = std::floor(panel_pos.y + 5 + (i - start_index) * line_height);
-        text.setPosition({x_pos, y_pos});
-        text.setString(line_str);
-        window.draw(text);
+        std::string line_str = std::to_string(i + game.move_num) + ".";
+        std::string white_turn_txt;
+        std::string black_turn_txt;
+        number.setString(line_str);
+        number.setPosition({x_pos - 10, y_pos});
+        number.setFillColor(sf::Color::Black);
+        window.draw(number);
+        int first_offset = number.getLocalBounds().size.x;
+        int second_offset;
+        if (i * 2 < game.notation_history.size()) {
+            if (game.current_ply_num - 1 == i * 2) {
+                text_white.setFillColor(sf::Color::Red);
+            } else {
+                text_white.setFillColor(sf::Color::Black);
+            }
+            white_turn_txt = game.notation_history[i * 2];
+            text_white.setPosition({x_pos + first_offset, y_pos});
+            text_white.setString(white_turn_txt);
+            second_offset = text_white.getLocalBounds().size.x;
+            window.draw(text_white);
+        } 
+        if (i * 2 + 1 < game.notation_history.size()) {
+            if (game.current_ply_num - 1 == i * 2 + 1) {
+                text_black.setFillColor(sf::Color::Red);
+            } else {
+                text_black.setFillColor(sf::Color::Black);
+            }
+            black_turn_txt = game.notation_history[i * 2 + 1];
+            text_black.setPosition({x_pos + 30 + second_offset + first_offset, y_pos});
+            text_black.setString(black_turn_txt);
+            window.draw(text_black);
+        }
+        //text.setPosition({x_pos, y_pos});
+        //text.setString(line_str);
+        //window.draw(text);
     }
     if (total_pairs > max_lines_visible) {
         float scroll_ratio = static_cast<float> (game.history_scroll_offset) / (total_pairs - max_lines_visible);
@@ -385,7 +428,8 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     int to_square, from_square;
     if (game.move_record.size() > 0) {
         
-        prev_move = game.move_record.back();
+        //prev_move = game.move_record.back();
+        prev_move = game.move_record[game.current_ply_num - 1];
         to_square = prev_move.get_to_square();
         from_square = prev_move.get_from_square();
         if (to_square != from_square) {

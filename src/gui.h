@@ -260,6 +260,8 @@ struct Assets {
         {10, 10}, {44, 35}, sf::Color::White};
     Button toggle_takebacks {font, "Allow Takebacks: Yes", {853, 753}, 15, sf::Color::Black, 
         {850, 750}, {157, 35}, sf::Color::Green};
+    Button go_back_button {font, "<=", {920, 730}, 40, sf::Color::Black, {900, 730}, {85, 50}, sf::Color::White};
+    Button go_forward_button {font, "=>", {1015, 730}, 40, sf::Color::Black, {995, 730}, {85, 50}, sf::Color::White};
     TextBox fen_input {font, {60, 690}, {930, 50}, {70, 700}, 15};
     Screen pawn_promotion_screen {font, "Choose Promotion Piece", {280, 280}, 40, sf::Color::White, 
         {250, 250}, {500, 300}, sf::Color::Blue};

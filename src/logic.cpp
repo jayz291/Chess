@@ -321,15 +321,21 @@ template<bool update_zobrist> void undo_move(Game& game, Move& prev_move) {
 }
 
 
-void undo_game_move(Game& game) {
+void undo_game_move(Game& game, bool is_game_over) {
     if (game.move_record.size() == 0) {
         return;
     }
     game.selected_square = -1;
     //std::cout << "size: " << game.move_record.size() << '\n';
-    Move prev_move = game.move_record[game.move_record.size() - 1];
-    //std::cout << game.move_record.size() - 1 << '\n';
 
+    Move prev_move; 
+    if (!is_game_over) {
+        prev_move = game.move_record[game.move_record.size() - 1];
+    } else {
+        prev_move = game.move_record[game.current_ply_num - 1];
+    }
+    //std::cout << game.move_record.size() - 1 << '\n';
+    game.current_ply_num--;
     restore_zobrist_en_passant_and_castling<true>(game, prev_move);
 
     undo_move<true>(game, prev_move);
@@ -341,28 +347,34 @@ void undo_game_move(Game& game) {
     }
     
     // std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
-    if (game.board_record.size() > 0) {
-        game.board_record.pop_back();
+    if (!is_game_over) {
+        if (game.board_record.size() > 0) {
+            game.board_record.pop_back();
+        }
+        game.move_record.pop_back();
+        game.notation_history.pop_back();
+        int total_lines = (game.notation_history.size() + 1) / 2;
+        
+        if (total_lines <= 26) {
+            game.history_scroll_offset = 0;
+        } else {
+            game.history_scroll_offset = total_lines - 26;
+        }
     }
-    game.move_record.pop_back();
-    game.notation_history.pop_back();
-    int total_lines = (game.notation_history.size() + 1) / 2;
-    
-    if (total_lines <= 26) {
-        game.history_scroll_offset = 0;
-    } else {
-        game.history_scroll_offset = total_lines - 26;
-    }
+
     game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
     game.zobrist_hash ^= zobrist_black_turn;
     evaluate_king_checks(game);
 }
 
-void make_game_move(Game& game, int result, Move move) {
+void make_game_move(Game& game, int result, Move move, bool is_game_over) {
     Chessboard& board = game.board;
-    disambiguate(game, move);
+    if (!is_game_over) {
+        disambiguate(game, move);
+    }
     
-    if (move.get_piece() == WHITE_PAWN || move.get_piece() == BLACK_PAWN || board[move.get_to_square()] != EMPTY_SQUARE) {
+    if (move.get_piece() == WHITE_PAWN || move.get_piece() == BLACK_PAWN 
+    || board[move.get_to_square()] != EMPTY_SQUARE) {
         game.plys_to_100 = 0;
     } else {
         game.plys_to_100++;
@@ -371,9 +383,7 @@ void make_game_move(Game& game, int result, Move move) {
     update_zobrist_en_passant<true>(game, move);
 
     if ((game.turn == BLACK && move.get_piece() == BLACK_PAWN && move.get_to_square() / 8 == 0) || 
-        (game.turn == WHITE && move.get_piece() == WHITE_PAWN && move.get_to_square() / 8 == 7) /*&&
-        7 <= std::abs(move.get_to_square() - move.get_from_square()) && 
-        std::abs(move.get_to_square() - move.get_from_square()) <= 9*/) {
+        (game.turn == WHITE && move.get_piece() == WHITE_PAWN && move.get_to_square() / 8 == 7)) {
         game.promoting_pawn = true;
         return;
     }
@@ -405,8 +415,10 @@ void make_game_move(Game& game, int result, Move move) {
     game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
     game.zobrist_hash ^= zobrist_black_turn;
     update_castling_flags<true>(game, move);
-    game.move_record.push_back(move);
-    
+    if (!is_game_over) {
+        game.move_record.push_back(move);
+    }
+    game.current_ply_num++;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
@@ -502,7 +514,7 @@ bool determine_repetition(Game& game) {
     return false;
 }
 
-void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected) {
+void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected, bool is_game_over) {
 
     assert(move.get_turn() == game.turn);
 
@@ -520,7 +532,10 @@ void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected) 
     update_castling_flags<true>(game, move);
     game.zobrist_hash ^= zobrist_black_turn;
     game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
-    game.move_record.push_back(move);
+    if (!is_game_over) {
+         game.move_record.push_back(move);
+    }
+    game.current_ply_num++;
     game.piece_selected = -1;
     game.promoting_pawn = false;
 
@@ -742,12 +757,14 @@ int validate_castling(Game &game, Move& move) {
         if (new_square == 2 && (mask << 2 & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_left_w) == 0) {
                 if (!is_square_attacked(bitboards, 3, turn) && !is_square_attacked(bitboards, 2, turn)) {
+                    move.set_move_type(CASTLING);
                     return QUEENSIDE_CASTLING_MOVE;
                 }
             }
         } else if (new_square == 6 && (mask << 3 & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_right_w) == 0) {
                 if (!is_square_attacked(bitboards, 5, turn) && !is_square_attacked(bitboards, 6, turn)) {
+                    move.set_move_type(CASTLING);
                     return KINGSIDE_CASTLING_MOVE;
                 }
             }
@@ -756,12 +773,14 @@ int validate_castling(Game &game, Move& move) {
         if (new_square == 58 && (mask & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_left_b) == 0) {
                 if (!is_square_attacked(bitboards, 59, turn) && !is_square_attacked(bitboards, 58, turn)) {
+                    move.set_move_type(CASTLING);
                     return QUEENSIDE_CASTLING_MOVE;
                 }
             }
         } else if (new_square == 62 && (mask << 1 & game.castling_rights)) {
             if ((bitboards.occupied & castle_mask_right_b) == 0) {
                 if (!is_square_attacked(bitboards, 61, turn) && !is_square_attacked(bitboards, 62, turn)) {
+                    move.set_move_type(CASTLING);
                     return KINGSIDE_CASTLING_MOVE;
                 }
             }
