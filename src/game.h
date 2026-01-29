@@ -31,6 +31,7 @@ class Game {
     std::vector<Move> move_record {};
     std::vector<uint64_t> board_record {};
     std::vector<std::string> notation_history {};
+    std::vector<int> plys_to_100_tracking {};
     int move_num;
     int history_scroll_offset;
     int plys_to_100;
@@ -50,6 +51,7 @@ class Game {
     int current_ply_num;
     bool invalid_fen_position { false };
     bool rank_ambiguous, file_ambiguous, conflict;
+    bool first_move_filler;
     uint64_t zobrist_hash;
     Game();
     void initialise();

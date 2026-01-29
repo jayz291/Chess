@@ -220,8 +220,9 @@ void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& asset
         window.draw(number);
         int first_offset = number.getLocalBounds().size.x;
         int second_offset;
+        int ply_offset = (game.first_move_filler) ? 1 : 0;
         if (i * 2 < game.notation_history.size()) {
-            if (game.current_ply_num - 1 == i * 2) {
+            if (game.current_ply_num - 1 + ply_offset == i * 2) {
                 text_white.setFillColor(sf::Color::Red);
             } else {
                 text_white.setFillColor(sf::Color::Black);
@@ -233,7 +234,7 @@ void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& asset
             window.draw(text_white);
         } 
         if (i * 2 + 1 < game.notation_history.size()) {
-            if (game.current_ply_num - 1 == i * 2 + 1) {
+            if (game.current_ply_num - 1 + ply_offset == i * 2 + 1) {
                 text_black.setFillColor(sf::Color::Red);
             } else {
                 text_black.setFillColor(sf::Color::Black);
@@ -243,9 +244,6 @@ void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& asset
             text_black.setString(black_turn_txt);
             window.draw(text_black);
         }
-        //text.setPosition({x_pos, y_pos});
-        //text.setString(line_str);
-        //window.draw(text);
     }
     if (total_pairs > max_lines_visible) {
         float scroll_ratio = static_cast<float> (game.history_scroll_offset) / (total_pairs - max_lines_visible);
@@ -428,6 +426,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     int to_square, from_square;
     if (game.move_record.size() > 0) {
         prev_move = game.move_record[game.current_ply_num - 1];
+        //std::cout << game.move_record[game.current_ply_num - 2] << '\n';
         to_square = prev_move.get_to_square();
         from_square = prev_move.get_from_square();
         if (to_square != from_square) {

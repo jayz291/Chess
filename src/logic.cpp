@@ -339,11 +339,10 @@ void undo_game_move(Game& game, bool is_game_over) {
     restore_zobrist_en_passant_and_castling<true>(game, prev_move);
 
     undo_move<true>(game, prev_move);
-    if (prev_move.get_captured_piece() == EMPTY_SQUARE && prev_move.get_piece() != WHITE_PAWN &&
-        prev_move.get_piece() != BLACK_PAWN) {
-        if (game.plys_to_100 > 0) {
-            game.plys_to_100--;
-        }
+    if (!is_game_over && !game.plys_to_100_tracking.empty()) {
+        game.plys_to_100 = game.plys_to_100_tracking.back();
+        game.plys_to_100_tracking.pop_back();
+        //std::cout << game.plys_to_100 << '\n';
     }
     
     // std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
@@ -373,11 +372,14 @@ void make_game_move(Game& game, int result, Move move, bool is_game_over) {
         disambiguate(game, move);
     }
     
-    if (move.get_piece() == WHITE_PAWN || move.get_piece() == BLACK_PAWN 
-    || board[move.get_to_square()] != EMPTY_SQUARE) {
-        game.plys_to_100 = 0;
-    } else {
-        game.plys_to_100++;
+    if (!is_game_over) {
+        game.plys_to_100_tracking.push_back(game.plys_to_100);
+        if (move.get_piece() == WHITE_PAWN || move.get_piece() == BLACK_PAWN 
+            || board[move.get_to_square()] != EMPTY_SQUARE) {
+            game.plys_to_100 = 0;
+        } else {
+            game.plys_to_100++;
+        }
     }
 
     update_zobrist_en_passant<true>(game, move);
@@ -459,7 +461,7 @@ void is_game_over(Game& game) {
     
     Game game_copy = game;
     Move_list moves = determine_possible_moves(game_copy);
-
+    //std::cout << game.plys_to_100 << '\n';
     if (!more_moves_available(game_copy, moves) || determine_repetition(game) || 
         determine_insufficient_material(game) || game.plys_to_100 == 100) {
     

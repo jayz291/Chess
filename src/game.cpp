@@ -17,6 +17,7 @@ void Game::initialise() {
     calculated_move = {}, 
     dragged_piece = EMPTY_SQUARE, 
     notation_history.clear(); 
+    plys_to_100_tracking.clear();
     history_scroll_offset = 0;
     move_num = 1;
     conflict = file_ambiguous = rank_ambiguous = false;
@@ -31,6 +32,7 @@ void Game::initialise() {
     move_record.clear();
     en_passant_square = -1;
     current_ply_num = 0;
+    first_move_filler = false;
     board_record.clear();
     clear_transposition_table();
 }
@@ -86,6 +88,7 @@ int handle_fen_string(Game& game) {
         return INVALID;
     }
     game.plys_to_100 = std::stoi(split_fen[4]);
+    game.plys_to_100_tracking.push_back(game.plys_to_100);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
     game.move_num = std::stoi(split_fen[5]);
 
@@ -183,6 +186,7 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
         game.en_passant_index = 8;
         if (game.turn == BLACK) {
             game.notation_history.push_back("...");
+            game.first_move_filler = true;
         }
         return VALID;
     }
@@ -206,8 +210,10 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
             game.en_passant_square = square;
+            game.current_ply_num++;
             if (game.turn == WHITE) {
                 game.notation_history.push_back("...");
+                game.first_move_filler = true;
             }
             return VALID;
         }
@@ -220,8 +226,10 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
             game.move_record.push_back(prev_move);
             game.en_passant_index = square % 8;
             game.en_passant_square = square;
+            game.current_ply_num++;
             if (game.turn == WHITE) {
                 game.notation_history.push_back("...");
+                game.first_move_filler = true;
             }
             return VALID;
         }
