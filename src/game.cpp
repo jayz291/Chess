@@ -15,11 +15,10 @@ Game::Game() {
 void Game::initialise() {
     calculated_move = {}, 
     move_ready = false;
-    game_status = 0b00000000;
-    winner = -1;
     ui.initialise();
     position.initialise();
-    history_log.initialise();
+    log.initialise();
+    result.initialise();
     clear_transposition_table();
 }
 
@@ -70,13 +69,13 @@ int handle_fen_string(Game& game) {
         }  
     }
     //std::cout << std::bitset<8>(game.castling_rights);
-    if (process_en_passant_square(game.position, game.history_log, split_fen[3]) == INVALID) {
+    if (process_en_passant_square(game.position, game.log, split_fen[3]) == INVALID) {
         return INVALID;
     }
     game.position.plys_to_100 = std::stoi(split_fen[4]);
     game.position.plys_to_100_tracking.push_back(game.position.plys_to_100);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
-    game.history_log.move_num = std::stoi(split_fen[5]);
+    game.log.move_num = std::stoi(split_fen[5]);
 
     if (check_position_validity(game) == INVALID) {
         return INVALID;
@@ -166,13 +165,13 @@ int fill_board(Position& position, std::string& fen_board_section) {
     return VALID;
 }
 
-int process_en_passant_square(Position& position, History_log& history_log, std::string& en_passant_square) {
+int process_en_passant_square(Position& position, Log& log, std::string& en_passant_square) {
 
     if (en_passant_square == "-") {
         position.en_passant_index = 8;
         if (position.turn == BLACK) {
-            history_log.notation_history.push_back("...");
-            history_log.first_move_filler = true;
+            log.notation_history.push_back("...");
+            log.first_move_filler = true;
         }
         return VALID;
     }
@@ -196,10 +195,10 @@ int process_en_passant_square(Position& position, History_log& history_log, std:
             position.move_record.push_back(prev_move);
             position.en_passant_index = square % 8;
             position.en_passant_square = square;
-            history_log.current_ply_num++;
+            log.current_ply_num++;
             if (position.turn == WHITE) {
-                history_log.notation_history.push_back("...");
-                history_log.first_move_filler = true;
+                log.notation_history.push_back("...");
+                log.first_move_filler = true;
             }
             return VALID;
         }
@@ -212,10 +211,10 @@ int process_en_passant_square(Position& position, History_log& history_log, std:
             position.move_record.push_back(prev_move);
             position.en_passant_index = square % 8;
             position.en_passant_square = square;
-            history_log.current_ply_num++;
+            log.current_ply_num++;
             if (position.turn == WHITE) {
-                history_log.notation_history.push_back("...");
-                history_log.first_move_filler = true;
+                log.notation_history.push_back("...");
+                log.first_move_filler = true;
             }
             return VALID;
         }
@@ -287,10 +286,10 @@ std::string to_algebreic_notation(Game& game) {
         } else if (piece == WHITE_KING || piece == BLACK_KING) {
             s += "K";
         } 
-        if (game.history_log.conflict) {
-            if (!game.history_log.file_ambiguous) {
+        if (game.log.conflict) {
+            if (!game.log.file_ambiguous) {
                 s += ('a' + prev_col);
-            } else if (!game.history_log.rank_ambiguous) {
+            } else if (!game.log.rank_ambiguous) {
                 s += ('8' - prev_row);
             } else {
                 s += ('a' + prev_col);
@@ -315,7 +314,7 @@ std::string to_algebreic_notation(Game& game) {
             }
         }
     }
-    if (game.game_status & (1ULL << 3)) {
+    if (game.result.status & (1ULL << 3)) {
         s += "#";
     } else if (game.position.black_in_check || game.position.white_in_check) {
         s += "+";
@@ -323,12 +322,12 @@ std::string to_algebreic_notation(Game& game) {
     return s;
 }
 
-void disambiguate(Position& position, History_log& history_log, Move& move) {
+void disambiguate(Position& position, Log& log, Move& move) {
     int to_square = move.get_to_square();
     int from_square = move.get_from_square();
-    history_log.file_ambiguous = false;
-    history_log.rank_ambiguous = false;
-    history_log.conflict = false;
+    log.file_ambiguous = false;
+    log.rank_ambiguous = false;
+    log.conflict = false;
     uint8_t piece = move.get_piece();
     if (piece == BLACK_PAWN || piece == WHITE_PAWN) {
         return;
@@ -344,11 +343,11 @@ void disambiguate(Position& position, History_log& history_log, Move& move) {
         Move test_move;
         test_move.set_move(other_from_square, to_square, piece, position.board[to_square]);
         if (validate_move(position, test_move) == VALID) {
-            history_log.conflict = true;
+            log.conflict = true;
             if (other_from_square % 8 == from_square % 8) {
-                history_log.file_ambiguous = true;
+                log.file_ambiguous = true;
             } else if (other_from_square / 8 == from_square / 8) {
-                history_log.rank_ambiguous = true;
+                log.rank_ambiguous = true;
             }
         }
         pieces &= pieces - 1;
@@ -440,17 +439,17 @@ void print_all_bitboards(Bitboards& bitboards) {
     }
 }
 
-void verify_board_sync(Game& game) {
+void verify_board_sync(Position& position) {
     int piece;
     std::vector<int> bitboards_filled;
     for (int square { 0 }; square < 63; square++) {
         bitboards_filled.clear();
-        piece = game.position.board[square];
+        piece = position.board[square];
         if (piece != EMPTY_SQUARE) {
-            if (!(game.position.bitboards.bitboards[game.position.board[square]] & (1ULL << square))) {
+            if (!(position.bitboards.bitboards[position.board[square]] & (1ULL << square))) {
                 std::cout << "[DESYNC] Missing piece number " << piece << "at square " << square << '\n';
             }
-            if (bit_filled_count(game, bitboards_filled, square) > 1) {
+            if (bit_filled_count(position, bitboards_filled, square) > 1) {
                 std::cout << "[DESYNC] The following piece bitboards are filled at square " << square << ": ";
                 for (int piece_num : bitboards_filled) {
                     std::cout << piece_num << ' ';
@@ -458,7 +457,7 @@ void verify_board_sync(Game& game) {
                 std::cout << "\nBut the piece is " << piece << '\n';
             }
         } else {
-            if (bit_filled_count(game, bitboards_filled, square) > 0) {
+            if (bit_filled_count(position, bitboards_filled, square) > 0) {
                 std::cout << "[DESYNC] 1D array says the board is empty at square " << square <<
                 " but the following bitboards are filled: ";
                 for (int piece_num : bitboards_filled) {
@@ -470,16 +469,16 @@ void verify_board_sync(Game& game) {
     }
 }
 
-int bit_filled_count(Game& game, std::vector<int>& bitboards_filled, int square) {
+int bit_filled_count(Position& position, std::vector<int>& bitboards_filled, int square) {
     int count = 0;
     for (int i { 1 }; i < 6; i++) {
-        if (game.position.bitboards.bitboards[i] & (1ULL << square)) {
+        if (position.bitboards.bitboards[i] & (1ULL << square)) {
             count++;
             bitboards_filled.push_back(i);
         }
     }
     for (int i { 9 }; i < 14; i++) {
-        if (game.position.bitboards.bitboards[i] & (1ULL << square)) {
+        if (position.bitboards.bitboards[i] & (1ULL << square)) {
             count++;
             bitboards_filled.push_back(i);
         }
@@ -487,15 +486,15 @@ int bit_filled_count(Game& game, std::vector<int>& bitboards_filled, int square)
     return count;
 }
 
-bool verify_zobrist_sync(Game& game) {
+bool verify_zobrist_sync(Position& position) {
 
-    uint64_t stored_hash = game.position.zobrist_hash;
+    uint64_t stored_hash = position.zobrist_hash;
 
-    game.position.zobrist_hash = 0; 
-    find_position_hash(game.position);
-    uint64_t calculated_hash = game.position.zobrist_hash;
+    position.zobrist_hash = 0; 
+    find_position_hash(position);
+    uint64_t calculated_hash = position.zobrist_hash;
 
-    game.position.zobrist_hash = stored_hash;
+    position.zobrist_hash = stored_hash;
 
     if (calculated_hash != stored_hash) {
         std::cout << "HASH MISMATCH!\n";

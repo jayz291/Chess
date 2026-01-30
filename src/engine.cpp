@@ -198,13 +198,13 @@ void make_computer_move(Game& game) {
             chosen_move.set_captured(game.position.board[chosen_move.get_to_square()]);
         }
         int result = validate_move(game.position, chosen_move);
-        make_game_move(game.position, game.history_log, game.ui, result, chosen_move);
+        make_game_move(game, result, chosen_move);
         if (game.ui.promoting_pawn) {
             chosen_move.set_promotion_piece(game.ui.piece_selected);
             handle_pawn_promotion(game, chosen_move);
         }
-        verify_board_sync(game);
-        verify_zobrist_sync(game);
+        verify_board_sync(game.position);
+        verify_zobrist_sync(game.position);
         is_game_over(game);
     }
     finished = false;

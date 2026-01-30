@@ -321,7 +321,11 @@ template<bool update_zobrist> void undo_move(Position& position, Move& prev_move
 }
 
 
-void undo_game_move(Position& position, History_log& history_log, UI& ui, bool is_game_over) {
+void undo_game_move(Game& game, bool is_game_over) {
+    auto& position = game.position;
+    auto& log = game.log;
+    auto& ui = game.ui;
+
     if (position.move_record.size() == 0) {
         return;
     }
@@ -332,10 +336,10 @@ void undo_game_move(Position& position, History_log& history_log, UI& ui, bool i
     if (!is_game_over) {
         prev_move = position.move_record[position.move_record.size() - 1];
     } else {
-        prev_move = position.move_record[history_log.current_ply_num - 1];
+        prev_move = position.move_record[log.current_ply_num - 1];
     }
     //std::cout << game.move_record.size() - 1 << '\n';
-    history_log.current_ply_num--;
+    log.current_ply_num--;
     restore_zobrist_en_passant_and_castling<true>(position, prev_move);
 
     undo_move<true>(position, prev_move);
@@ -351,13 +355,13 @@ void undo_game_move(Position& position, History_log& history_log, UI& ui, bool i
             position.board_record.pop_back();
         }
         position.move_record.pop_back();
-        history_log.notation_history.pop_back();
-        int total_lines = (history_log.notation_history.size() + 1) / 2;
+        log.notation_history.pop_back();
+        int total_lines = (log.notation_history.size() + 1) / 2;
         
         if (total_lines <= 26) {
-            history_log.history_scroll_offset = 0;
+            log.history_scroll_offset = 0;
         } else {
-            history_log.history_scroll_offset = total_lines - 26;
+            log.history_scroll_offset = total_lines - 26;
         }
     }
 
@@ -366,11 +370,13 @@ void undo_game_move(Position& position, History_log& history_log, UI& ui, bool i
     evaluate_king_checks(position);
 }
 
-void make_game_move(Position& position, History_log& history_log, UI& ui, 
-    int result, Move move, bool is_game_over) {
+void make_game_move(Game& game, int result, Move move, bool is_game_over) {
+    auto& position = game.position;
+    auto& log = game.log;
+    auto& ui = game.ui;
     Chessboard& board = position.board;
     if (!is_game_over) {
-        disambiguate(position, history_log, move);
+        disambiguate(position, log, move);
     }
     
     if (!is_game_over) {
@@ -421,7 +427,7 @@ void make_game_move(Position& position, History_log& history_log, UI& ui,
     if (!is_game_over) {
         position.move_record.push_back(move);
     }
-    history_log.current_ply_num++;
+    log.current_ply_num++;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
@@ -467,16 +473,17 @@ void is_game_over(Game& game) {
         determine_insufficient_material(game) || game.position.plys_to_100 == 100) {
     
         //std::cout << "ending game\n";
-        end_game(game);
+        end_game(game.position, game.result);
+        game.state = Gamestate::Gameover;
     }
     if (!game.position.move_record.empty()) {
         std::string algebreic_move = to_algebreic_notation(game);
         //std::cout << algebreic_move << '\n';
-        game.history_log.notation_history.push_back(algebreic_move);
-        int total_lines = (game.history_log.notation_history.size() + 1) / 2;
+        game.log.notation_history.push_back(algebreic_move);
+        int total_lines = (game.log.notation_history.size() + 1) / 2;
         //std::cout << "here\n";
         if (total_lines > 26) {
-            game.history_log.history_scroll_offset = total_lines - 26;
+            game.log.history_scroll_offset = total_lines - 26;
         }
     }
 }
@@ -493,7 +500,7 @@ bool determine_insufficient_material(Game& game) {
     bool pawns_on_board = ((game.position.bitboards.bitboards[WHITE_PAWN] | game.position.bitboards.bitboards[BLACK_PAWN]) == 0) ? 
     false : true;
     if (game.position.value_black_pieces <= 330 && game.position.value_white_pieces <= 330 && !pawns_on_board) {
-        game.game_status |= 1UL;
+        game.result.status |= 1UL;
         std::cout << "insufficient material\n";
         return true;
     }
@@ -510,7 +517,7 @@ bool determine_repetition(Game& game) {
             occurrences++;
         }
         if (occurrences == 3) {
-            game.game_status |= (1UL << 1);
+            game.result.status |= (1UL << 1);
             return true;
         }
     }
@@ -552,7 +559,7 @@ void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected, 
     if (!is_game_over) {
         game.position.move_record.push_back(move);
     }
-    game.history_log.current_ply_num++;
+    game.log.current_ply_num++;
     game.ui.piece_selected = -1;
     game.ui.promoting_pawn = false;
 
@@ -571,26 +578,26 @@ void evaluate_king_checks(Position& position) {
     }
 }
 
-void end_game(Game& game) {
+void end_game(Position& position, Result& result) {
     //std::cout << "It is over\n";
-    game.game_status |= (1UL << 7);
-    game.state = Gamestate::Gameover;
-    if ((game.game_status & (1UL << 1)) | (game.game_status & 1UL) || game.position.plys_to_100 == 100) {
+    result.status |= (1UL << 7);
+    //game.state = Gamestate::Gameover;
+    if ((result.status & (1UL << 1)) | (result.status & 1UL) || position.plys_to_100 == 100) {
         return;
     }
-    if (game.position.turn == BLACK) {
-        if (game.position.black_in_check) {
-            game.game_status |= (1UL << 3); // checkmate
-            game.winner = WHITE;
+    if (position.turn == BLACK) {
+        if (position.black_in_check) {
+            result.status |= (1UL << 3); // checkmate
+            result.winner = WHITE;
         } else {
-            game.game_status |= (1UL << 2); // stalemate
+            result.status |= (1UL << 2); // stalemate
         }
     } else {
-        if (game.position.white_in_check) {
-            game.game_status |= (1UL << 3);
-            game.winner = BLACK;
+        if (position.white_in_check) {
+            result.status |= (1UL << 3);
+            result.winner = BLACK;
         } else {
-            game.game_status |= (1UL << 2);
+            result.status |= (1UL << 2);
         }
     }
 }

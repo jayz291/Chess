@@ -21,15 +21,15 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             if (scrolled->wheel == sf::Mouse::Wheel::Vertical) {
                 sf::Vector2i mouse_pos = sf::Mouse::getPosition(window);
                 if (mouse_pos.x >= 900 && mouse_pos.x <= 1080 && mouse_pos.y >= 120 && mouse_pos.y <= 770) {
-                    int total_lines = (game.history_log.notation_history.size() + 1) / 2;
+                    int total_lines = (game.log.notation_history.size() + 1) / 2;
                     int max_scroll = std::max(0, total_lines - 26);
                     if (scrolled->delta > 0) {
-                        if (game.history_log.history_scroll_offset > 0) {
-                            game.history_log.history_scroll_offset--;
+                        if (game.log.history_scroll_offset > 0) {
+                            game.log.history_scroll_offset--;
                         }
                     } else if (scrolled->delta < 0) {
-                        if (game.history_log.history_scroll_offset < max_scroll) {
-                            game.history_log.history_scroll_offset++;
+                        if (game.log.history_scroll_offset < max_scroll) {
+                            game.log.history_scroll_offset++;
                         }
                     }
                 }
@@ -68,7 +68,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
 void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos) {
     sf::Vector2i game_pos = {(int)world_pos.x, (int)world_pos.y};
     auto& position = game.position;
-    auto& history_log = game.history_log;
+    auto& log = game.log;
     auto& ui = game.ui;
     if (game.state == Gamestate::Intro) {
         handle_clicks_intro(game, window, assets, game_pos);
@@ -90,15 +90,15 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
     } else if (game.state == Gamestate::Resetting) {
         handle_clicks_resetting(game, assets, game_pos);
         if (assets.go_back_button.is_clicked({game_pos})) {
-            if (history_log.current_ply_num > 0) {
-                undo_game_move(position, history_log, ui, true);
+            if (log.current_ply_num > 0) {
+                undo_game_move(game, true);
             }
         }
         if (assets.go_forward_button.is_clicked({game_pos})) {
-            if (history_log.current_ply_num < position.move_record.size()) {
-                Move chosen_move = position.move_record[history_log.current_ply_num];
+            if (log.current_ply_num < position.move_record.size()) {
+                Move chosen_move = position.move_record[log.current_ply_num];
                 int result = validate_move(position, chosen_move);
-                make_game_move(position, history_log, ui, result, chosen_move, true);
+                make_game_move(game, result, chosen_move, true);
                 if (ui.promoting_pawn) {
                     handle_pawn_promotion(game, chosen_move, true, true);
                 }
@@ -127,7 +127,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     }
     if (game.state != Gamestate::Intro) {
         draw_board(game, window, assets);
-        draw_move_history_panel(game.history_log, window, assets);
+        draw_move_history_panel(game.log, window, assets);
         assets.home_button.set_rec_colour(rectangle_colour);
         assets.home_button.set_text_colour(text_colour);
         if (thinking_in_progress) {
@@ -151,7 +151,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         }
     }
     if (game.state == Gamestate::Gameover) {
-        draw_end_screen(game, window, assets);
+        draw_end_screen(game.position, game.result, window, assets);
     } else if (game.state == Gamestate::Resetting) {
         assets.reset_button.update(window, mouse_pos);
         assets.go_back_button.update(window, mouse_pos);
@@ -192,7 +192,7 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
     assets.toggle_takebacks.update(window, mouse_pos);
 }
 
-void draw_move_history_panel(History_log& history_log, sf::RenderWindow& window, Assets& assets) {
+void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets) {
     sf::Text move_record_title = configure_text(assets.font, "Move Record", {935, 20}, 20, sf::Color::White);
     window.draw(move_record_title);
     sf::Vector2f panel_pos = {900.f, 58.f};
@@ -204,17 +204,17 @@ void draw_move_history_panel(History_log& history_log, sf::RenderWindow& window,
     background.setOutlineThickness(2);
     window.draw(background);
 
-    int total_pairs = (history_log.notation_history.size() + 1) / 2;
+    int total_pairs = (log.notation_history.size() + 1) / 2;
     sf::Text text_white(assets.font2, "", 18);
     sf::Text text_black(assets.font2, "", 18);
     sf::Text number(assets.font2, "", 18);
-    int start_index = history_log.history_scroll_offset;
+    int start_index = log.history_scroll_offset;
     int end_index = std::min(total_pairs, start_index + max_lines_visible);
 
     for (int i = start_index; i < end_index; ++i) {
         float x_pos = std::floor(panel_pos.x + 15);
         float y_pos = std::floor(panel_pos.y + 5 + (i - start_index) * line_height);
-        std::string line_str = std::to_string(i + history_log.move_num) + ".";
+        std::string line_str = std::to_string(i + log.move_num) + ".";
         std::string white_turn_txt;
         std::string black_turn_txt;
         number.setString(line_str);
@@ -223,33 +223,33 @@ void draw_move_history_panel(History_log& history_log, sf::RenderWindow& window,
         window.draw(number);
         int first_offset = number.getLocalBounds().size.x;
         int second_offset;
-        int ply_offset = (history_log.first_move_filler) ? 1 : 0;
-        if (i * 2 < history_log.notation_history.size()) {
-            if (history_log.current_ply_num - 1 + ply_offset == i * 2) {
+        int ply_offset = (log.first_move_filler) ? 1 : 0;
+        if (i * 2 < log.notation_history.size()) {
+            if (log.current_ply_num - 1 + ply_offset == i * 2) {
                 text_white.setFillColor(sf::Color::Red);
             } else {
                 text_white.setFillColor(sf::Color::Black);
             }
-            white_turn_txt = history_log.notation_history[i * 2];
+            white_turn_txt = log.notation_history[i * 2];
             text_white.setPosition({x_pos + first_offset, y_pos});
             text_white.setString(white_turn_txt);
             second_offset = text_white.getLocalBounds().size.x;
             window.draw(text_white);
         } 
-        if (i * 2 + 1 < history_log.notation_history.size()) {
-            if (history_log.current_ply_num - 1 + ply_offset == i * 2 + 1) {
+        if (i * 2 + 1 < log.notation_history.size()) {
+            if (log.current_ply_num - 1 + ply_offset == i * 2 + 1) {
                 text_black.setFillColor(sf::Color::Red);
             } else {
                 text_black.setFillColor(sf::Color::Black);
             }
-            black_turn_txt = history_log.notation_history[i * 2 + 1];
+            black_turn_txt = log.notation_history[i * 2 + 1];
             text_black.setPosition({x_pos + 30 + second_offset + first_offset, y_pos});
             text_black.setString(black_turn_txt);
             window.draw(text_black);
         }
     }
     if (total_pairs > max_lines_visible) {
-        float scroll_ratio = static_cast<float> (history_log.history_scroll_offset) / (total_pairs - max_lines_visible);
+        float scroll_ratio = static_cast<float> (log.history_scroll_offset) / (total_pairs - max_lines_visible);
         float bar_height = 40.f;
         float bar_y_range = panel_size.y - bar_height;
         sf::RectangleShape scroll_bar = make_rectangle({panel_pos.x + panel_size.x - 5, 
@@ -289,8 +289,8 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
             game.state = Gamestate::Playing;
             //run_perft_suite(game, 5);
             is_game_over(game);
-            verify_board_sync(game);
-            verify_zobrist_sync(game);
+            verify_board_sync(game.position);
+            verify_zobrist_sync(game.position);
         } else {
             game.ui.invalid_fen_position = true;
         }
@@ -318,19 +318,16 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
 
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
     int result = select_square(mouse_pos.x, mouse_pos.y, game.position, game.ui);
-    //std::cout << result << '\n';
     if (result >= 0) {
-        make_game_move(game.position, game.history_log, game.ui, result, game.position.current_move);  
+        make_game_move(game, result, game.position.current_move);  
     }
     if (game.ui.promoting_pawn) {
         game.state = Gamestate::Promoting_pawn;
         return;
     }
-    //print_all_bitboards(game.bitboards);
     if (result >= 0) {
-        //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
-        verify_board_sync(game);
-        verify_zobrist_sync(game);
+        verify_board_sync(game.position);
+        verify_zobrist_sync(game.position);
         is_game_over(game);
     }
 }
@@ -349,7 +346,6 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         move.set_to_square(square);
         move.set_piece(game.ui.dragged_piece);
         if (game.position.board[square] != EMPTY_SQUARE) {
-            //move.get_captured_piece() = game.board[square];
             move.set_captured(game.position.board[square]);
         }
 
@@ -357,7 +353,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         if (result >= 0) {
             game.position.current_move = move;
             game.ui.selected_square = -1;
-            make_game_move(game.position, game.history_log, game.ui, result, game.position.current_move);  
+            make_game_move(game, result, game.position.current_move);  
         }
         if (game.ui.promoting_pawn) {
             game.state = Gamestate::Promoting_pawn;
@@ -377,7 +373,6 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
         is_game_over(game);
         //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }
-    //print_all_bitboards(game.bitboards);
 }
 
 void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
@@ -396,13 +391,13 @@ void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos)
 void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
     if (assets.undo_button.is_clicked(mouse_pos) && assets.allow_takebacks) {
         if (game.mode == Gamemode::Twoplayer) {
-            undo_game_move(game.position, game.history_log, game.ui);
+            undo_game_move(game);
         } else {
-            undo_game_move(game.position, game.history_log, game.ui);
-            undo_game_move(game.position, game.history_log, game.ui);
+            undo_game_move(game);
+            undo_game_move(game);
         }
-        verify_board_sync(game);
-        verify_zobrist_sync(game);
+        verify_board_sync(game.position);
+        verify_zobrist_sync(game.position);
     }
 }
 
@@ -428,7 +423,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     Move prev_move;
     int to_square, from_square;
     if (game.position.move_record.size() > 0) {
-        prev_move = game.position.move_record[game.history_log.current_ply_num - 1];
+        prev_move = game.position.move_record[game.log.current_ply_num - 1];
         //std::cout << game.move_record[game.current_ply_num - 2] << '\n';
         to_square = prev_move.get_to_square();
         from_square = prev_move.get_from_square();
@@ -492,21 +487,21 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     } 
 }
 
-void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets) {
+void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets) {
 
-    if (game.game_status & (1UL << 3)) {
-        if (game.winner == WHITE) {
+    if (result.status & (1UL << 3)) {
+        if (result.winner == WHITE) {
             assets.end_screen.set_text("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {
             assets.end_screen.set_text("CHECKMATE\nBLACK WON!\n-----------------------------\nClick anywhere to \ncontinue");
         }
-    } else if (game.game_status & (1UL << 2)) {
+    } else if (result.status & (1UL << 2)) {
         assets.end_screen.set_text("Draw by stalemate\n-----------------------------\nClick anywhere to \ncontinue");
-    } else if (game.game_status & (1UL << 1)) {
+    } else if (result.status & (1UL << 1)) {
         assets.end_screen.set_text("Draw by threefold \nrepetition\n-----------------------------\nClick anywhere to \ncontinue");
-    } else if (game.game_status & (1UL)) {
+    } else if (result.status & (1UL)) {
         assets.end_screen.set_text("Draw by insufficient \nmaterial\n-----------------------------\nClick anywhere to \ncontinue");
-    } else if (game.position.plys_to_100 == 100) {
+    } else if (position.plys_to_100 == 100) {
         assets.end_screen.set_text("Draw by the 50-move rule\n-----------------------------\nClick anywhere to \ncontinue");
     }
     assets.end_screen.draw(window);

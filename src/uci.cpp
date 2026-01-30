@@ -75,7 +75,7 @@ void parse_position(Game& game, std::istringstream& stream) {
             Move move = parse_move_string(game, move_string);
             int result = validate_move(game.position, move);
             if (result >= 0) {
-                make_game_move(game.position, game.history_log, game.ui, result, move);
+                make_game_move(game, result, move);
                 if (game.ui.promoting_pawn) {
                     handle_pawn_promotion(game, move, true);
                 }

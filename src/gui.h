@@ -273,9 +273,9 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
 void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
     int x, int y, uint8_t piece, bool dragging = false);
-void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets);
+void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets);
 void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets);
-void draw_move_history_panel(History_log& history_log, sf::RenderWindow& window, Assets& assets);
+void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets);
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
 void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos);

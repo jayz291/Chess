@@ -26,16 +26,15 @@ void evaluate_king_checks(Position& position);
 int validate_castling(Position& position, Move& move);
 int is_square_attacked(Bitboards& bitboard_copy, int square, int turn);
 
-void make_game_move(Position& position, History_log& history_log, UI& ui, 
-    int result, Move move, bool is_game_over = false);
-void undo_game_move(Position& position, History_log& history_log, UI& ui, bool is_game_over = false);
+void make_game_move(Game& game, int result, Move move, bool is_game_over = false);
+void undo_game_move(Game& game, bool is_game_over = false);
 void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected = false, bool is_game_over = false);
 
 bool determine_repetition(Game& game);
 bool determine_repetition(Position& position);
 bool more_moves_available(Position& position, Move_list moves);
 bool determine_insufficient_material(Game& game);
-void end_game(Game& game);
+void end_game(Position& position, Result& result);
 void is_game_over(Game& game);
 
 uint8_t convert_promotion_piece(Move& move, const uint8_t& promotion_piece);
