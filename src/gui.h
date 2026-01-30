@@ -160,7 +160,7 @@ class TextBox {
                 }
             }
         }
-        if (game.invalid_fen_position) {
+        if (game.ui.invalid_fen_position) {
             window.draw(error_text);
         }
     }
@@ -271,11 +271,11 @@ struct Assets {
 void render(Game& game, sf::RenderWindow& window, Assets& assets);
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, int x, int y, uint8_t piece, 
-    bool dragging = false);
+void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
+    int x, int y, uint8_t piece, bool dragging = false);
 void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_move_history_panel(Game& game, sf::RenderWindow& window, Assets& assets);
+void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets);
+void draw_move_history_panel(History_log& history_log, sf::RenderWindow& window, Assets& assets);
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
 void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos);
@@ -288,7 +288,7 @@ void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 
-int select_square(int x, int y, Game& game);
+int select_square(int x, int y, Position& position, UI& ui); 
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);
 
 

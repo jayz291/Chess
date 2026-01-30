@@ -40,7 +40,7 @@ void run_uci_loop() {
         } else if (command == "perft") {
             int depth;
             if (stream >> depth) {
-                run_perft_suite(game, depth);
+                run_perft_suite(game.position, depth);
             } else {
                 std::cout << "no depth specified" << std::endl;
             }
@@ -73,10 +73,10 @@ void parse_position(Game& game, std::istringstream& stream) {
         std::string move_string;
         while (stream >> move_string) {
             Move move = parse_move_string(game, move_string);
-            int result = validate_move(game, move);
+            int result = validate_move(game.position, move);
             if (result >= 0) {
-                make_game_move(game, result, move);
-                if (game.promoting_pawn) {
+                make_game_move(game.position, game.history_log, game.ui, result, move);
+                if (game.ui.promoting_pawn) {
                     handle_pawn_promotion(game, move, true);
                 }
             } else {
@@ -109,15 +109,15 @@ void parse_go(Game& game, std::istringstream& stream) {
     if (movetime != -1) {
         allocated_time = movetime;
     } else if (wtime != -1 && btime != -1) {
-        int time_left = (game.turn == WHITE) ? wtime : btime;
-        int inc = (game.turn == WHITE) ? winc : binc;
+        int time_left = (game.position.turn == WHITE) ? wtime : btime;
+        int inc = (game.position.turn == WHITE) ? winc : binc;
         allocated_time = (time_left / 20) + inc;
     }
 
     int search_depth = (depth != -1) ? depth : 40;
    
     std::thread search_thread([game, allocated_time, search_depth]() mutable {
-        Move best_move = get_best_move(game, allocated_time, search_depth);
+        Move best_move = get_best_move(game.position, allocated_time, search_depth);
         std::cout << "bestmove " << to_chess_notation(best_move) << std::endl;
     });
 

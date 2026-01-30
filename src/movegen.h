@@ -8,15 +8,15 @@ enum {
 };
 
 template<int colour, int direction> 
-__attribute__((always_inline)) void add_pawn_attack_moves(Game& game, Move_list& moves, int& local_counter, 
+__attribute__((always_inline)) void add_pawn_attack_moves(Position& position, Move_list& moves, int& local_counter, 
     int promotion_rank) {
     uint64_t wrap_mask_left  = ~FILE_MASKS[7];
     uint64_t wrap_mask_right = ~FILE_MASKS[0];
     constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
     constexpr int opposing_turn = ((colour == WHITE) ? BLACK : WHITE);
-    uint64_t en_passant_mask = (game.en_passant_square != -1) ? (1ULL << game.en_passant_square) : 0ULL;
-    uint64_t enemy_pieces = game.bitboards.occupied_tables[opposing_turn] | en_passant_mask;
-    uint64_t pawns = game.bitboards.bitboards[target_piece];
+    uint64_t en_passant_mask = (position.en_passant_square != -1) ? (1ULL << position.en_passant_square) : 0ULL;
+    uint64_t enemy_pieces = position.bitboards.occupied_tables[opposing_turn] | en_passant_mask;
+    uint64_t pawns = position.bitboards.bitboards[target_piece];
 
     uint64_t attacks;
     if constexpr (colour == WHITE) {
@@ -48,9 +48,9 @@ __attribute__((always_inline)) void add_pawn_attack_moves(Game& game, Move_list&
                 from_square = to_square + 7;
             }   
         }
-        if (to_square == game.en_passant_square) {
+        if (to_square == position.en_passant_square) {
             Move move;
-            move.set_move(from_square, to_square, target_piece, game.board[to_square]);
+            move.set_move(from_square, to_square, target_piece, position.board[to_square]);
             move.set_move_type(EN_PASSANT);
             moves.list[local_counter++] = move;
         } else if ((to_square >> 3) == promotion_rank) {
@@ -59,12 +59,12 @@ __attribute__((always_inline)) void add_pawn_attack_moves(Game& game, Move_list&
                 Move move;
                 move.set_move_type(PROMOTION);
                 move.set_promotion_piece(piece);
-                move.set_move(from_square, to_square, target_piece, game.board[to_square]);
+                move.set_move(from_square, to_square, target_piece, position.board[to_square]);
                 moves.list[local_counter++] = move;
             }
         } else {
             Move move;
-            move.set_move(from_square, to_square, target_piece, game.board[to_square]);
+            move.set_move(from_square, to_square, target_piece, position.board[to_square]);
             moves.list[local_counter++] = move;
         }
         attacks &= attacks - 1;
@@ -72,16 +72,16 @@ __attribute__((always_inline)) void add_pawn_attack_moves(Game& game, Move_list&
 }
 
 template<int colour>
-__attribute__((always_inline)) void add_pawn_non_capture_moves(Game& game, Move_list& moves, 
+__attribute__((always_inline)) void add_pawn_non_capture_moves(Position& position, Move_list& moves, 
     int& local_counter, int promotion_rank) {
     uint64_t single_pushes, double_pushes;
     constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
     if constexpr (colour == WHITE) {
-        single_pushes = (game.bitboards.bitboards[WHITE_PAWN] << 8) & ~game.bitboards.occupied;
-        double_pushes = ((single_pushes & RANK_MASKS[2]) << 8) & ~game.bitboards.occupied;
+        single_pushes = (position.bitboards.bitboards[WHITE_PAWN] << 8) & ~position.bitboards.occupied;
+        double_pushes = ((single_pushes & RANK_MASKS[2]) << 8) & ~position.bitboards.occupied;
     } else {
-        single_pushes = (game.bitboards.bitboards[BLACK_PAWN] >> 8) & ~game.bitboards.occupied;
-        double_pushes = ((single_pushes & RANK_MASKS[5]) >> 8) & ~game.bitboards.occupied;
+        single_pushes = (position.bitboards.bitboards[BLACK_PAWN] >> 8) & ~position.bitboards.occupied;
+        double_pushes = ((single_pushes & RANK_MASKS[5]) >> 8) & ~position.bitboards.occupied;
     }
     while (single_pushes) {
         int to_square = __builtin_ctzll(single_pushes);
@@ -124,41 +124,41 @@ __attribute__((always_inline)) void add_pawn_non_capture_moves(Game& game, Move_
 }
 
 template<int colour, bool generate_captures_only>
-__attribute__((always_inline)) void add_pawn_moves(Game& game, Move_list& moves) {
+__attribute__((always_inline)) void add_pawn_moves(Position& position, Move_list& moves) {
     
     int local_counter = moves.num_moves;
     constexpr int promotion_rank = (colour == WHITE) ? 7 : 0;
-    add_pawn_attack_moves<colour, LEFT>(game, moves, local_counter, promotion_rank);
-    add_pawn_attack_moves<colour, RIGHT>(game, moves, local_counter, promotion_rank);
+    add_pawn_attack_moves<colour, LEFT>(position, moves, local_counter, promotion_rank);
+    add_pawn_attack_moves<colour, RIGHT>(position, moves, local_counter, promotion_rank);
 
     if constexpr (!generate_captures_only) {
-        add_pawn_non_capture_moves<colour>(game, moves, local_counter, promotion_rank);
+        add_pawn_non_capture_moves<colour>(position, moves, local_counter, promotion_rank);
     }
     moves.num_moves = local_counter;
 }
 
 template<int colour, bool generate_captures_only>
-__attribute__((always_inline)) void add_knight_moves(Game& game, Move_list& moves) {
+__attribute__((always_inline)) void add_knight_moves(Position& position, Move_list& moves) {
     uint64_t mask = 1ULL;
     constexpr uint8_t piece = (colour == WHITE) ? WHITE_KNIGHT : BLACK_KNIGHT;
     constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
-    uint64_t current_pieces = game.bitboards.bitboards[piece];
+    uint64_t current_pieces = position.bitboards.bitboards[piece];
     uint64_t targets;
     if constexpr (generate_captures_only) {
-        targets = (game.bitboards.occupied_tables[opposing_colour]);
+        targets = (position.bitboards.occupied_tables[opposing_colour]);
     } else {
-        targets = ~game.bitboards.occupied_tables[colour];
+        targets = ~position.bitboards.occupied_tables[colour];
     }
     int local_counter = moves.num_moves;
     while (current_pieces) {
         //std::cout << "inside here\n";
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t knight_moves = game.bitboards.knight_attacks[from_square];
+        uint64_t knight_moves = position.bitboards.knight_attacks[from_square];
         while (knight_moves) {
             int to_square = __builtin_ctzll(knight_moves);
             if (mask << to_square & targets) {
                 Move move;
-                move.set_move(from_square, to_square, piece, game.board[to_square]);
+                move.set_move(from_square, to_square, piece, position.board[to_square]);
                 //std::cout << std::bitset<32>(move.data);
                 moves.list[local_counter++] = move;
             }
@@ -170,25 +170,25 @@ __attribute__((always_inline)) void add_knight_moves(Game& game, Move_list& move
 }
 
 template<int colour, bool generate_captures_only>
-__attribute__((always_inline)) void add_bishop_moves(Game& game, Move_list& moves) {
+__attribute__((always_inline)) void add_bishop_moves(Position& position, Move_list& moves) {
     uint64_t mask = 1ULL;
     constexpr uint8_t piece = (colour == WHITE) ? WHITE_BISHOP : BLACK_BISHOP;
     constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
-    uint64_t current_pieces = game.bitboards.bitboards[piece];
+    uint64_t current_pieces = position.bitboards.bitboards[piece];
     uint64_t targets;
     if constexpr (generate_captures_only) {
-        targets = (game.bitboards.occupied_tables[opposing_colour]);
+        targets = (position.bitboards.occupied_tables[opposing_colour]);
     } else {
-        targets = ~game.bitboards.occupied_tables[colour];
+        targets = ~position.bitboards.occupied_tables[colour];
     }
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t bishop_attacks = get_bishop_attacks(from_square, game.bitboards.occupied, game.bitboards) 
+        uint64_t bishop_attacks = get_bishop_attacks(from_square, position.bitboards.occupied, position.bitboards) 
         & targets;
         while (bishop_attacks) {
             int to_square = __builtin_ctzll(bishop_attacks);
             Move move;
-            move.set_move(from_square, to_square, piece, game.board[to_square]);
+            move.set_move(from_square, to_square, piece, position.board[to_square]);
             moves.list[moves.num_moves++] = move;
             bishop_attacks &= bishop_attacks - 1;
         }
@@ -197,27 +197,27 @@ __attribute__((always_inline)) void add_bishop_moves(Game& game, Move_list& move
 }
 
 template<int colour, bool generate_captures_only>
-__attribute__((always_inline)) void add_rook_moves(Game& game, Move_list& moves) {
+__attribute__((always_inline)) void add_rook_moves(Position& position, Move_list& moves) {
     uint64_t mask = 1ULL;
     constexpr uint8_t piece = (colour == WHITE) ? WHITE_ROOK : BLACK_ROOK;
     constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
-    uint64_t current_pieces = game.bitboards.bitboards[piece];
+    uint64_t current_pieces = position.bitboards.bitboards[piece];
     int local_counter = moves.num_moves;
     uint64_t targets;
     if constexpr (generate_captures_only) {
-        targets = (game.bitboards.occupied_tables[opposing_colour]);
+        targets = (position.bitboards.occupied_tables[opposing_colour]);
     } else {
-        targets = ~game.bitboards.occupied_tables[colour];
+        targets = ~position.bitboards.occupied_tables[colour];
     }
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t rook_attacks = get_rook_attacks(from_square, game.bitboards.occupied, game.bitboards) & 
+        uint64_t rook_attacks = get_rook_attacks(from_square, position.bitboards.occupied, position.bitboards) & 
         targets;
         //std::cout << "finding rook attacks\n";
         while (rook_attacks) {
             int to_square = __builtin_ctzll(rook_attacks);
             Move move;
-            move.set_move(from_square, to_square, piece, game.board[to_square]);
+            move.set_move(from_square, to_square, piece, position.board[to_square]);
             moves.list[local_counter++] = move;
             rook_attacks &= rook_attacks - 1;
         }
@@ -227,37 +227,37 @@ __attribute__((always_inline)) void add_rook_moves(Game& game, Move_list& moves)
 }
 
 template<int colour, bool generate_captures_only>
-__attribute__((always_inline)) void add_queen_moves(Game& game, Move_list& moves) {
+__attribute__((always_inline)) void add_queen_moves(Position& position, Move_list& moves) {
     uint64_t mask = 1ULL;
     constexpr uint8_t piece = (colour == WHITE) ? WHITE_QUEEN : BLACK_QUEEN;
     constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
-    uint64_t current_pieces = game.bitboards.bitboards[piece];
+    uint64_t current_pieces = position.bitboards.bitboards[piece];
     int local_counter = moves.num_moves;
     int to_square;
     uint64_t targets;
     if constexpr (generate_captures_only) {
-        targets = (game.bitboards.occupied_tables[opposing_colour]);
+        targets = (position.bitboards.occupied_tables[opposing_colour]);
     } else {
-        targets = ~game.bitboards.occupied_tables[colour];
+        targets = ~position.bitboards.occupied_tables[colour];
     }
 
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t bishop_attacks = get_bishop_attacks(from_square, game.bitboards.occupied, game.bitboards) & 
+        uint64_t bishop_attacks = get_bishop_attacks(from_square, position.bitboards.occupied, position.bitboards) & 
         targets;
         while (bishop_attacks) {
             to_square = __builtin_ctzll(bishop_attacks);
             Move move;
-            move.set_move(from_square, to_square, piece, game.board[to_square]);
+            move.set_move(from_square, to_square, piece, position.board[to_square]);
             moves.list[local_counter++] = move;
             bishop_attacks &= bishop_attacks - 1;
         }
-        uint64_t rook_attacks = get_rook_attacks(from_square, game.bitboards.occupied, game.bitboards) & 
+        uint64_t rook_attacks = get_rook_attacks(from_square, position.bitboards.occupied, position.bitboards) & 
         targets;
         while (rook_attacks) {
             to_square = __builtin_ctzll(rook_attacks);
             Move move;
-            move.set_move(from_square, to_square, piece, game.board[to_square]);
+            move.set_move(from_square, to_square, piece, position.board[to_square]);
             moves.list[local_counter++] = move;
             rook_attacks &= rook_attacks - 1;
         }
@@ -267,28 +267,28 @@ __attribute__((always_inline)) void add_queen_moves(Game& game, Move_list& moves
 }
 
 template<int colour, bool generate_captures_only>
-__attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves) {
+__attribute__((always_inline)) void add_king_moves(Position& position, Move_list& moves) {
 
     uint64_t mask = 1ULL;
     constexpr uint8_t piece = (colour == WHITE) ? WHITE_KING : BLACK_KING;
-    uint64_t current_pieces = game.bitboards.bitboards[piece];
+    uint64_t current_pieces = position.bitboards.bitboards[piece];
     uint64_t targets;
     if constexpr (generate_captures_only) {
         constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
-        targets = (game.bitboards.occupied_tables[opposing_colour]);
+        targets = (position.bitboards.occupied_tables[opposing_colour]);
     } else {
-        targets = ~game.bitboards.occupied_tables[colour];
+        targets = ~position.bitboards.occupied_tables[colour];
     }
     int local_counter = moves.num_moves;
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t king_moves = game.bitboards.king_moves[from_square];
+        uint64_t king_moves = position.bitboards.king_moves[from_square];
         while (king_moves) {
             int to_square = __builtin_ctzll(king_moves);
             if (mask << to_square & targets) {
                 //print_bitboard(bitboards.occupied_tables[turn]);
                 Move move;
-                move.set_move(from_square, to_square, piece, game.board[to_square]);
+                move.set_move(from_square, to_square, piece, position.board[to_square]);
                 moves.list[local_counter++] = move;
             }
             king_moves &= king_moves - 1;
@@ -304,10 +304,10 @@ __attribute__((always_inline)) void add_king_moves(Game& game, Move_list& moves)
                 move2.set_move(from_square, to_queenside_square, piece, 0);
                 move2.set_move_type(CASTLING);
                 //std::cout << "setting castling move\n";
-                if (validate_castling(game, move1) == 1) {
+                if (validate_castling(position, move1) == 1) {
                     moves.list[local_counter++] = move1;
                 }
-                if (validate_castling(game, move2) == 2) {
+                if (validate_castling(position, move2) == 2) {
                     moves.list[local_counter++] = move2;
                     //std::cout << "here\n";
                 }

@@ -1,20 +1,20 @@
 #include "perft.h"
 
-long long perft(Game& game, int depth) {
+long long perft(Position& position, int depth) {
     if (depth == 0) {
         return 1ULL;
     }
 
     long long nodes = 0;
     
-    Move_list moves = determine_possible_moves(game);
+    Move_list moves = determine_possible_moves(position);
 
     for (int i { 0 }; i < moves.num_moves; i++) {
         auto& move = moves.list[i];
 
-        if (make_test_move<false>(game, move)) {
-            nodes += perft(game, depth - 1);
-            undo_test_move<false>(game, move);
+        if (make_test_move<false>(position, move)) {
+            nodes += perft(position, depth - 1);
+            undo_test_move<false>(position, move);
         }
     }
 
@@ -22,13 +22,13 @@ long long perft(Game& game, int depth) {
 }
 
 // Function to run the test and print detailed results
-void run_perft_suite(Game& game, int depth) {
+void run_perft_suite(Position& position, int depth) {
     std::cout << "Starting Perft Test Depth " << depth << "...\n";
     auto start = std::chrono::steady_clock::now();
     
     long long total_nodes = 0;
     
-    Move_list moves = determine_possible_moves(game);
+    Move_list moves = determine_possible_moves(position);
     
     // sort by alphabetical order
     std::sort(moves.list.begin(), moves.list.begin() + moves.num_moves, [](const Move& a, const Move& b) {
@@ -37,11 +37,11 @@ void run_perft_suite(Game& game, int depth) {
     
     for (int i { 0 }; i < moves.num_moves; i++) {
         auto& move = moves.list[i];
-        if (make_test_move<false>(game, moves.list[i])) {
-            long long branches = perft(game, depth - 1);
+        if (make_test_move<false>(position, moves.list[i])) {
+            long long branches = perft(position, depth - 1);
             total_nodes += branches;
             std::cout << to_chess_notation(move) << ": " << branches << "\n";
-            undo_test_move<false>(game, move);
+            undo_test_move<false>(position, move);
         } 
     }
     
@@ -97,8 +97,8 @@ Move parse_move_string(Game& game, const std::string& s) {
 
     int prev_square = 56 - 8 * prev_row + prev_col;
     int new_square = 56 - 8 * new_row + new_col;
-    int piece_type = game.board[prev_square];
-    uint8_t captured = game.board[new_square];
+    int piece_type = game.position.board[prev_square];
+    uint8_t captured = game.position.board[new_square];
 
     Move move;
     move.set_move(prev_square, new_square, piece_type, captured);
@@ -126,7 +126,7 @@ Move parse_move_string(Game& game, const std::string& s) {
 
     if ((piece_type == BLACK_PAWN || piece_type == WHITE_PAWN) && prev_col != new_col && captured == EMPTY_SQUARE) {
         move.set_move_type(EN_PASSANT);
-        move.set_captured(game.board[56 - 8 * prev_row + new_col]); 
+        move.set_captured(game.position.board[56 - 8 * prev_row + new_col]); 
     }
 
     return move;

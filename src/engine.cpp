@@ -59,53 +59,53 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
     return NO_ENTRY_FOUND;
 }
 
-template<bool update_zobrist> void undo_test_move(Game& game, Move& prev_move) {
+template<bool update_zobrist> void undo_test_move(Position& position, Move& prev_move) {
 
-    undo_move<update_zobrist>(game, prev_move);
-    restore_zobrist_en_passant_and_castling<update_zobrist>(game, prev_move);
+    undo_move<update_zobrist>(position, prev_move);
+    restore_zobrist_en_passant_and_castling<update_zobrist>(position, prev_move);
     
-    game.turn = ((game.turn == BLACK) ? WHITE : BLACK);
-    if (!game.move_record.empty()) {
-        game.move_record.pop_back();
+    position.turn = ((position.turn == BLACK) ? WHITE : BLACK);
+    if (!position.move_record.empty()) {
+        position.move_record.pop_back();
     }
 
     if constexpr (update_zobrist) {
-        game.zobrist_hash ^= zobrist_black_turn;
-        if (!game.board_record.empty()) {
-            game.board_record.pop_back();
+        position.zobrist_hash ^= zobrist_black_turn;
+        if (!position.board_record.empty()) {
+            position.board_record.pop_back();
         }
     }
 }
 
-template<bool update_zobrist> bool make_test_move(Game& game, Move& move) {
+template<bool update_zobrist> bool make_test_move(Position& position, Move& move) {
 
-    assert(game.board[move.get_from_square()] != EMPTY_SQUARE);
+    assert(position.board[move.get_from_square()] != EMPTY_SQUARE);
     int to_square = move.get_to_square();
     int from_square = move.get_from_square();
     int turn = move.get_turn();
     uint8_t move_type = move.get_move_type();
 
-    update_zobrist_en_passant<update_zobrist>(game, move);
+    update_zobrist_en_passant<update_zobrist>(position, move);
 
     if (move_type == PROMOTION) {
         //std::cout << "promoting pawn\n";
     
-        move_piece<update_zobrist>(game, move.get_piece(), from_square, to_square, turn);
+        move_piece<update_zobrist>(position, move.get_piece(), from_square, to_square, turn);
         uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
-        replace_piece<update_zobrist>(game, turn, move.get_piece(), promotion_piece, to_square);
+        replace_piece<update_zobrist>(position, turn, move.get_piece(), promotion_piece, to_square);
 
-        update_castling_flags<update_zobrist>(game, move);
-        game.piece_selected = EMPTY_SQUARE;
-        game.turn = WHITE + BLACK - game.turn; // flip the turn
+        update_castling_flags<update_zobrist>(position, move);
+        //game.piece_selected = EMPTY_SQUARE;
+        position.turn = WHITE + BLACK - position.turn; // flip the turn
         if constexpr (update_zobrist) {
-            game.zobrist_hash ^= zobrist_black_turn;
-            game.board_record.push_back(game.zobrist_hash);
+            position.zobrist_hash ^= zobrist_black_turn;
+            position.board_record.push_back(position.zobrist_hash);
         }
-        game.move_record.push_back(move);
+        position.move_record.push_back(move);
 
-        if (is_square_attacked(game.bitboards, 
-            __builtin_ctzll(game.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
-            undo_test_move<update_zobrist>(game, move); 
+        if (is_square_attacked(position.bitboards, 
+            __builtin_ctzll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
+            undo_test_move<update_zobrist>(position, move); 
             return false; 
         }
         return true;
@@ -113,71 +113,71 @@ template<bool update_zobrist> bool make_test_move(Game& game, Move& move) {
 
     //std::cout << "just before moving piece\n";
     assert(from_square != to_square);
-    move_piece<update_zobrist>(game, move.get_piece(), from_square, to_square, turn);
+    move_piece<update_zobrist>(position, move.get_piece(), from_square, to_square, turn);
 
     if (move_type == CASTLING) {
         uint8_t piece = (turn == WHITE) ? WHITE_ROOK : BLACK_ROOK;
         int row = 7 - (to_square >> 3);
         if (to_square - from_square == 2) {
-            move_piece<update_zobrist>(game, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, turn);
+            move_piece<update_zobrist>(position, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, turn);
         } else if (to_square - from_square == -2) {
-            move_piece<update_zobrist>(game, piece, 56 - 8 * row, 56 - 8 * row + 3, turn);
+            move_piece<update_zobrist>(position, piece, 56 - 8 * row, 56 - 8 * row + 3, turn);
         }
     }
 
     if (move_type == EN_PASSANT) {
-        int captured_square = ((game.turn == WHITE) ? to_square - 8 : to_square + 8);
-        int opposing_turn = ((game.turn == WHITE)) ? BLACK : WHITE;
-        uint8_t captured_piece = (game.turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
-        remove_piece<update_zobrist>(game, opposing_turn, captured_piece, captured_square);
+        int captured_square = ((position.turn == WHITE) ? to_square - 8 : to_square + 8);
+        int opposing_turn = ((position.turn == WHITE)) ? BLACK : WHITE;
+        uint8_t captured_piece = (position.turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
+        remove_piece<update_zobrist>(position, opposing_turn, captured_piece, captured_square);
     } 
-    update_castling_flags<update_zobrist>(game, move);
-    game.turn = ((game.turn == WHITE) ? BLACK : WHITE);
+    update_castling_flags<update_zobrist>(position, move);
+    position.turn = ((position.turn == WHITE) ? BLACK : WHITE);
 
     if constexpr (update_zobrist) {
-        game.zobrist_hash ^= zobrist_black_turn;
-        game.board_record.push_back(game.zobrist_hash);
+        position.zobrist_hash ^= zobrist_black_turn;
+        position.board_record.push_back(position.zobrist_hash);
     }
-    game.move_record.push_back(move);
+    position.move_record.push_back(move);
 
-    if (is_square_attacked(game.bitboards, 
-        __builtin_ctzll(game.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
-        undo_test_move<update_zobrist>(game, move); 
+    if (is_square_attacked(position.bitboards, 
+        __builtin_ctzll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
+        undo_test_move<update_zobrist>(position, move); 
         return false; 
     }
     return true;
 }
 
-void make_null_move(Game& game, int& stored_ep_square, uint64_t& stored_hash) {
-    stored_ep_square = game.en_passant_square;
-    stored_hash = game.zobrist_hash;
+void make_null_move(Position& position, int& stored_ep_square, uint64_t& stored_hash) {
+    stored_ep_square = position.en_passant_square;
+    stored_hash = position.zobrist_hash;
 
-    game.turn = (game.turn == WHITE) ? BLACK : WHITE;
-    game.zobrist_hash ^= zobrist_black_turn;
+    position.turn = (position.turn == WHITE) ? BLACK : WHITE;
+    position.zobrist_hash ^= zobrist_black_turn;
 
-    if (game.en_passant_square != -1) {
-        int file = game.en_passant_square % 8;
-        game.zobrist_hash ^= zobrist_en_passant[file];
-        game.en_passant_square = -1;
+    if (position.en_passant_square != -1) {
+        int file = position.en_passant_square % 8;
+        position.zobrist_hash ^= zobrist_en_passant[file];
+        position.en_passant_square = -1;
     }
 }
 
-void undo_null_move(Game& game, int stored_ep_square, uint64_t stored_hash) {
-    game.zobrist_hash = stored_hash;
-    game.en_passant_square = stored_ep_square;
-    game.turn = (game.turn == WHITE) ? BLACK : WHITE;
+void undo_null_move(Position& position, int stored_ep_square, uint64_t stored_hash) {
+    position.zobrist_hash = stored_hash;
+    position.en_passant_square = stored_ep_square;
+    position.turn = (position.turn == WHITE) ? BLACK : WHITE;
 }
 
-void generate_computer_move(Game& game) {
+void generate_computer_move(Position& position) {
     if (thinking_in_progress) {
         return;
     }
     thinking_in_progress = true;
     positions_searched = 0;
-    Game game_copy = game;
+    Position position_copy = position;
     auto start = std::chrono::steady_clock::now();
-    std::thread computer_thread([game_copy, start]() mutable {
-        Move chosen_move = get_best_move(game_copy, 2000);
+    std::thread computer_thread([position_copy, start]() mutable {
+        Move chosen_move = get_best_move(position_copy, 2000);
         computer_turn = thinking_in_progress = false;
         finished = true;
         calculated_move = chosen_move;
@@ -194,13 +194,13 @@ void make_computer_move(Game& game) {
         Move chosen_move = calculated_move;
         std::cout << "best move calculated: ";
         std::cout << chosen_move.get_from_square() << " -> " << chosen_move.get_to_square() << '\n';
-        if (game.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
-            chosen_move.set_captured(game.board[chosen_move.get_to_square()]);
+        if (game.position.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
+            chosen_move.set_captured(game.position.board[chosen_move.get_to_square()]);
         }
-        int result = validate_move(game, chosen_move);
-        make_game_move(game, result, chosen_move);
-        if (game.promoting_pawn) {
-            chosen_move.set_promotion_piece(game.piece_selected);
+        int result = validate_move(game.position, chosen_move);
+        make_game_move(game.position, game.history_log, game.ui, result, chosen_move);
+        if (game.ui.promoting_pawn) {
+            chosen_move.set_promotion_piece(game.ui.piece_selected);
             handle_pawn_promotion(game, chosen_move);
         }
         verify_board_sync(game);
@@ -210,14 +210,14 @@ void make_computer_move(Game& game) {
     finished = false;
 }
 
-Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
+Move get_best_move(Position& position, int search_allocated_time_ms, int search_depth) {
     Move current_best_move {};
     Move overall_best_move {};
     search_start_time = std::chrono::steady_clock::now();
     terminate_search = false;
     nodes_searched = 0, positions_searched = 0;
     int overall_best_score, depth_best_score = -50000;
-    Move_list possible_moves = determine_possible_moves(game);
+    Move_list possible_moves = determine_possible_moves(position);
 
     for (int depth { 1 }; depth <= search_depth; depth++) {
         int seldepth = 0;
@@ -227,7 +227,7 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
         int move_num = 0;
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
-            return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
+            return sort_moves_by_priority(position, move1) > sort_moves_by_priority(position, move2);
         });
         for (int i { 1 }; i < possible_moves.num_moves; i++) {
             if (possible_moves.list[i] == current_best_move) {
@@ -239,18 +239,17 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
             auto& move = possible_moves.list[i];
 
-            if (!make_test_move<true>(game, move)) {
+            if (!make_test_move<true>(position, move)) {
                 continue;
             };
 
-            move_eval = find_eval(game, move_num, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
+            move_eval = find_eval(position, move_num, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
             move_num++;
-            undo_test_move<true>(game, move);
+            undo_test_move<true>(position, move);
 
             if (terminate_search) {
                 break; 
             }
-            //move_eval += (std::rand() % 5) - 2;
             //std::cout << "depth:" <<  depth << " e: " << move << ' ' << move_eval << ' ' << game.turn << '\n';
         
             alpha = std::max(move_eval, alpha);
@@ -289,17 +288,17 @@ Move get_best_move(Game& game, int search_allocated_time_ms, int search_depth) {
 // negamax function:
 // - alpha: the highest score that the maximising player can guarantee
 // - beta: the lowest score that the minimising player can guarantee
-int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_time_ms, int ply,
+int negamax(Position& position, int depth, int alpha, int beta, int search_allocated_time_ms, int ply,
     int& seldepth) { 
     nodes_searched++;
     if (ply > seldepth) {
         seldepth = ply;
     }
-    if (determine_repetition(game)) {
+    if (determine_repetition(position)) {
         return 0;
     }
     Move stored_move {};
-    int stored_eval = probe_transposition_table(game.zobrist_hash, depth, alpha, beta, stored_move, ply);
+    int stored_eval = probe_transposition_table(position.zobrist_hash, depth, alpha, beta, stored_move, ply);
     if (stored_eval != NO_ENTRY_FOUND) {
         return stored_eval;
     }
@@ -307,16 +306,16 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         return 0;
     }
 
-    uint8_t piece = (game.turn == WHITE) ? WHITE_KING : BLACK_KING;
-    int king_square = __builtin_ctzll(game.bitboards.bitboards[piece]);
-    bool in_check = is_square_attacked(game.bitboards, king_square, game.turn);
+    uint8_t piece = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
+    int king_square = __builtin_ctzll(position.bitboards.bitboards[piece]);
+    bool in_check = is_square_attacked(position.bitboards, king_square, position.turn);
     int extension = 0;
     if (in_check && ply <= 50) {
         extension = 1;
     }
 
     if (depth + extension == 0) {
-        return quiescence_search(game, alpha, beta, ply, seldepth);
+        return quiescence_search(position, alpha, beta, ply, seldepth);
     }
     if ((nodes_searched & 2047) == 0) {
         auto now = std::chrono::steady_clock::now();
@@ -327,22 +326,22 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         }
     }
     bool has_major_pieces = false;
-    if (game.turn == WHITE) {
-        has_major_pieces = (game.bitboards.bitboards[WHITE_KNIGHT] | game.bitboards.bitboards[WHITE_BISHOP] | 
-            game.bitboards.bitboards[WHITE_ROOK] | game.bitboards.bitboards[WHITE_QUEEN]);
+    if (position.turn == WHITE) {
+        has_major_pieces = (position.bitboards.bitboards[WHITE_KNIGHT] | position.bitboards.bitboards[WHITE_BISHOP] | 
+            position.bitboards.bitboards[WHITE_ROOK] | position.bitboards.bitboards[WHITE_QUEEN]);
     } else {
-        has_major_pieces = (game.bitboards.bitboards[BLACK_KNIGHT] | game.bitboards.bitboards[BLACK_BISHOP] | 
-            game.bitboards.bitboards[BLACK_ROOK] | game.bitboards.bitboards[BLACK_QUEEN]);
+        has_major_pieces = (position.bitboards.bitboards[BLACK_KNIGHT] | position.bitboards.bitboards[BLACK_BISHOP] | 
+            position.bitboards.bitboards[BLACK_ROOK] | position.bitboards.bitboards[BLACK_QUEEN]);
     }
 
     if (depth >= 3 && !in_check && ply > 0 && has_major_pieces) {
         int stored_ep_square;
         uint64_t stored_hash;
         int reduction = 2;
-        make_null_move(game, stored_ep_square, stored_hash);
-        int eval = -negamax(game, depth - 1 - reduction, -beta, -beta + 1, search_allocated_time_ms, 
+        make_null_move(position, stored_ep_square, stored_hash);
+        int eval = -negamax(position, depth - 1 - reduction, -beta, -beta + 1, search_allocated_time_ms, 
             ply + 1, seldepth);
-        undo_null_move(game, stored_ep_square, stored_hash);
+        undo_null_move(position, stored_ep_square, stored_hash);
         if (terminate_search) {
             return 0;
         }
@@ -351,8 +350,8 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         }
     }
     int num_legal_moves = 0;
-    Move_list possible_moves = determine_possible_moves(game);
-    uint8_t king = (game.turn == WHITE) ? WHITE_KING : BLACK_KING;
+    Move_list possible_moves = determine_possible_moves(position);
+    uint8_t king = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
 
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
@@ -362,7 +361,7 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         if (move2 == stored_move) {
             return false;
         }
-        return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
+        return sort_moves_by_priority(position, move1) > sort_moves_by_priority(position, move2);
     });
  
     int max_eval = -600000;
@@ -373,13 +372,13 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
 
-        if (!make_test_move<true>(game, possible_move)) {
+        if (!make_test_move<true>(position, possible_move)) {
             continue;
         };
-        move_eval = find_eval(game, num_legal_moves, depth + extension, beta, alpha, 
+        move_eval = find_eval(position, num_legal_moves, depth + extension, beta, alpha, 
             search_allocated_time_ms, ply + 1, seldepth);
         num_legal_moves++;
-        undo_test_move<true>(game, possible_move);
+        undo_test_move<true>(position, possible_move);
 
         if (move_eval > max_eval) {
             max_eval = move_eval;
@@ -393,8 +392,8 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
     }
 
     if (num_legal_moves == 0) {
-        int king_square = __builtin_ctzll(game.bitboards.bitboards[king]);
-        if (is_square_attacked(game.bitboards, king_square, game.turn)) {
+        int king_square = __builtin_ctzll(position.bitboards.bitboards[king]);
+        if (is_square_attacked(position.bitboards, king_square, position.turn)) {
             return -400000 + ply;
         } else {
             return 0;
@@ -410,55 +409,55 @@ int negamax(Game& game, int depth, int alpha, int beta, int search_allocated_tim
         } else {
             flag = tt_flag::tt_exact;
         }
-        record_entry(game.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
+        record_entry(position.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
     }
     return max_eval;
 }
 
 // principal variation search
-inline int find_eval(Game& game, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms,
+inline int find_eval(Position& position, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms,
     int ply, int& seldepth) {
     if (terminate_search) {
         return 0;
     }
     int move_eval;
     if (move_num == 0) {
-        move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
+        move_eval = -negamax(position, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
     } else {
-        move_eval = -negamax(game, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply, seldepth);
+        move_eval = -negamax(position, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply, seldepth);
         if (move_eval > alpha && move_eval < beta) {
-            move_eval = -negamax(game, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
+            move_eval = -negamax(position, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
         }
     }
     return move_eval;
 }
 
 // evaluation function, based on material and piece square tables
-int evaluate(Game& game) {
+int evaluate(Position& position) {
     int eval { 0 };
-    game.value_white_pieces = game.value_black_pieces = 0;
+    position.value_white_pieces = position.value_black_pieces = 0;
     for (int piece { 1 }; piece < 6; piece++) {
-        int current_material = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece];
-        game.value_white_pieces += current_material;
+        int current_material = __builtin_popcountll(position.bitboards.bitboards[piece]) * piece_values[piece];
+        position.value_white_pieces += current_material;
         eval += current_material;
     }
     for (int piece { 9 }; piece < 14; piece++) {
-        int current_material = __builtin_popcountll(game.bitboards.bitboards[piece]) * piece_values[piece - 8];
-        game.value_black_pieces += current_material;
+        int current_material = __builtin_popcountll(position.bitboards.bitboards[piece]) * piece_values[piece - 8];
+        position.value_black_pieces += current_material;
         eval -= current_material;
     }
     for (int piece { 1 }; piece <= 6; piece++) {
-        eval += positional_eval(game, game.bitboards.bitboards[piece], piece);
+        eval += positional_eval(position, position.bitboards.bitboards[piece], piece);
     }
     for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= positional_eval(game, game.bitboards.bitboards[piece], piece - 8, true);
+        eval -= positional_eval(position, position.bitboards.bitboards[piece], piece - 8, true);
     }
     return eval;
 }
 
-__attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard, uint8_t piece, bool black) {
+__attribute__((always_inline)) int positional_eval(Position& position, uint64_t bitboard, uint8_t piece, bool black) {
     int eval { 0 };
-    double material_phase = (8000 - game.value_white_pieces - game.value_black_pieces) / 8000.0;
+    double material_phase = (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0;
     int idx = piece - 1;
     while (bitboard) {
         int square = (!black) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
@@ -469,7 +468,7 @@ __attribute__((always_inline)) int positional_eval(Game& game, uint64_t bitboard
     return eval;
 }
 
-int sort_moves_by_priority(Game& game, Move& move) {
+int sort_moves_by_priority(Position& position, Move& move) {
     int move_score_guess = 0;
     int square = (move.get_turn() == WHITE) ? move.get_to_square() : move.get_to_square() ^ 56;
     uint8_t piece = move.get_piece();
@@ -481,7 +480,7 @@ int sort_moves_by_priority(Game& game, Move& move) {
         captured -= 8;
     }
     move_score_guess += 30 * (start_value_tables[piece - 1][square] + 
-        (8000 - game.value_white_pieces - game.value_black_pieces) / 8000.0 *
+        (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0 *
         (start_value_tables[piece - 1][square] - endgame_value_tables[piece - 1][square]));
     if (captured != EMPTY_SQUARE) {
         move_score_guess += (10000 * piece_values[captured] - piece_values[piece]);
@@ -496,8 +495,8 @@ int sort_moves_by_priority(Game& game, Move& move) {
 }
 
 // search captures deeper, until the position is "quiet"
-int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth) {
-    int stand_pat = evaluate(game) * ((game.turn == WHITE) ? 1 : -1);
+int quiescence_search(Position& position, int alpha, int beta, int ply, int& seldepth) {
+    int stand_pat = evaluate(position) * ((position.turn == WHITE) ? 1 : -1);
     positions_searched++;
     if (ply > seldepth) {
         seldepth = ply;
@@ -508,18 +507,18 @@ int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth) {
     if (stand_pat > alpha) {
         alpha = stand_pat;
     }
-    Move_list possible_moves = generate_captures_only(game);
+    Move_list possible_moves = generate_captures_only(position);
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(game, move1) > sort_moves_by_priority(game, move2);
+        return sort_moves_by_priority(position, move1) > sort_moves_by_priority(position, move2);
     });
     //std::cout << possible_moves.num_moves << '\n';
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
-        if (!make_test_move<true>(game, possible_moves.list[i])) {
+        if (!make_test_move<true>(position, possible_moves.list[i])) {
             continue;
         }
-        int score = -quiescence_search(game, -beta, -alpha, ply + 1, seldepth);
-        undo_test_move<true>(game, possible_moves.list[i]);
+        int score = -quiescence_search(position, -beta, -alpha, ply + 1, seldepth);
+        undo_test_move<true>(position, possible_moves.list[i]);
         if (score >= beta) {
             return beta;
         } 
@@ -531,49 +530,49 @@ int quiescence_search(Game& game, int alpha, int beta, int ply, int& seldepth) {
 }
 
 // generates all possible pseudolegal moves (does not care if it leaves king in check)
-Move_list determine_possible_moves(Game& game) {
+Move_list determine_possible_moves(Position& position) {
     Move_list moves;
-    if (game.turn == WHITE) {
-        add_pawn_moves<WHITE, false>(game, moves);
-        add_knight_moves<WHITE, false>(game, moves);
-        add_bishop_moves<WHITE, false>(game, moves);
-        add_rook_moves<WHITE, false>(game, moves);
-        add_queen_moves<WHITE, false>(game, moves);
-        add_king_moves<WHITE, false>(game, moves);
+    if (position.turn == WHITE) {
+        add_pawn_moves<WHITE, false>(position, moves);
+        add_knight_moves<WHITE, false>(position, moves);
+        add_bishop_moves<WHITE, false>(position, moves);
+        add_rook_moves<WHITE, false>(position, moves);
+        add_queen_moves<WHITE, false>(position, moves);
+        add_king_moves<WHITE, false>(position, moves);
     } else {
-        add_pawn_moves<BLACK, false>(game, moves);
-        add_knight_moves<BLACK, false>(game, moves);
-        add_bishop_moves<BLACK, false>(game, moves);
-        add_rook_moves<BLACK, false>(game, moves);
-        add_queen_moves<BLACK, false>(game, moves);
-        add_king_moves<BLACK, false>(game, moves);
+        add_pawn_moves<BLACK, false>(position, moves);
+        add_knight_moves<BLACK, false>(position, moves);
+        add_bishop_moves<BLACK, false>(position, moves);
+        add_rook_moves<BLACK, false>(position, moves);
+        add_queen_moves<BLACK, false>(position, moves);
+        add_king_moves<BLACK, false>(position, moves);
     }
     return moves;
 }
 
 // generates all possible pseudolegal capture moves (does not care if it leaves king in check)
-Move_list generate_captures_only(Game& game) {
+Move_list generate_captures_only(Position& position) {
     Move_list moves;
-    if (game.turn == WHITE) {
-        add_pawn_moves<WHITE, true>(game, moves);
-        add_knight_moves<WHITE, true>(game, moves);
-        add_bishop_moves<WHITE, true>(game, moves);
-        add_rook_moves<WHITE, true>(game, moves);
-        add_queen_moves<WHITE, true>(game, moves);
-        add_king_moves<WHITE, true>(game, moves);
+    if (position.turn == WHITE) {
+        add_pawn_moves<WHITE, true>(position, moves);
+        add_knight_moves<WHITE, true>(position, moves);
+        add_bishop_moves<WHITE, true>(position, moves);
+        add_rook_moves<WHITE, true>(position, moves);
+        add_queen_moves<WHITE, true>(position, moves);
+        add_king_moves<WHITE, true>(position, moves);
     } else {
-        add_pawn_moves<BLACK, true>(game, moves);
-        add_knight_moves<BLACK, true>(game, moves);
-        add_bishop_moves<BLACK, true>(game, moves);
-        add_rook_moves<BLACK, true>(game, moves);
-        add_queen_moves<BLACK, true>(game, moves);
-        add_king_moves<BLACK, true>(game, moves);
+        add_pawn_moves<BLACK, true>(position, moves);
+        add_knight_moves<BLACK, true>(position, moves);
+        add_bishop_moves<BLACK, true>(position, moves);
+        add_rook_moves<BLACK, true>(position, moves);
+        add_queen_moves<BLACK, true>(position, moves);
+        add_king_moves<BLACK, true>(position, moves);
     }
     return moves;
 }
 
-template void undo_test_move<false>(Game& game, Move& prev_move);
-template void undo_test_move<true>(Game& game, Move& prev_move);
-template bool make_test_move<false>(Game& game, Move& move);
-template bool make_test_move<true>(Game& game, Move& move);
+template void undo_test_move<false>(Position& position, Move& prev_move);
+template void undo_test_move<true>(Position& position, Move& prev_move);
+template bool make_test_move<false>(Position& position, Move& move);
+template bool make_test_move<true>(Position& position, Move& move);
 

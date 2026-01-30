@@ -26,11 +26,11 @@ void run_game_loop() {
     window.setFramerateLimit(60);
 
     while (window.isOpen()) {
-        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == WHITE) ||
-            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.turn == BLACK)) {
+        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.position.turn == WHITE) ||
+            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.position.turn == BLACK)) {
             
             if (!finished) {
-                generate_computer_move(game);
+                generate_computer_move(game.position);
             } else {
                 std::cout << "Searched: " << positions_searched << '\n';
                 make_computer_move(game);

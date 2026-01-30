@@ -13,27 +13,13 @@ Game::Game() {
 }
 
 void Game::initialise() {
-    current_move = {};
     calculated_move = {}, 
-    dragged_piece = EMPTY_SQUARE, 
-    notation_history.clear(); 
-    plys_to_100_tracking.clear();
-    history_scroll_offset = 0;
-    move_num = 1;
-    conflict = file_ambiguous = rank_ambiguous = false;
-    //en_passant_index = 8,
-    zobrist_hash = 0ULL,
-    value_white_pieces = value_black_pieces = 0;
-    winner = piece_selected = selected_square = -1;
-    white_in_check = black_in_check = promoting_pawn = move_ready = false;
+    move_ready = false;
     game_status = 0b00000000;
-    bitboards = {};
-    castling_rights = 0b00000000;
-    move_record.clear();
-    en_passant_square = -1;
-    current_ply_num = 0;
-    first_move_filler = false;
-    board_record.clear();
+    winner = -1;
+    ui.initialise();
+    position.initialise();
+    history_log.initialise();
     clear_transposition_table();
 }
 
@@ -55,14 +41,14 @@ int handle_fen_string(Game& game) {
         return INVALID;
     }
 
-    if (fill_board(game, split_fen[0]) == INVALID) {
+    if (fill_board(game.position, split_fen[0]) == INVALID) {
         return INVALID;
     }
     
     if (split_fen[1] == "b") {
-        game.turn = BLACK;
+        game.position.turn = BLACK;
     } else if (split_fen[1] == "w") {
-        game.turn = WHITE;
+        game.position.turn = WHITE;
     } else {
         return INVALID;
     }
@@ -70,82 +56,82 @@ int handle_fen_string(Game& game) {
     uint64_t mask = 1ULL;
     for (char letter: split_fen[2]) {    
         if (letter == 'K') {
-            game.castling_rights |= (mask << 3);
+            game.position.castling_rights |= (mask << 3);
         } else if (letter == 'Q') {
-            game.castling_rights |= (mask << 2);
+            game.position.castling_rights |= (mask << 2);
         } else if (letter == 'k') {
-            game.castling_rights |= (mask << 1);
+            game.position.castling_rights |= (mask << 1);
         } else if (letter == 'q') {
-            game.castling_rights |= mask;
+            game.position.castling_rights |= mask;
         } else if (letter == '-') {
-            game.castling_rights = 0b00000000;
+            game.position.castling_rights = 0b00000000;
         } else {
             return INVALID;
         }  
     }
     //std::cout << std::bitset<8>(game.castling_rights);
-    if (process_en_passant_square(game, split_fen[3]) == INVALID) {
+    if (process_en_passant_square(game.position, game.history_log, split_fen[3]) == INVALID) {
         return INVALID;
     }
-    game.plys_to_100 = std::stoi(split_fen[4]);
-    game.plys_to_100_tracking.push_back(game.plys_to_100);
+    game.position.plys_to_100 = std::stoi(split_fen[4]);
+    game.position.plys_to_100_tracking.push_back(game.position.plys_to_100);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
-    game.move_num = std::stoi(split_fen[5]);
+    game.history_log.move_num = std::stoi(split_fen[5]);
 
     if (check_position_validity(game) == INVALID) {
         return INVALID;
     }
-    find_position_hash(game);
+    find_position_hash(game.position);
     return VALID;
 }
 
-int fill_board(Game& game, std::string& fen_board_section) {
+int fill_board(Position& position, std::string& fen_board_section) {
     int curr_square = 56;
     int ranks = 1;
     int row_squares_recorded = 0;
     uint64_t mask = 1ULL;
-    game.bitboards.init_bitboards();
+    position.bitboards.init_bitboards();
     for (int i { 0 }; i < 64; i++) {
-        game.board[i] = EMPTY_SQUARE;
+        position.board[i] = EMPTY_SQUARE;
     }
 
     for (char letter: fen_board_section) {
         if (letter == 'r') {
-            game.board[curr_square] = BLACK_ROOK;
-            game.bitboards.bitboards[BLACK_ROOK] |= mask << curr_square;
+            position.board[curr_square] = BLACK_ROOK;
+            position.bitboards.bitboards[BLACK_ROOK] |= mask << curr_square;
         } else if (letter == 'n') {
-            game.board[curr_square] = BLACK_KNIGHT;
-            game.bitboards.bitboards[BLACK_KNIGHT] |= mask << curr_square;
+            position.board[curr_square] = BLACK_KNIGHT;
+            position.bitboards.bitboards[BLACK_KNIGHT] |= mask << curr_square;
         } else if (letter == 'b') {
-            game.board[curr_square] = BLACK_BISHOP;
-            game.bitboards.bitboards[BLACK_BISHOP] |= mask << curr_square;
+            position.board[curr_square] = BLACK_BISHOP;
+            position.bitboards.bitboards[BLACK_BISHOP] |= mask << curr_square;
         } else if (letter == 'q') {
-            game.board[curr_square] = BLACK_QUEEN;
-            game.bitboards.bitboards[BLACK_QUEEN] |= mask << curr_square;
+            position.board[curr_square] = BLACK_QUEEN;
+            position.bitboards.bitboards[BLACK_QUEEN] |= mask << curr_square;
         } else if (letter == 'k') {
-            game.board[curr_square] = BLACK_KING;
-            game.bitboards.bitboards[BLACK_KING] |= mask << curr_square;
+            position.board[curr_square] = BLACK_KING;
+            position.bitboards.bitboards[BLACK_KING] |= mask << curr_square;
         } else if (letter == 'p') {
-            game.board[curr_square] = BLACK_PAWN;
-            game.bitboards.bitboards[BLACK_PAWN] |= mask << curr_square;          
+            position.board[curr_square] = BLACK_PAWN;
+            position.bitboards.bitboards[BLACK_PAWN] |= mask << curr_square;          
         } else if (letter == 'R') {
-            game.board[curr_square] = WHITE_ROOK;
-            game.bitboards.bitboards[WHITE_ROOK] |= mask << curr_square;
+            position.board[curr_square] = WHITE_ROOK;
+            position.bitboards.bitboards[WHITE_ROOK] |= mask << curr_square;
         } else if (letter == 'N') { 
-            game.board[curr_square] = WHITE_KNIGHT;
-            game.bitboards.bitboards[WHITE_KNIGHT] |= mask << curr_square;
+            position.board[curr_square] = WHITE_KNIGHT;
+            position.bitboards.bitboards[WHITE_KNIGHT] |= mask << curr_square;
         } else if (letter == 'B') {
-            game.board[curr_square] = WHITE_BISHOP;
-            game.bitboards.bitboards[WHITE_BISHOP] |= mask << curr_square;
+            position.board[curr_square] = WHITE_BISHOP;
+            position.bitboards.bitboards[WHITE_BISHOP] |= mask << curr_square;
         } else if (letter == 'Q') {
-            game.board[curr_square] = WHITE_QUEEN;
-            game.bitboards.bitboards[WHITE_QUEEN] |= mask << curr_square;
+            position.board[curr_square] = WHITE_QUEEN;
+            position.bitboards.bitboards[WHITE_QUEEN] |= mask << curr_square;
         } else if (letter == 'K') {
-            game.board[curr_square] = WHITE_KING;
-            game.bitboards.bitboards[WHITE_KING] |= mask << curr_square;
+            position.board[curr_square] = WHITE_KING;
+            position.bitboards.bitboards[WHITE_KING] |= mask << curr_square;
         } else if (letter == 'P') {
-            game.board[curr_square] = WHITE_PAWN;
-            game.bitboards.bitboards[WHITE_PAWN] |= mask << curr_square;          
+            position.board[curr_square] = WHITE_PAWN;
+            position.bitboards.bitboards[WHITE_PAWN] |= mask << curr_square;          
         } 
         //std::cout << curr_square << '\n';
         if (curr_square >= 65) {
@@ -176,17 +162,17 @@ int fill_board(Game& game, std::string& fen_board_section) {
     if (row_squares_recorded != 8 || ranks != 8) {
         return INVALID;
     }
-    game.bitboards.update_occupied();
+    position.bitboards.update_occupied();
     return VALID;
 }
 
-int process_en_passant_square(Game& game, std::string& en_passant_square) {
+int process_en_passant_square(Position& position, History_log& history_log, std::string& en_passant_square) {
 
     if (en_passant_square == "-") {
-        game.en_passant_index = 8;
-        if (game.turn == BLACK) {
-            game.notation_history.push_back("...");
-            game.first_move_filler = true;
+        position.en_passant_index = 8;
+        if (position.turn == BLACK) {
+            history_log.notation_history.push_back("...");
+            history_log.first_move_filler = true;
         }
         return VALID;
     }
@@ -197,39 +183,39 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
         return INVALID;
     }
     uint64_t mask = 1ULL;
-    if (mask << square & game.bitboards.occupied) {
+    if (mask << square & position.bitboards.occupied) {
         return INVALID;
     }
     
     if (square >= 16 && square <= 23) {
-        if ((game.bitboards.bitboards[WHITE_PAWN] & (mask << (square + 8))) &&
-            ~game.bitboards.occupied & mask << (square - 8) && game.turn == BLACK) {
+        if ((position.bitboards.bitboards[WHITE_PAWN] & (mask << (square + 8))) &&
+            ~position.bitboards.occupied & mask << (square - 8) && position.turn == BLACK) {
             Move prev_move;
             prev_move.set_move(square - 8, square + 8, WHITE_PAWN, EMPTY_SQUARE);
-            prev_move.set_castling_flags(game.castling_rights);
-            game.move_record.push_back(prev_move);
-            game.en_passant_index = square % 8;
-            game.en_passant_square = square;
-            game.current_ply_num++;
-            if (game.turn == WHITE) {
-                game.notation_history.push_back("...");
-                game.first_move_filler = true;
+            prev_move.set_castling_flags(position.castling_rights);
+            position.move_record.push_back(prev_move);
+            position.en_passant_index = square % 8;
+            position.en_passant_square = square;
+            history_log.current_ply_num++;
+            if (position.turn == WHITE) {
+                history_log.notation_history.push_back("...");
+                history_log.first_move_filler = true;
             }
             return VALID;
         }
     } else if (square >= 40 && square <= 47) {
-        if ((game.bitboards.bitboards[BLACK_PAWN] & (mask << (square - 8))) &&
-            ~game.bitboards.occupied & mask << (square + 8) && game.turn == WHITE) {
+        if ((position.bitboards.bitboards[BLACK_PAWN] & (mask << (square - 8))) &&
+            ~position.bitboards.occupied & mask << (square + 8) && position.turn == WHITE) {
             Move prev_move;
             prev_move.set_move(square + 8, square - 8, BLACK_PAWN, EMPTY_SQUARE);
-            prev_move.set_castling_flags(game.castling_rights);
-            game.move_record.push_back(prev_move);
-            game.en_passant_index = square % 8;
-            game.en_passant_square = square;
-            game.current_ply_num++;
-            if (game.turn == WHITE) {
-                game.notation_history.push_back("...");
-                game.first_move_filler = true;
+            prev_move.set_castling_flags(position.castling_rights);
+            position.move_record.push_back(prev_move);
+            position.en_passant_index = square % 8;
+            position.en_passant_square = square;
+            history_log.current_ply_num++;
+            if (position.turn == WHITE) {
+                history_log.notation_history.push_back("...");
+                history_log.first_move_filler = true;
             }
             return VALID;
         }
@@ -242,26 +228,26 @@ int process_en_passant_square(Game& game, std::string& en_passant_square) {
 // - no pawns on its colour's promotion rank
 // - the king cannot be captured on the next turn 
 int check_position_validity(Game& game) {
-    if (__builtin_popcountll(game.bitboards.bitboards[BLACK_KING]) != 1 ||
-        __builtin_popcountll(game.bitboards.bitboards[WHITE_KING]) != 1) {
+    if (__builtin_popcountll(game.position.bitboards.bitboards[BLACK_KING]) != 1 ||
+        __builtin_popcountll(game.position.bitboards.bitboards[WHITE_KING]) != 1) {
         return INVALID;
     }
-    if ((game.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||
-        (game.bitboards.bitboards[WHITE_PAWN] & RANK_MASKS[7])) {
+    if ((game.position.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||
+        (game.position.bitboards.bitboards[WHITE_PAWN] & RANK_MASKS[7])) {
         return INVALID;
     }
 
-    int black_king_square = __builtin_ctzll(game.bitboards.bitboards[BLACK_KING]);
-    int white_king_square = __builtin_ctzll(game.bitboards.bitboards[WHITE_KING]);
+    int black_king_square = __builtin_ctzll(game.position.bitboards.bitboards[BLACK_KING]);
+    int white_king_square = __builtin_ctzll(game.position.bitboards.bitboards[WHITE_KING]);
 
-    if (is_square_attacked(game.bitboards, white_king_square, WHITE)) {
-        game.white_in_check = true;
+    if (is_square_attacked(game.position.bitboards, white_king_square, WHITE)) {
+        game.position.white_in_check = true;
     }
-    if (is_square_attacked(game.bitboards, black_king_square, BLACK)) {
-        game.black_in_check = true;
+    if (is_square_attacked(game.position.bitboards, black_king_square, BLACK)) {
+        game.position.black_in_check = true;
     }
-    if ((game.black_in_check && game.turn == WHITE) || 
-        (game.white_in_check && game.turn == BLACK)) {
+    if ((game.position.black_in_check && game.position.turn == WHITE) || 
+        (game.position.white_in_check && game.position.turn == BLACK)) {
         return INVALID;
     }
     return VALID;
@@ -269,7 +255,7 @@ int check_position_validity(Game& game) {
 
 std::string to_algebreic_notation(Game& game) {
     std::string s;
-    Move last_move = game.move_record.back();
+    Move last_move = game.position.move_record.back();
     int from_square = last_move.get_from_square();
     int to_square = last_move.get_to_square();
     uint8_t piece = last_move.get_piece();
@@ -301,10 +287,10 @@ std::string to_algebreic_notation(Game& game) {
         } else if (piece == WHITE_KING || piece == BLACK_KING) {
             s += "K";
         } 
-        if (game.conflict) {
-            if (!game.file_ambiguous) {
+        if (game.history_log.conflict) {
+            if (!game.history_log.file_ambiguous) {
                 s += ('a' + prev_col);
-            } else if (!game.rank_ambiguous) {
+            } else if (!game.history_log.rank_ambiguous) {
                 s += ('8' - prev_row);
             } else {
                 s += ('a' + prev_col);
@@ -331,24 +317,24 @@ std::string to_algebreic_notation(Game& game) {
     }
     if (game.game_status & (1ULL << 3)) {
         s += "#";
-    } else if (game.black_in_check || game.white_in_check) {
+    } else if (game.position.black_in_check || game.position.white_in_check) {
         s += "+";
     }
     return s;
 }
 
-void disambiguate(Game& game, Move& move) {
+void disambiguate(Position& position, History_log& history_log, Move& move) {
     int to_square = move.get_to_square();
     int from_square = move.get_from_square();
-    game.file_ambiguous = false;
-    game.rank_ambiguous = false;
-    game.conflict = false;
+    history_log.file_ambiguous = false;
+    history_log.rank_ambiguous = false;
+    history_log.conflict = false;
     uint8_t piece = move.get_piece();
     if (piece == BLACK_PAWN || piece == WHITE_PAWN) {
         return;
     }
 
-    uint64_t pieces = game.bitboards.bitboards[piece];
+    uint64_t pieces = position.bitboards.bitboards[piece];
     while (pieces) {
         int other_from_square = __builtin_ctzll(pieces);
         if (other_from_square == from_square) {
@@ -356,13 +342,13 @@ void disambiguate(Game& game, Move& move) {
             continue;
         }
         Move test_move;
-        test_move.set_move(other_from_square, to_square, piece, game.board[to_square]);
-        if (validate_move(game, test_move) == VALID) {
-            game.conflict = true;
+        test_move.set_move(other_from_square, to_square, piece, position.board[to_square]);
+        if (validate_move(position, test_move) == VALID) {
+            history_log.conflict = true;
             if (other_from_square % 8 == from_square % 8) {
-                game.file_ambiguous = true;
+                history_log.file_ambiguous = true;
             } else if (other_from_square / 8 == from_square / 8) {
-                game.rank_ambiguous = true;
+                history_log.rank_ambiguous = true;
             }
         }
         pieces &= pieces - 1;
@@ -459,9 +445,9 @@ void verify_board_sync(Game& game) {
     std::vector<int> bitboards_filled;
     for (int square { 0 }; square < 63; square++) {
         bitboards_filled.clear();
-        piece = game.board[square];
+        piece = game.position.board[square];
         if (piece != EMPTY_SQUARE) {
-            if (!(game.bitboards.bitboards[game.board[square]] & (1ULL << square))) {
+            if (!(game.position.bitboards.bitboards[game.position.board[square]] & (1ULL << square))) {
                 std::cout << "[DESYNC] Missing piece number " << piece << "at square " << square << '\n';
             }
             if (bit_filled_count(game, bitboards_filled, square) > 1) {
@@ -487,13 +473,13 @@ void verify_board_sync(Game& game) {
 int bit_filled_count(Game& game, std::vector<int>& bitboards_filled, int square) {
     int count = 0;
     for (int i { 1 }; i < 6; i++) {
-        if (game.bitboards.bitboards[i] & (1ULL << square)) {
+        if (game.position.bitboards.bitboards[i] & (1ULL << square)) {
             count++;
             bitboards_filled.push_back(i);
         }
     }
     for (int i { 9 }; i < 14; i++) {
-        if (game.bitboards.bitboards[i] & (1ULL << square)) {
+        if (game.position.bitboards.bitboards[i] & (1ULL << square)) {
             count++;
             bitboards_filled.push_back(i);
         }
@@ -503,13 +489,13 @@ int bit_filled_count(Game& game, std::vector<int>& bitboards_filled, int square)
 
 bool verify_zobrist_sync(Game& game) {
 
-    uint64_t stored_hash = game.zobrist_hash;
+    uint64_t stored_hash = game.position.zobrist_hash;
 
-    game.zobrist_hash = 0; 
-    find_position_hash(game);
-    uint64_t calculated_hash = game.zobrist_hash;
+    game.position.zobrist_hash = 0; 
+    find_position_hash(game.position);
+    uint64_t calculated_hash = game.position.zobrist_hash;
 
-    game.zobrist_hash = stored_hash;
+    game.position.zobrist_hash = stored_hash;
 
     if (calculated_hash != stored_hash) {
         std::cout << "HASH MISMATCH!\n";
