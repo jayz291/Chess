@@ -183,7 +183,7 @@ __attribute__((always_inline)) void add_bishop_moves(Position& position, Move_li
     }
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t bishop_attacks = get_bishop_attacks(from_square, position.bitboards.occupied, position.bitboards) 
+        uint64_t bishop_attacks = position.get_bishop_attacks(from_square, position.bitboards.occupied) 
         & targets;
         while (bishop_attacks) {
             int to_square = __builtin_ctzll(bishop_attacks);
@@ -211,7 +211,7 @@ __attribute__((always_inline)) void add_rook_moves(Position& position, Move_list
     }
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t rook_attacks = get_rook_attacks(from_square, position.bitboards.occupied, position.bitboards) & 
+        uint64_t rook_attacks = position.get_rook_attacks(from_square, position.bitboards.occupied) & 
         targets;
         //std::cout << "finding rook attacks\n";
         while (rook_attacks) {
@@ -243,7 +243,7 @@ __attribute__((always_inline)) void add_queen_moves(Position& position, Move_lis
 
     while (current_pieces) {
         int from_square = __builtin_ctzll(current_pieces);
-        uint64_t bishop_attacks = get_bishop_attacks(from_square, position.bitboards.occupied, position.bitboards) & 
+        uint64_t bishop_attacks = position.get_bishop_attacks(from_square, position.bitboards.occupied) & 
         targets;
         while (bishop_attacks) {
             to_square = __builtin_ctzll(bishop_attacks);
@@ -252,7 +252,7 @@ __attribute__((always_inline)) void add_queen_moves(Position& position, Move_lis
             moves.list[local_counter++] = move;
             bishop_attacks &= bishop_attacks - 1;
         }
-        uint64_t rook_attacks = get_rook_attacks(from_square, position.bitboards.occupied, position.bitboards) & 
+        uint64_t rook_attacks = position.get_rook_attacks(from_square, position.bitboards.occupied) & 
         targets;
         while (rook_attacks) {
             to_square = __builtin_ctzll(rook_attacks);
@@ -304,10 +304,10 @@ __attribute__((always_inline)) void add_king_moves(Position& position, Move_list
                 move2.set_move(from_square, to_queenside_square, piece, 0);
                 move2.set_move_type(CASTLING);
                 //std::cout << "setting castling move\n";
-                if (validate_castling(position, move1) == 1) {
+                if (position.validate_castling(move1) == 1) {
                     moves.list[local_counter++] = move1;
                 }
-                if (validate_castling(position, move2) == 2) {
+                if (position.validate_castling(move2) == 2) {
                     moves.list[local_counter++] = move2;
                     //std::cout << "here\n";
                 }

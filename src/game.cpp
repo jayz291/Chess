@@ -80,7 +80,7 @@ int handle_fen_string(Game& game) {
     if (check_position_validity(game) == INVALID) {
         return INVALID;
     }
-    find_position_hash(game.position);
+    game.position.find_position_hash();
     return VALID;
 }
 
@@ -239,10 +239,10 @@ int check_position_validity(Game& game) {
     int black_king_square = __builtin_ctzll(game.position.bitboards.bitboards[BLACK_KING]);
     int white_king_square = __builtin_ctzll(game.position.bitboards.bitboards[WHITE_KING]);
 
-    if (is_square_attacked(game.position.bitboards, white_king_square, WHITE)) {
+    if (game.position.is_square_attacked(white_king_square, WHITE)) {
         game.position.white_in_check = true;
     }
-    if (is_square_attacked(game.position.bitboards, black_king_square, BLACK)) {
+    if (game.position.is_square_attacked(black_king_square, BLACK)) {
         game.position.black_in_check = true;
     }
     if ((game.position.black_in_check && game.position.turn == WHITE) || 
@@ -342,7 +342,7 @@ void disambiguate(Position& position, Log& log, Move& move) {
         }
         Move test_move;
         test_move.set_move(other_from_square, to_square, piece, position.board[to_square]);
-        if (validate_move(position, test_move) == VALID) {
+        if (position.validate_move(test_move) == VALID) {
             log.conflict = true;
             if (other_from_square % 8 == from_square % 8) {
                 log.file_ambiguous = true;
@@ -491,7 +491,7 @@ bool verify_zobrist_sync(Position& position) {
     uint64_t stored_hash = position.zobrist_hash;
 
     position.zobrist_hash = 0; 
-    find_position_hash(position);
+    position.find_position_hash();
     uint64_t calculated_hash = position.zobrist_hash;
 
     position.zobrist_hash = stored_hash;

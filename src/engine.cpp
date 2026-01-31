@@ -61,16 +61,16 @@ int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move
 
 template<bool update_zobrist> void undo_test_move(Position& position, Move& prev_move) {
 
-    undo_move<update_zobrist>(position, prev_move);
-    restore_zobrist_en_passant_and_castling<update_zobrist>(position, prev_move);
+    undo_move<update_zobrist>(prev_move);
+    restore_zobrist_en_passant_and_castling<update_zobrist>(prev_move);
     
-    position.turn = ((position.turn == BLACK) ? WHITE : BLACK);
-    if (!position.move_record.empty()) {
-        position.move_record.pop_back();
+    turn = ((turn == BLACK) ? WHITE : BLACK);
+    if (!move_record.empty()) {
+        move_record.pop_back();
     }
 
     if constexpr (update_zobrist) {
-        position.zobrist_hash ^= zobrist_black_turn;
+        zobrist_hash ^= zobrist_black_turn;
         if (!position.board_record.empty()) {
             position.board_record.pop_back();
         }
@@ -82,30 +82,35 @@ template<bool update_zobrist> bool make_test_move(Position& position, Move& move
     assert(position.board[move.get_from_square()] != EMPTY_SQUARE);
     int to_square = move.get_to_square();
     int from_square = move.get_from_square();
-    int turn = move.get_turn();
+    int current_turn = move.get_turn();
     uint8_t move_type = move.get_move_type();
 
-    update_zobrist_en_passant<update_zobrist>(position, move);
+    update_zobrist_en_passant<update_zobrist>(move);
 
     if (move_type == PROMOTION) {
         //std::cout << "promoting pawn\n";
     
-        move_piece<update_zobrist>(position, move.get_piece(), from_square, to_square, turn);
+        position.move_piece<update_zobrist>(move.get_piece(), from_square, to_square, current_turn);
         uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
-        replace_piece<update_zobrist>(position, turn, move.get_piece(), promotion_piece, to_square);
+        position.replace_piece<update_zobrist>(current_turn, move.get_piece(), promotion_piece, to_square);
 
-        update_castling_flags<update_zobrist>(position, move);
+        position.update_castling_flags<update_zobrist>(move);
         //game.piece_selected = EMPTY_SQUARE;
-        position.turn = WHITE + BLACK - position.turn; // flip the turn
+        turn = WHITE + BLACK - turn; // flip the turn
         if constexpr (update_zobrist) {
-            position.zobrist_hash ^= zobrist_black_turn;
-            position.board_record.push_back(position.zobrist_hash);
+            zobrist_hash ^= zobrist_black_turn;
+            board_record.push_back(zobrist_hash);
         }
-        position.move_record.push_back(move);
+        move_record.push_back(move);
+        uint8_t king_piece = (turn == WHITE) ? WHITE_KING : BLACK_KING;
+        if (bitboards.bitboards[king_piece] == 0) {
+        position.undo_test_move<update_zobrist>(move);
+        return false; // Move is illegal (King is dead)
+        }
 
-        if (is_square_attacked(position.bitboards, 
-            __builtin_ctzll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
-            undo_test_move<update_zobrist>(position, move); 
+        if (position.is_square_attacked( 
+            __builtin_ctzll(bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), current_turn)) {
+            position.undo_test_move<update_zobrist>(move); 
             return false; 
         }
         return true;
@@ -113,59 +118,59 @@ template<bool update_zobrist> bool make_test_move(Position& position, Move& move
 
     //std::cout << "just before moving piece\n";
     assert(from_square != to_square);
-    move_piece<update_zobrist>(position, move.get_piece(), from_square, to_square, turn);
+    move_piece<update_zobrist>(move.get_piece(), from_square, to_square, current_turn);
 
     if (move_type == CASTLING) {
-        uint8_t piece = (turn == WHITE) ? WHITE_ROOK : BLACK_ROOK;
+        uint8_t piece = (current_turn == WHITE) ? WHITE_ROOK : BLACK_ROOK;
         int row = 7 - (to_square >> 3);
         if (to_square - from_square == 2) {
-            move_piece<update_zobrist>(position, piece, 56 - 8 * row + 7, 56 - 8 * row + 5, turn);
+            move_piece<update_zobrist>(piece, 56 - 8 * row + 7, 56 - 8 * row + 5, current_turn);
         } else if (to_square - from_square == -2) {
-            move_piece<update_zobrist>(position, piece, 56 - 8 * row, 56 - 8 * row + 3, turn);
+            move_piece<update_zobrist>(piece, 56 - 8 * row, 56 - 8 * row + 3, current_turn);
         }
     }
 
     if (move_type == EN_PASSANT) {
-        int captured_square = ((position.turn == WHITE) ? to_square - 8 : to_square + 8);
-        int opposing_turn = ((position.turn == WHITE)) ? BLACK : WHITE;
-        uint8_t captured_piece = (position.turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
-        remove_piece<update_zobrist>(position, opposing_turn, captured_piece, captured_square);
+        int captured_square = ((turn == WHITE) ? to_square - 8 : to_square + 8);
+        int opposing_turn = ((turn == WHITE)) ? BLACK : WHITE;
+        uint8_t captured_piece = (turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
+        remove_piece<update_zobrist>(opposing_turn, captured_piece, captured_square);
     } 
-    update_castling_flags<update_zobrist>(position, move);
-    position.turn = ((position.turn == WHITE) ? BLACK : WHITE);
+    update_castling_flags<update_zobrist>(move);
+    turn = ((turn == WHITE) ? BLACK : WHITE);
 
     if constexpr (update_zobrist) {
-        position.zobrist_hash ^= zobrist_black_turn;
-        position.board_record.push_back(position.zobrist_hash);
+        zobrist_hash ^= zobrist_black_turn;
+        board_record.push_back(zobrist_hash);
     }
-    position.move_record.push_back(move);
+    move_record.push_back(move);
 
-    if (is_square_attacked(position.bitboards, 
-        __builtin_ctzll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
-        undo_test_move<update_zobrist>(position, move); 
+    if (is_square_attacked(
+        __builtin_ctzll(bitboards.bitboards[(current_turn == WHITE) ? WHITE_KING : BLACK_KING]), current_turn)) {
+        undo_test_move<update_zobrist>(move); 
         return false; 
     }
     return true;
 }
 
-void make_null_move(Position& position, int& stored_ep_square, uint64_t& stored_hash) {
-    stored_ep_square = position.en_passant_square;
-    stored_hash = position.zobrist_hash;
+void Position::make_null_move(int& stored_ep_square, uint64_t& stored_hash) {
+    stored_ep_square = en_passant_square;
+    stored_hash = zobrist_hash;
 
-    position.turn = (position.turn == WHITE) ? BLACK : WHITE;
-    position.zobrist_hash ^= zobrist_black_turn;
+    turn = (turn == WHITE) ? BLACK : WHITE;
+    zobrist_hash ^= zobrist_black_turn;
 
-    if (position.en_passant_square != -1) {
-        int file = position.en_passant_square % 8;
-        position.zobrist_hash ^= zobrist_en_passant[file];
-        position.en_passant_square = -1;
+    if (en_passant_square != -1) {
+        int file = en_passant_square % 8;
+        zobrist_hash ^= zobrist_en_passant[file];
+        en_passant_square = -1;
     }
 }
 
-void undo_null_move(Position& position, int stored_ep_square, uint64_t stored_hash) {
-    position.zobrist_hash = stored_hash;
-    position.en_passant_square = stored_ep_square;
-    position.turn = (position.turn == WHITE) ? BLACK : WHITE;
+void Position::undo_null_move(int stored_ep_square, uint64_t stored_hash) {
+    zobrist_hash = stored_hash;
+    en_passant_square = stored_ep_square;
+    turn = (turn == WHITE) ? BLACK : WHITE;
 }
 
 void generate_computer_move(Position& position) {
@@ -197,7 +202,7 @@ void make_computer_move(Game& game) {
         if (game.position.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
             chosen_move.set_captured(game.position.board[chosen_move.get_to_square()]);
         }
-        int result = validate_move(game.position, chosen_move);
+        int result = game.position.validate_move(chosen_move);
         make_game_move(game, result, chosen_move);
         if (game.ui.promoting_pawn) {
             chosen_move.set_promotion_piece(game.ui.piece_selected);
@@ -239,13 +244,13 @@ Move get_best_move(Position& position, int search_allocated_time_ms, int search_
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
             auto& move = possible_moves.list[i];
 
-            if (!make_test_move<true>(position, move)) {
+            if (!position.make_test_move<true>(move)) {
                 continue;
             };
 
             move_eval = find_eval(position, move_num, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
             move_num++;
-            undo_test_move<true>(position, move);
+            position.undo_test_move<true>(move);
 
             if (terminate_search) {
                 break; 
@@ -308,7 +313,7 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
 
     uint8_t piece = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
     int king_square = __builtin_ctzll(position.bitboards.bitboards[piece]);
-    bool in_check = is_square_attacked(position.bitboards, king_square, position.turn);
+    bool in_check = position.is_square_attacked(king_square, position.turn);
     int extension = 0;
     if (in_check && ply <= 50) {
         extension = 1;
@@ -338,10 +343,10 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
         int stored_ep_square;
         uint64_t stored_hash;
         int reduction = 2;
-        make_null_move(position, stored_ep_square, stored_hash);
+        position.make_null_move(stored_ep_square, stored_hash);
         int eval = -negamax(position, depth - 1 - reduction, -beta, -beta + 1, search_allocated_time_ms, 
             ply + 1, seldepth);
-        undo_null_move(position, stored_ep_square, stored_hash);
+        position.undo_null_move(stored_ep_square, stored_hash);
         if (terminate_search) {
             return 0;
         }
@@ -372,13 +377,13 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
 
-        if (!make_test_move<true>(position, possible_move)) {
+        if (!position.make_test_move<true>(possible_move)) {
             continue;
         };
         move_eval = find_eval(position, num_legal_moves, depth + extension, beta, alpha, 
             search_allocated_time_ms, ply + 1, seldepth);
         num_legal_moves++;
-        undo_test_move<true>(position, possible_move);
+        position.undo_test_move<true>(possible_move);
 
         if (move_eval > max_eval) {
             max_eval = move_eval;
@@ -393,7 +398,7 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
 
     if (num_legal_moves == 0) {
         int king_square = __builtin_ctzll(position.bitboards.bitboards[king]);
-        if (is_square_attacked(position.bitboards, king_square, position.turn)) {
+        if (position.is_square_attacked(king_square, position.turn)) {
             return -400000 + ply;
         } else {
             return 0;
@@ -514,11 +519,11 @@ int quiescence_search(Position& position, int alpha, int beta, int ply, int& sel
     });
     //std::cout << possible_moves.num_moves << '\n';
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
-        if (!make_test_move<true>(position, possible_moves.list[i])) {
+        if (!position.make_test_move<true>(possible_moves.list[i])) {
             continue;
         }
         int score = -quiescence_search(position, -beta, -alpha, ply + 1, seldepth);
-        undo_test_move<true>(position, possible_moves.list[i]);
+        position.undo_test_move<true>(possible_moves.list[i]);
         if (score >= beta) {
             return beta;
         } 
@@ -571,8 +576,8 @@ Move_list generate_captures_only(Position& position) {
     return moves;
 }
 
-template void undo_test_move<false>(Position& position, Move& prev_move);
-template void undo_test_move<true>(Position& position, Move& prev_move);
-template bool make_test_move<false>(Position& position, Move& move);
-template bool make_test_move<true>(Position& position, Move& move);
+template void Position::undo_test_move<false>(Move& prev_move);
+template void Position::undo_test_move<true>(Move& prev_move);
+template bool Position::make_test_move<false>(Move& move);
+template bool Position::make_test_move<true>(Move& move);
 
