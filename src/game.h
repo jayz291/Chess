@@ -69,7 +69,10 @@ struct Position {
     template<bool update_zobrist> void update_zobrist_en_passant(Move& move);
     template<bool update_zobrist> void move_piece(uint8_t target_piece, int from_square, int to_square, int turn);
     template<bool update_zobrist> void undo_move(Move& prev_move);
-
+    template<bool update_zobrist> void undo_test_move(Move& prev_move);
+    template<bool update_zobrist> bool make_test_move(Move& move);
+    void make_null_move(int& stored_ep_square, uint64_t& stored_hash);
+    void undo_null_move(int stored_ep_square, uint64_t stored_hash);
 };
 
 struct Log {
