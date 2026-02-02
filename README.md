@@ -5,7 +5,7 @@ Chess in C++, with a basic frontend built using SFML and with a (seemingly) UCI-
 ## Details
 * **Board Representation:** Bitboards (uint64_t) to represent each chess piece (1 for occupied, 0 for not occupied), as well as a 1D array of length 64. 
 * **Move Representation:** Uses uint32_t to represent each move.
-* **Search:** Uses negamax with alpha-beta pruning, transposition tables, check extensions, quiescence search, move ordering, and null move pruning. 
+* **Search:** Uses negamax with alpha-beta pruning, transposition tables, check extensions, quiescence search, move ordering, null move pruning and principal variation search. 
 * **Evaluation:** Uses piece square tables and material value.
 
 ## Prerequisites
