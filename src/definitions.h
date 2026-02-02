@@ -525,8 +525,9 @@ struct Bitboards {
             fill_attack_square(square, WHITE_ROOK);
             fill_attack_square(square, WHITE_BISHOP);
         }
-        //std::cout << "done\n";
     }
+    uint64_t get_rook_attacks(int square, uint64_t occupancy);
+    uint64_t get_bishop_attacks(int square, uint64_t occupancy);
 };
 
 enum class Gamestate {

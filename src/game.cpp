@@ -22,6 +22,39 @@ void Game::initialise() {
     clear_transposition_table();
 }
 
+void Position::initialise() {
+    plys_to_100_tracking.clear();
+    move_record.clear();
+    board_record.clear();
+    white_in_check = black_in_check = false;
+    board = {};
+    bitboards = {};
+    plys_to_100 = 0;
+    en_passant_square = -1;
+    value_white_pieces = value_black_pieces = 0;
+    castling_rights = 0b00000000;
+    zobrist_hash = 0ULL;
+    current_move = {};
+}
+
+void Log::initialise() {
+    rank_ambiguous = file_ambiguous = conflict = false;
+    first_move_filler = false;
+    notation_history.clear();
+    current_ply_num = 0;
+    history_scroll_offset = 0;
+    move_num = 1;
+}
+
+void UI::initialise() {
+    invalid_fen_position = false;
+    promoting_pawn = false;
+    selected_square = -1;
+    piece_selected = -1;
+    is_dragging = false;
+    dragged_piece = EMPTY_SQUARE;
+}
+
 int handle_fen_string(Game& game) {
     std::string fen_string = game.entered_fen.toAnsiString();
     game.final_fen = game.entered_fen.toAnsiString();

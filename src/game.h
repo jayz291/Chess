@@ -29,20 +29,7 @@ struct Position {
     int value_black_pieces;
     uint64_t zobrist_hash;
     Move current_move;
-    void initialise() {
-        plys_to_100_tracking.clear();
-        move_record.clear();
-        board_record.clear();
-        white_in_check = black_in_check = false;
-        board = {};
-        bitboards = {};
-        plys_to_100 = 0;
-        en_passant_square = -1;
-        value_white_pieces = value_black_pieces = 0;
-        castling_rights = 0b00000000;
-        zobrist_hash = 0ULL;
-        current_move = {};
-    }
+    void initialise();
     void find_position_hash();
 
     int validate_move(Move& move);
@@ -56,8 +43,6 @@ struct Position {
     void evaluate_king_checks();
     int is_square_attacked(int square, int turn);
     bool more_moves_available(Move_list moves);
-    uint64_t get_rook_attacks(int square, uint64_t occupancy);
-    uint64_t get_bishop_attacks(int square, uint64_t occupancy);
 
     template<bool update_zobrist> void update_castling_flags(Move& move);
     template<bool update_zobrist> void replace_piece(int turn, uint8_t prev_piece, 
@@ -82,14 +67,7 @@ struct Log {
     int current_ply_num;
     int move_num;
     std::vector<std::string> notation_history {};
-    void initialise() {
-        rank_ambiguous = file_ambiguous = conflict = false;
-        first_move_filler = false;
-        notation_history.clear();
-        current_ply_num = 0;
-        history_scroll_offset = 0;
-        move_num = 1;
-    }
+    void initialise();
 };
 
 struct UI {
@@ -100,14 +78,7 @@ struct UI {
     int piece_selected;
     bool is_dragging;
     uint8_t dragged_piece;
-    void initialise() {
-        invalid_fen_position = false;
-        promoting_pawn = false;
-        selected_square = -1;
-        piece_selected = -1;
-        is_dragging = false;
-        dragged_piece = EMPTY_SQUARE;
-    }
+    void initialise();
 };
 
 struct Result {

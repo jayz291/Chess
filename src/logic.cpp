@@ -173,19 +173,19 @@ uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask) {
 }
 
 // rook attack table lookup using magic nums
-uint64_t Position::get_rook_attacks(int square, uint64_t occupancy) {
-    occupancy &= bitboards.rook_masks[square];
-    occupancy *= bitboards.rook_magic_nums[square];
-    occupancy >>= (64 - bitboards.rook_shifts[square]);
-    return bitboards.rook_attack_table[square][occupancy];
+uint64_t Bitboards::get_rook_attacks(int square, uint64_t occupancy) {
+    occupancy &= rook_masks[square];
+    occupancy *= rook_magic_nums[square];
+    occupancy >>= (64 - rook_shifts[square]);
+    return rook_attack_table[square][occupancy];
 }
 
 // bishop attack table lookup using magic nums
-uint64_t Position::get_bishop_attacks(int square, uint64_t occupancy) {
-    occupancy &= bitboards.bishop_masks[square];
-    occupancy *= bitboards.bishop_magic_nums[square];
-    occupancy >>= (64 - bitboards.bishop_shifts[square]);
-    return bitboards.bishop_attack_table[square][occupancy];
+uint64_t Bitboards::get_bishop_attacks(int square, uint64_t occupancy) {
+    occupancy &= bishop_masks[square];
+    occupancy *= bishop_magic_nums[square];
+    occupancy >>= (64 - bishop_shifts[square]);
+    return bishop_attack_table[square][occupancy];
 }
 
 // function to prevent board wraparounds
@@ -760,8 +760,8 @@ int Position::is_square_attacked(int square, int turn) {
     if (bitboards.king_moves[square] & bitboards.bitboards[WHITE_KING + offset]) {
         return 1;
     }
-    uint64_t bishop_attacks = get_bishop_attacks(square, bitboards.occupied);
-    uint64_t rook_attacks = get_rook_attacks(square, bitboards.occupied);
+    uint64_t bishop_attacks = bitboards.get_bishop_attacks(square, bitboards.occupied);
+    uint64_t rook_attacks = bitboards.get_rook_attacks(square, bitboards.occupied);
     if ((bishop_attacks & bitboards.bitboards[WHITE_BISHOP + offset]) || 
         (bishop_attacks & bitboards.bitboards[WHITE_QUEEN + offset])) {
         return 1;
