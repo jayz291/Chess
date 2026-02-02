@@ -103,13 +103,13 @@ template<bool update_zobrist> bool Position::make_test_move(Move& move) {
         }
         move_record.push_back(move);
 
-        if (__builtin_popcountll(bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
+        if (__builtin_popcountll(bitboards.bitboards[(current_turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
             undo_test_move<update_zobrist>(move);
             return false;
         }
 
         if (is_square_attacked( 
-            __builtin_ctzll(bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), current_turn)) {
+            __builtin_ctzll(bitboards.bitboards[(current_turn == WHITE) ? WHITE_KING : BLACK_KING]), current_turn)) {
             undo_test_move<update_zobrist>(move); 
             return false; 
         }
