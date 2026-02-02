@@ -103,7 +103,7 @@ template<bool update_zobrist> bool make_test_move(Position& position, Move& move
         }
         position.move_record.push_back(move);
 
-        if (__builtin_popcountll(position.bitboards.bitboards[(turn == WHITE)] ? WHITE_KING : BLACK_KING) == 0) {
+        if (__builtin_popcountll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
             undo_test_move<update_zobrist>(position, move);
             return false;
         }
@@ -144,7 +144,7 @@ template<bool update_zobrist> bool make_test_move(Position& position, Move& move
         position.board_record.push_back(position.zobrist_hash);
     }
     position.move_record.push_back(move);
-    if (__builtin_popcountll(position.bitboards.bitboards[(turn == WHITE)] ? WHITE_KING : BLACK_KING) == 0) {
+    if (__builtin_popcountll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
         undo_test_move<update_zobrist>(position, move);
         return false;
     }
