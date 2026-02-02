@@ -1,4 +1,5 @@
 #include "perft.h"
+#include "movegen.h"
 
 long long perft(Position& position, int depth) {
     if (depth == 0) {
@@ -7,7 +8,8 @@ long long perft(Position& position, int depth) {
 
     long long nodes = 0;
     
-    Move_list moves = determine_possible_moves(position);
+    MoveGen move_generator(position);
+    Move_list moves = move_generator.determine_possible_moves();
 
     for (int i { 0 }; i < moves.num_moves; i++) {
         auto& move = moves.list[i];
@@ -28,7 +30,8 @@ void run_perft_suite(Position& position, int depth) {
     
     long long total_nodes = 0;
     
-    Move_list moves = determine_possible_moves(position);
+    MoveGen move_generator(position);
+    Move_list moves = move_generator.determine_possible_moves();
     
     // sort by alphabetical order
     std::sort(moves.list.begin(), moves.list.begin() + moves.num_moves, [](const Move& a, const Move& b) {

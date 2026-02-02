@@ -1,5 +1,6 @@
 #include "logic.h"
 #include "engine.h"
+#include "movegen.h"
 #include "perft.h"
 #include <iostream>
 
@@ -476,7 +477,8 @@ void is_game_over(Game& game) {
     game.position.board_record.push_back(game.position.zobrist_hash);
     
     Position position_copy = game.position;
-    Move_list moves = determine_possible_moves(position_copy);
+    MoveGen move_generator(position_copy);
+    Move_list moves = move_generator.determine_possible_moves();
     //std::cout << game.plys_to_100 << '\n';
     if (!position_copy.more_moves_available(moves) || determine_repetition(game.position, game.result) || 
         determine_insufficient_material(game.position, game.result) || game.position.plys_to_100 == 100) {

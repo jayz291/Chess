@@ -16,7 +16,7 @@ void clear_transposition_table() {
     }
 }
 
-void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
+void Engine::record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     int stored_score = eval;
     if (eval > CHECKMATE_THRESHOLD) {
@@ -34,7 +34,7 @@ void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_mov
     transposition_table[index].depth = depth;
 }
 
-int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move, int ply) {
+int Engine::probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     table_entry entry = transposition_table[index];
     int return_eval = entry.eval;
@@ -187,7 +187,8 @@ void generate_computer_move(Position& position) {
     Position position_copy = position;
     auto start = std::chrono::steady_clock::now();
     std::thread computer_thread([position_copy, start]() mutable {
-        Move chosen_move = get_best_move(position_copy, 2000);
+        Engine engine(position_copy, 2000);
+        Move chosen_move = engine.get_best_move();
         computer_turn = thinking_in_progress = false;
         finished = true;
         calculated_move = chosen_move;
@@ -220,14 +221,15 @@ void make_computer_move(Game& game) {
     finished = false;
 }
 
-Move get_best_move(Position& position, int search_allocated_time_ms, int search_depth) {
+Move Engine::get_best_move(int search_depth) {
     Move current_best_move {};
     Move overall_best_move {};
     search_start_time = std::chrono::steady_clock::now();
     terminate_search = false;
     nodes_searched = 0, positions_searched = 0;
     int overall_best_score, depth_best_score = -50000;
-    Move_list possible_moves = determine_possible_moves(position);
+    MoveGen move_generator(position);
+    Move_list possible_moves = move_generator.determine_possible_moves();
 
     for (int depth { 1 }; depth <= search_depth; depth++) {
         int seldepth = 0;
@@ -237,7 +239,7 @@ Move get_best_move(Position& position, int search_allocated_time_ms, int search_
         int move_num = 0;
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
-            return sort_moves_by_priority(position, move1) > sort_moves_by_priority(position, move2);
+            return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
         });
         for (int i { 1 }; i < possible_moves.num_moves; i++) {
             if (possible_moves.list[i] == current_best_move) {
@@ -253,7 +255,7 @@ Move get_best_move(Position& position, int search_allocated_time_ms, int search_
                 continue;
             };
 
-            move_eval = find_eval(position, move_num, depth, beta, alpha, search_allocated_time_ms, 1, seldepth);
+            move_eval = find_eval(move_num, depth, beta, alpha, 1, seldepth);
             move_num++;
             position.undo_test_move<true>(move);
 
@@ -298,8 +300,7 @@ Move get_best_move(Position& position, int search_allocated_time_ms, int search_
 // negamax function:
 // - alpha: the highest score that the maximising player can guarantee
 // - beta: the lowest score that the minimising player can guarantee
-int negamax(Position& position, int depth, int alpha, int beta, int search_allocated_time_ms, int ply,
-    int& seldepth) { 
+int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) { 
     nodes_searched++;
     if (ply > seldepth) {
         seldepth = ply;
@@ -325,7 +326,7 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
     }
 
     if (depth + extension == 0) {
-        return quiescence_search(position, alpha, beta, ply, seldepth);
+        return quiescence_search(alpha, beta, ply, seldepth);
     }
     if ((nodes_searched & 2047) == 0) {
         auto now = std::chrono::steady_clock::now();
@@ -349,8 +350,7 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
         uint64_t stored_hash;
         int reduction = 2;
         position.make_null_move(stored_ep_square, stored_hash);
-        int eval = -negamax(position, depth - 1 - reduction, -beta, -beta + 1, search_allocated_time_ms, 
-            ply + 1, seldepth);
+        int eval = -negamax(depth - 1 - reduction, -beta, -beta + 1, ply + 1, seldepth);
         position.undo_null_move(stored_ep_square, stored_hash);
         if (terminate_search) {
             return 0;
@@ -360,7 +360,8 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
         }
     }
     int num_legal_moves = 0;
-    Move_list possible_moves = determine_possible_moves(position);
+    MoveGen move_generator(position);
+    Move_list possible_moves = move_generator.determine_possible_moves();
     uint8_t king = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
 
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
@@ -371,7 +372,7 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
         if (move2 == stored_move) {
             return false;
         }
-        return sort_moves_by_priority(position, move1) > sort_moves_by_priority(position, move2);
+        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
     });
  
     int max_eval = -600000;
@@ -385,8 +386,7 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
         if (!position.make_test_move<true>(possible_move)) {
             continue;
         };
-        move_eval = find_eval(position, num_legal_moves, depth + extension, beta, alpha, 
-            search_allocated_time_ms, ply + 1, seldepth);
+        move_eval = find_eval(num_legal_moves, depth + extension, beta, alpha, ply + 1, seldepth);
         num_legal_moves++;
         position.undo_test_move<true>(possible_move);
 
@@ -425,25 +425,24 @@ int negamax(Position& position, int depth, int alpha, int beta, int search_alloc
 }
 
 // principal variation search
-inline int find_eval(Position& position, int move_num, int depth, int beta, int alpha, int search_allocated_time_ms,
-    int ply, int& seldepth) {
+inline int Engine::find_eval(int move_num, int depth, int beta, int alpha, int ply, int& seldepth) {
     if (terminate_search) {
         return 0;
     }
     int move_eval;
     if (move_num == 0) {
-        move_eval = -negamax(position, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
+        move_eval = -negamax(depth - 1, -beta, -alpha, ply, seldepth);
     } else {
-        move_eval = -negamax(position, depth - 1, -alpha - 1, -alpha, search_allocated_time_ms, ply, seldepth);
+        move_eval = -negamax(depth - 1, -alpha - 1, -alpha, ply, seldepth);
         if (move_eval > alpha && move_eval < beta) {
-            move_eval = -negamax(position, depth - 1, -beta, -alpha, search_allocated_time_ms, ply, seldepth);
+            move_eval = -negamax(depth - 1, -beta, -alpha, ply, seldepth);
         }
     }
     return move_eval;
 }
 
 // evaluation function, based on material and piece square tables
-int evaluate(Position& position) {
+int Engine::evaluate() {
     int eval { 0 };
     position.value_white_pieces = position.value_black_pieces = 0;
     for (int piece { 1 }; piece < 6; piece++) {
@@ -457,16 +456,16 @@ int evaluate(Position& position) {
         eval -= current_material;
     }
     for (int piece { 1 }; piece <= 6; piece++) {
-        eval += positional_eval(position, position.bitboards.bitboards[piece], piece);
+        eval += positional_eval(position.bitboards.bitboards[piece], piece);
     }
     for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= positional_eval(position, position.bitboards.bitboards[piece], piece - 8, true);
+        eval -= positional_eval(position.bitboards.bitboards[piece], piece - 8, true);
     }
-    eval += passed_pawns_bonus(position);
+    eval += passed_pawns_bonus();
     return eval;
 }
 
-__attribute__((always_inline)) int positional_eval(Position& position, uint64_t bitboard, uint8_t piece, bool black) {
+__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, bool black) {
     int eval { 0 };
     double material_phase = (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0;
     int idx = piece - 1;
@@ -479,7 +478,7 @@ __attribute__((always_inline)) int positional_eval(Position& position, uint64_t 
     return eval;
 }
 
-int passed_pawns_bonus(Position& position) {
+int Engine::passed_pawns_bonus() {
     int score = 0;
     uint64_t pawns = position.bitboards.bitboards[WHITE_PAWN];
     while (pawns) {
@@ -506,7 +505,7 @@ int passed_pawns_bonus(Position& position) {
     return score;
 }
 
-int sort_moves_by_priority(Position& position, Move& move) {
+int Engine::sort_moves_by_priority(Move& move) {
     int move_score_guess = 0;
     int square = (move.get_turn() == WHITE) ? move.get_to_square() : move.get_to_square() ^ 56;
     uint8_t piece = move.get_piece();
@@ -533,8 +532,8 @@ int sort_moves_by_priority(Position& position, Move& move) {
 }
 
 // search captures deeper, until the position is "quiet"
-int quiescence_search(Position& position, int alpha, int beta, int ply, int& seldepth) {
-    int stand_pat = evaluate(position) * ((position.turn == WHITE) ? 1 : -1);
+int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
+    int stand_pat = evaluate() * ((position.turn == WHITE) ? 1 : -1);
     positions_searched++;
     if (ply > seldepth) {
         seldepth = ply;
@@ -545,17 +544,18 @@ int quiescence_search(Position& position, int alpha, int beta, int ply, int& sel
     if (stand_pat > alpha) {
         alpha = stand_pat;
     }
-    Move_list possible_moves = generate_captures_only(position);
+    MoveGen move_generator(position);
+    Move_list possible_moves = move_generator.generate_captures_only();
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(position, move1) > sort_moves_by_priority(position, move2);
+        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
     });
     //std::cout << possible_moves.num_moves << '\n';
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         if (!position.make_test_move<true>(possible_moves.list[i])) {
             continue;
         }
-        int score = -quiescence_search(position, -beta, -alpha, ply + 1, seldepth);
+        int score = -quiescence_search(-beta, -alpha, ply + 1, seldepth);
         position.undo_test_move<true>(possible_moves.list[i]);
         if (score >= beta) {
             return beta;
@@ -568,43 +568,43 @@ int quiescence_search(Position& position, int alpha, int beta, int ply, int& sel
 }
 
 // generates all possible pseudolegal moves (does not care if it leaves king in check)
-Move_list determine_possible_moves(Position& position) {
+Move_list MoveGen::determine_possible_moves() {
     Move_list moves;
     if (position.turn == WHITE) {
-        add_pawn_moves<WHITE, false>(position, moves);
-        add_knight_moves<WHITE, false>(position, moves);
-        add_bishop_moves<WHITE, false>(position, moves);
-        add_rook_moves<WHITE, false>(position, moves);
-        add_queen_moves<WHITE, false>(position, moves);
-        add_king_moves<WHITE, false>(position, moves);
+        add_pawn_moves<WHITE, false>(moves);
+        add_knight_moves<WHITE, false>(moves);
+        add_bishop_moves<WHITE, false>(moves);
+        add_rook_moves<WHITE, false>(moves);
+        add_queen_moves<WHITE, false>(moves);
+        add_king_moves<WHITE, false>(moves);
     } else {
-        add_pawn_moves<BLACK, false>(position, moves);
-        add_knight_moves<BLACK, false>(position, moves);
-        add_bishop_moves<BLACK, false>(position, moves);
-        add_rook_moves<BLACK, false>(position, moves);
-        add_queen_moves<BLACK, false>(position, moves);
-        add_king_moves<BLACK, false>(position, moves);
+        add_pawn_moves<BLACK, false>(moves);
+        add_knight_moves<BLACK, false>(moves);
+        add_bishop_moves<BLACK, false>(moves);
+        add_rook_moves<BLACK, false>(moves);
+        add_queen_moves<BLACK, false>(moves);
+        add_king_moves<BLACK, false>(moves);
     }
     return moves;
 }
 
 // generates all possible pseudolegal capture moves (does not care if it leaves king in check)
-Move_list generate_captures_only(Position& position) {
+Move_list MoveGen::generate_captures_only() {
     Move_list moves;
     if (position.turn == WHITE) {
-        add_pawn_moves<WHITE, true>(position, moves);
-        add_knight_moves<WHITE, true>(position, moves);
-        add_bishop_moves<WHITE, true>(position, moves);
-        add_rook_moves<WHITE, true>(position, moves);
-        add_queen_moves<WHITE, true>(position, moves);
-        add_king_moves<WHITE, true>(position, moves);
+        add_pawn_moves<WHITE, true>(moves);
+        add_knight_moves<WHITE, true>(moves);
+        add_bishop_moves<WHITE, true>(moves);
+        add_rook_moves<WHITE, true>(moves);
+        add_queen_moves<WHITE, true>(moves);
+        add_king_moves<WHITE, true>(moves);
     } else {
-        add_pawn_moves<BLACK, true>(position, moves);
-        add_knight_moves<BLACK, true>(position, moves);
-        add_bishop_moves<BLACK, true>(position, moves);
-        add_rook_moves<BLACK, true>(position, moves);
-        add_queen_moves<BLACK, true>(position, moves);
-        add_king_moves<BLACK, true>(position, moves);
+        add_pawn_moves<BLACK, true>(moves);
+        add_knight_moves<BLACK, true>(moves);
+        add_bishop_moves<BLACK, true>(moves);
+        add_rook_moves<BLACK, true>(moves);
+        add_queen_moves<BLACK, true>(moves);
+        add_king_moves<BLACK, true>(moves);
     }
     return moves;
 }

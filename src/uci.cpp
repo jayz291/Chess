@@ -117,7 +117,8 @@ void parse_go(Game& game, std::istringstream& stream) {
     int search_depth = (depth != -1) ? depth : 40;
    
     std::thread search_thread([game, allocated_time, search_depth]() mutable {
-        Move best_move = get_best_move(game.position, allocated_time, search_depth);
+        Engine engine(game.position, allocated_time);
+        Move best_move = engine.get_best_move(search_depth);
         std::cout << "bestmove " << to_chess_notation(best_move) << std::endl;
     });
 
