@@ -302,6 +302,9 @@ extern uint64_t FILE_GH;
 extern const uint64_t FILE_MASKS[8];
 extern const uint64_t ADJACENT_FILE_MASKS[8];
 extern const uint64_t RANK_MASKS[8];
+extern const uint64_t WHITE_PASSED_RANK_MASKS[8];
+extern const uint64_t BLACK_PASSED_RANK_MASKS[8];
+extern const int RANK_SCORES[8];
 
 struct Bitboards {
     uint64_t bitboards[16];

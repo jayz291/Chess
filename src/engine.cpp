@@ -103,6 +103,11 @@ template<bool update_zobrist> bool make_test_move(Position& position, Move& move
         }
         position.move_record.push_back(move);
 
+        if (__builtin_popcountll(position.bitboards.bitboards[(turn == WHITE)] ? WHITE_KING : BLACK_KING) == 0) {
+            undo_test_move<update_zobrist>(position, move);
+            return false;
+        }
+
         if (is_square_attacked(position.bitboards, 
             __builtin_ctzll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
             undo_test_move<update_zobrist>(position, move); 
@@ -139,6 +144,10 @@ template<bool update_zobrist> bool make_test_move(Position& position, Move& move
         position.board_record.push_back(position.zobrist_hash);
     }
     position.move_record.push_back(move);
+    if (__builtin_popcountll(position.bitboards.bitboards[(turn == WHITE)] ? WHITE_KING : BLACK_KING) == 0) {
+        undo_test_move<update_zobrist>(position, move);
+        return false;
+    }
 
     if (is_square_attacked(position.bitboards, 
         __builtin_ctzll(position.bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]), turn)) {
@@ -452,6 +461,7 @@ int evaluate(Position& position) {
     for (int piece { 9 }; piece <= 14; piece++) {
         eval -= positional_eval(position, position.bitboards.bitboards[piece], piece - 8, true);
     }
+    eval += passed_pawns_bonus(position);
     return eval;
 }
 
@@ -466,6 +476,33 @@ __attribute__((always_inline)) int positional_eval(Position& position, uint64_t 
         bitboard &= bitboard - 1;
     }
     return eval;
+}
+
+int passed_pawns_bonus(Position& position) {
+    int score = 0;
+    uint64_t pawns = position.bitboards.bitboards[WHITE_PAWN];
+    while (pawns) {
+        int square = __builtin_ctzll(pawns);
+        int rank = square / 8;
+        int file = square % 8;
+        if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file]) & WHITE_PASSED_RANK_MASKS[rank] &
+            position.bitboards.bitboards[BLACK_PAWN]) == 0) {
+            score += RANK_SCORES[rank];
+        }
+        pawns &= pawns - 1;
+    }
+    pawns = position.bitboards.bitboards[BLACK_PAWN];
+    while (pawns) {
+        int square = __builtin_ctzll(pawns);
+        int rank = square / 8;
+        int file = square % 8;
+        if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file] | BLACK_PASSED_RANK_MASKS[rank]) & 
+            position.bitboards.bitboards[WHITE_PAWN]) == 0) {
+            score -= RANK_SCORES[7 - rank];
+        }
+        pawns &= pawns - 1;
+    }
+    return score;
 }
 
 int sort_moves_by_priority(Position& position, Move& move) {
@@ -483,7 +520,7 @@ int sort_moves_by_priority(Position& position, Move& move) {
         (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0 *
         (start_value_tables[piece - 1][square] - endgame_value_tables[piece - 1][square]));
     if (captured != EMPTY_SQUARE) {
-        move_score_guess += (10000 * piece_values[captured] - piece_values[piece]);
+        move_score_guess += (1000 * piece_values[captured] - piece_values[piece]) + 1000000;
     }
     if (move.get_move_type() == PROMOTION) {
         move_score_guess += 70 * piece_values[move.get_promotion_piece() + 2];

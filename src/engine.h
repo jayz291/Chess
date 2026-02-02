@@ -28,4 +28,5 @@ int evaluate(Position& position);
 int sort_moves_by_priority(Position& position, Move& move);
 inline int positional_eval(Position& position, uint64_t bitboard, uint8_t piece, bool black = false);
 int quiescence_search(Position& position, int alpha, int beta, int ply, int& seldepth);
+int passed_pawns_bonus(Position& position);
 
