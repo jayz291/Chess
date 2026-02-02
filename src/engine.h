@@ -12,6 +12,7 @@ void record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_mov
 int probe_transposition_table(uint64_t key, int depth, int alpha, int beta, Move& best_move, int ply);
 
 template<bool update_zobrist> bool make_test_move(Position& position, Move& move);
+
 template<bool update_zobrist> void undo_test_move(Position& position, Move& prev_move);
 void make_null_move(Position& position, int& stored_ep_square, uint64_t& stored_hash);
 void undo_null_move(Position& position, int stored_ep_square, uint64_t stored_hash);

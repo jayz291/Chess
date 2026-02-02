@@ -43,6 +43,36 @@ struct Position {
         zobrist_hash = 0ULL;
         current_move = {};
     }
+    void find_position_hash();
+
+    int validate_move(Move& move);
+    int validate_pawn_move(Move& move);
+    int validate_knight_move(Move& move);
+    int validate_bishop_move(Move& move);
+    int validate_rook_move(Move& move);
+    int validate_queen_move(Move& move);
+    int validate_king_move(Move& move);
+    int validate_castling(Move& move);
+    void evaluate_king_checks();
+    int is_square_attacked(int square, int turn);
+    bool more_moves_available(Move_list moves);
+    uint64_t get_rook_attacks(int square, uint64_t occupancy);
+    uint64_t get_bishop_attacks(int square, uint64_t occupancy);
+
+    template<bool update_zobrist> void update_castling_flags(Move& move);
+    template<bool update_zobrist> void replace_piece(int turn, uint8_t prev_piece, 
+        uint8_t new_piece, int target_square);
+    template<bool update_zobrist> void remove_piece(int turn, uint8_t target_piece, 
+        int target_square);
+    template<bool update_zobrist> void place_piece(int turn, uint8_t target_piece, int target_square);
+    template<bool update_zobrist> void restore_zobrist_en_passant_and_castling(Move& prev_move);
+    template<bool update_zobrist> void update_zobrist_en_passant(Move& move);
+    template<bool update_zobrist> void move_piece(uint8_t target_piece, int from_square, int to_square, int turn);
+    template<bool update_zobrist> void undo_move(Move& prev_move);
+    template<bool update_zobrist> void undo_test_move(Move& prev_move);
+    template<bool update_zobrist> bool make_test_move(Move& move);
+    void make_null_move(int& stored_ep_square, uint64_t& stored_hash);
+    void undo_null_move(int stored_ep_square, uint64_t stored_hash);
 };
 
 struct Log {

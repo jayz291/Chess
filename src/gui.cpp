@@ -97,7 +97,7 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
         if (assets.go_forward_button.is_clicked({game_pos})) {
             if (log.current_ply_num < position.move_record.size()) {
                 Move chosen_move = position.move_record[log.current_ply_num];
-                int result = validate_move(position, chosen_move);
+                int result = position.validate_move(chosen_move);
                 make_game_move(game, result, chosen_move, true);
                 if (ui.promoting_pawn) {
                     handle_pawn_promotion(game, chosen_move, true, true);
@@ -349,7 +349,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             move.set_captured(game.position.board[square]);
         }
 
-        int result = validate_move(game.position, move);
+        int result = game.position.validate_move(move);
         if (result >= 0) {
             game.position.current_move = move;
             game.ui.selected_square = -1;
@@ -575,7 +575,7 @@ int select_square(int x, int y, Position& position, UI& ui) {
         if (position.board[square] != EMPTY_SQUARE) {
             move.set_captured(position.board[square]);
         }
-        int result = validate_move(position, move);
+        int result = position.validate_move(move);
         ui.selected_square = -1; 
   
         if (result >= 0) {
