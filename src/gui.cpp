@@ -513,10 +513,17 @@ void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& wi
     assets.pawn_promotion_screen.set_text_colour(colour);
     assets.pawn_promotion_screen.draw(window);
     int rank = ((ui.view == WHITE) ? 4 : 3);
-    draw_piece(position, ui, window, assets, rank, 2, piece_array[position.turn][ROOK]);
-    draw_piece(position, ui, window, assets, rank, 3, piece_array[position.turn][KNIGHT]);
-    draw_piece(position, ui, window, assets, rank, 4, piece_array[position.turn][BISHOP]);
-    draw_piece(position, ui, window, assets, rank, 5, piece_array[position.turn][QUEEN]);
+    if (ui.view == WHITE) {
+        draw_piece(position, ui, window, assets, 4, 2, piece_array[position.turn][ROOK]);
+        draw_piece(position, ui, window, assets, 4, 3, piece_array[position.turn][KNIGHT]);
+        draw_piece(position, ui, window, assets, 4, 4, piece_array[position.turn][BISHOP]);
+        draw_piece(position, ui, window, assets, 4, 5, piece_array[position.turn][QUEEN]); 
+    } else {
+        draw_piece(position, ui, window, assets, 3, 5, piece_array[position.turn][ROOK]);
+        draw_piece(position, ui, window, assets, 3, 4, piece_array[position.turn][KNIGHT]);
+        draw_piece(position, ui, window, assets, 3, 3, piece_array[position.turn][BISHOP]);
+        draw_piece(position, ui, window, assets, 3, 2, piece_array[position.turn][QUEEN]);
+    }
 }
 
 void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 

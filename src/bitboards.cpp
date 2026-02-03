@@ -164,6 +164,7 @@ void Bitboards::make_between_table() {
     }
 }
 
+// computes the blocker pattern for the sliding pieces
 uint64_t Bitboards::set_occupancy(int index, int num_bits, uint64_t attack_mask) {
     uint64_t occupancy = 0ULL;
     for (int i { 0 }; i < num_bits; i++) {
@@ -191,6 +192,7 @@ bool Bitboards::determine_square_validity(int square, int direction) {
     return true; 
 }
 
+// precomputes the pawn moves/captures from every square on the board
 void Bitboards::find_pawn_attacks() {
     for (int cell { 0 }; cell < 64; cell++) {
         uint64_t position = 1ULL << cell;
@@ -220,6 +222,8 @@ void Bitboards::find_pawn_attacks() {
     }
 }
 
+// precomputes a rook mask (all the squares the rook could move to) for each square, 
+// taking into account of other pieces
 uint64_t Bitboards::find_rook_attacks(int square, uint64_t& occupied) {
     int directions[4] = {-1, 1, 8, -8};
     int curr = square;
@@ -239,6 +243,8 @@ uint64_t Bitboards::find_rook_attacks(int square, uint64_t& occupied) {
     return attacks;
 }
 
+// precomputes a bishop mask (all the squares the bishop could move to) for each square, 
+// taking into account of other pieces
 uint64_t Bitboards::find_bishop_attacks(int square, uint64_t& occupied) {
     int directions[4] = {7, -7, 9, -9};
     int curr = square;
