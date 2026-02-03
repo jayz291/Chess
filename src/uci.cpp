@@ -28,7 +28,7 @@ void run_uci_loop() {
         } else if (command == "ucinewgame") {
             game.initialise();
             //game.final_fen = fen_string;
-            handle_fen_string(game);
+            game.handle_fen_string();
         } else if (command == "position") {
             parse_position(game, stream);
         } else if (command == "go") {
@@ -54,7 +54,7 @@ void parse_position(Game& game, std::istringstream& stream) {
     if (token == "startpos") {
         game.initialise();
         game.entered_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        handle_fen_string(game);
+        game.handle_fen_string();
         stream >> token;
     } else if (token == "fen") {
         std::string fen_part;
@@ -62,7 +62,7 @@ void parse_position(Game& game, std::istringstream& stream) {
             fen += fen_part + " ";
         }
         game.entered_fen = fen;
-        if (handle_fen_string(game) != 0) {
+        if (game.handle_fen_string() != 0) {
             std::cout << "invalid fen string" << std::endl;
         };
         if (fen_part == "moves") {
@@ -75,9 +75,9 @@ void parse_position(Game& game, std::istringstream& stream) {
             Move move = parse_move_string(game, move_string);
             int result = game.position.validate_move(move);
             if (result >= 0) {
-                make_game_move(game, result, move);
+                game.make_game_move(result, move);
                 if (game.ui.promoting_pawn) {
-                    handle_pawn_promotion(game, move, true);
+                    game.handle_pawn_promotion(move, true);
                 }
             } else {
                 std::cout << "invalid move inputted" << std::endl;
