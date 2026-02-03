@@ -246,6 +246,7 @@ template<bool update_zobrist> void Position::place_piece(int turn, uint8_t targe
     }
 }
 
+// restores the previous en passant square and castling rights (and the zobrist hash, if applicable)
 template<bool update_zobrist> void Position::restore_zobrist_en_passant_and_castling(Move& prev_move) {
     if constexpr (update_zobrist) {
         zobrist_hash ^= zobrist_castling[castling_rights];
@@ -332,10 +333,7 @@ template<bool update_zobrist> void Position::undo_move(Move& prev_move) {
 }
 
 
-void undo_game_move(Game& game, bool is_game_over) {
-    auto& position = game.position;
-    auto& log = game.log;
-    auto& ui = game.ui;
+void Game::undo_game_move(bool is_game_over) {
 
     if (position.move_record.size() == 0) {
         return;
@@ -381,13 +379,10 @@ void undo_game_move(Game& game, bool is_game_over) {
     position.evaluate_king_checks();
 }
 
-void make_game_move(Game& game, int result, Move move, bool is_game_over) {
-    auto& position = game.position;
-    auto& log = game.log;
-    auto& ui = game.ui;
+void Game::make_game_move(int result, Move move, bool is_game_over) {
     Chessboard& board = position.board;
     if (!is_game_over) {
-        disambiguate(position, log, move);
+        disambiguate(move);
     }
     
     if (!is_game_over) {
@@ -472,34 +467,33 @@ template<bool update_zobrist> void Position::update_castling_flags(Move& move) {
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
-void is_game_over(Game& game) {
-    game.position.evaluate_king_checks();
-    game.position.board_record.push_back(game.position.zobrist_hash);
+void Game::is_game_over() {
+    position.evaluate_king_checks();
+    position.board_record.push_back(position.zobrist_hash);
     
-    Position position_copy = game.position;
+    Position position_copy = position;
     MoveGen move_generator(position_copy);
     Move_list moves = move_generator.determine_possible_moves();
     //std::cout << game.plys_to_100 << '\n';
-    if (!position_copy.more_moves_available(moves) || determine_repetition(game.position, game.result) || 
-        determine_insufficient_material(game.position, game.result) || game.position.plys_to_100 == 100) {
-    
-        //std::cout << "ending game\n";
-        end_game(game.position, game.result);
-        game.state = Gamestate::Gameover;
+    if (!position_copy.more_moves_available(moves) || determine_repetition() || 
+        determine_insufficient_material() || position.plys_to_100 == 100) {
+
+        end_game();
+        state = Gamestate::Gameover;
     }
-    if (!game.position.move_record.empty()) {
-        std::string algebreic_move = to_algebreic_notation(game);
+    if (!position.move_record.empty()) {
+        std::string algebreic_move = to_algebreic_notation();
         //std::cout << algebreic_move << '\n';
-        game.log.notation_history.push_back(algebreic_move);
-        int total_lines = (game.log.notation_history.size() + 1) / 2;
+        log.notation_history.push_back(algebreic_move);
+        int total_lines = (log.notation_history.size() + 1) / 2;
         //std::cout << "here\n";
         if (total_lines > 26) {
-            game.log.history_scroll_offset = total_lines - 26;
+            log.history_scroll_offset = total_lines - 26;
         }
     }
 }
 
-bool determine_insufficient_material(Position& position, Result& result) {
+bool Game::determine_insufficient_material() {
     position.value_black_pieces = 0;
     position.value_white_pieces = 0;
     for (int piece { 1 }; piece < 6; piece++) {
@@ -518,7 +512,7 @@ bool determine_insufficient_material(Position& position, Result& result) {
     return false;
 }
 
-bool determine_repetition(Position& position, Result& result) {
+bool Game::determine_repetition() {
     int occurrences { 1 };
     int latest_move { static_cast<int>(position.board_record.size() - 1)};
     // std::cout << occurrences << '\n';
@@ -535,44 +529,30 @@ bool determine_repetition(Position& position, Result& result) {
     return false;
 }
 
-bool determine_repetition(Position& position) {
-    int occurrences { 1 };
-    int latest_move { static_cast<int>(position.board_record.size() - 1)};
-    for (int i { latest_move - 1 }; i >= 0; i--) {
-        if (position.board_record[i] == position.board_record[latest_move]) {
-            occurrences++;
-        }
-        if (occurrences == 3) {
-            return true;
-        }
-    }
-    return false;
-}
+void Game::handle_pawn_promotion(Move& move, bool piece_already_selected, bool is_game_over) {
 
-void handle_pawn_promotion(Game& game, Move& move, bool piece_already_selected, bool is_game_over) {
+    assert(move.get_turn() == position.turn);
 
-    assert(move.get_turn() == game.position.turn);
-
-    game.position.move_piece<true>(move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
+    position.move_piece<true>(move.get_piece(), move.get_from_square(), move.get_to_square(), move.get_turn());
     move.set_move_type(PROMOTION);
 
     if (!piece_already_selected) {
-        move.set_promotion_piece(game.ui.piece_selected);
+        move.set_promotion_piece(ui.piece_selected);
     }
     uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
 
-    game.position.replace_piece<true>(move.get_turn(), move.get_piece(), promotion_piece, move.get_to_square());
+    position.replace_piece<true>(move.get_turn(), move.get_piece(), promotion_piece, move.get_to_square());
 
-    game.position.bitboards.update_occupied();
-    game.position.update_castling_flags<true>(move);
-    game.position.zobrist_hash ^= zobrist_black_turn;
-    game.position.turn = ((game.position.turn == WHITE) ? BLACK : WHITE);
+    position.bitboards.update_occupied();
+    position.update_castling_flags<true>(move);
+    position.zobrist_hash ^= zobrist_black_turn;
+    position.turn = ((position.turn == WHITE) ? BLACK : WHITE);
     if (!is_game_over) {
-        game.position.move_record.push_back(move);
+        position.move_record.push_back(move);
     }
-    game.log.current_ply_num++;
-    game.ui.piece_selected = -1;
-    game.ui.promoting_pawn = false;
+    log.current_ply_num++;
+    ui.piece_selected = -1;
+    ui.promoting_pawn = false;
 
 }
 
@@ -589,7 +569,7 @@ void Position::evaluate_king_checks() {
     }
 }
 
-void end_game(Position& position, Result& result) {
+void Game::end_game() {
     //std::cout << "It is over\n";
     result.status |= (1UL << 7);
     //game.state = Gamestate::Gameover;

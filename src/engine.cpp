@@ -7,7 +7,7 @@
 
 std::chrono::steady_clock::time_point search_start_time;
 int nodes_searched = 0;
-int terminate_search { false };
+std::atomic<bool> terminate_search { false };
 
 void clear_transposition_table() {
     for (int i { 0 }; i < TABLE_SIZE; i++) {
@@ -209,14 +209,14 @@ void make_computer_move(Game& game) {
             chosen_move.set_captured(game.position.board[chosen_move.get_to_square()]);
         }
         int result = game.position.validate_move(chosen_move);
-        make_game_move(game, result, chosen_move);
+        game.make_game_move(result, chosen_move);
         if (game.ui.promoting_pawn) {
             chosen_move.set_promotion_piece(game.ui.piece_selected);
-            handle_pawn_promotion(game, chosen_move);
+            game.handle_pawn_promotion(chosen_move);
         }
         verify_board_sync(game.position);
         verify_zobrist_sync(game.position);
-        is_game_over(game);
+        game.is_game_over();
     }
     finished = false;
 }
@@ -305,7 +305,7 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     if (ply > seldepth) {
         seldepth = ply;
     }
-    if (determine_repetition(position)) {
+    if (determine_repetition()) {
         return 0;
     }
     Move stored_move {};
@@ -565,6 +565,20 @@ int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
         }
     }
     return alpha;
+}
+
+bool Engine::determine_repetition() {
+    int occurrences { 1 };
+    int latest_move { static_cast<int>(position.board_record.size() - 1)};
+    for (int i { latest_move - 1 }; i >= 0; i--) {
+        if (position.board_record[i] == position.board_record[latest_move]) {
+            occurrences++;
+        }
+        if (occurrences == 3) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // generates all possible pseudolegal moves (does not care if it leaves king in check)

@@ -91,16 +91,16 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
         handle_clicks_resetting(game, assets, game_pos);
         if (assets.go_back_button.is_clicked({game_pos})) {
             if (log.current_ply_num > 0) {
-                undo_game_move(game, true);
+                game.undo_game_move(true);
             }
         }
         if (assets.go_forward_button.is_clicked({game_pos})) {
             if (log.current_ply_num < position.move_record.size()) {
                 Move chosen_move = position.move_record[log.current_ply_num];
                 int result = position.validate_move(chosen_move);
-                make_game_move(game, result, chosen_move, true);
+                game.make_game_move(result, chosen_move, true);
                 if (ui.promoting_pawn) {
-                    handle_pawn_promotion(game, chosen_move, true, true);
+                    game.handle_pawn_promotion(chosen_move, true, true);
                 }
             }
         }
@@ -282,13 +282,13 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
     int y = mouse_pos.y;
     if (assets.play_button.is_clicked({x, y})) {
         game.initialise();
-        int result = handle_fen_string(game);
+        int result = game.handle_fen_string();
         if (result == 0) {
             //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.ui.invalid_fen_position = false;
             game.state = Gamestate::Playing;
             //run_perft_suite(game, 5);
-            is_game_over(game);
+            game.is_game_over();
             verify_board_sync(game.position);
             verify_zobrist_sync(game.position);
         } else {
@@ -319,7 +319,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
     int result = select_square(mouse_pos.x, mouse_pos.y, game.position, game.ui);
     if (result >= 0) {
-        make_game_move(game, result, game.position.current_move);  
+        game.make_game_move(result, game.position.current_move);  
     }
     if (game.ui.promoting_pawn) {
         game.state = Gamestate::Promoting_pawn;
@@ -328,7 +328,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     if (result >= 0) {
         verify_board_sync(game.position);
         verify_zobrist_sync(game.position);
-        is_game_over(game);
+        game.is_game_over();
     }
 }
 
@@ -353,7 +353,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         if (result >= 0) {
             game.position.current_move = move;
             game.ui.selected_square = -1;
-            make_game_move(game, result, game.position.current_move);  
+            game.make_game_move(result, game.position.current_move);  
         }
         if (game.ui.promoting_pawn) {
             game.state = Gamestate::Promoting_pawn;
@@ -361,7 +361,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         }
         //print_all_bitboards(game.bitboards);
         if (result >= 0) {
-            is_game_over(game);
+            game.is_game_over();
         }
     }
 }
@@ -370,7 +370,7 @@ void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
     bool selection_made = select_promotion_piece(game, mouse_pos);
     if (selection_made) {
         game.state = Gamestate::Playing;
-        is_game_over(game);
+        game.is_game_over();
         //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }
 }
@@ -380,10 +380,10 @@ void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos)
         std::string fen_string = game.entered_fen;
         game.initialise();
         game.final_fen = fen_string;
-        handle_fen_string(game);
+        game.handle_fen_string();
  
         game.state = Gamestate::Playing;
-        is_game_over(game);
+        game.is_game_over();
         return;
     }
 }
@@ -391,10 +391,10 @@ void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos)
 void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
     if (assets.undo_button.is_clicked(mouse_pos) && assets.allow_takebacks) {
         if (game.mode == Gamemode::Twoplayer) {
-            undo_game_move(game);
+            game.undo_game_move();
         } else {
-            undo_game_move(game);
-            undo_game_move(game);
+            game.undo_game_move();
+            game.undo_game_move();
         }
         verify_board_sync(game.position);
         verify_zobrist_sync(game.position);
@@ -607,7 +607,7 @@ bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos) {
         game.ui.piece_selected = P_QUEEN;
     }
     if (game.ui.piece_selected != -1) {
-        handle_pawn_promotion(game, game.position.current_move);
+        game.handle_pawn_promotion(game.position.current_move);
         return true;
     }
     return false;

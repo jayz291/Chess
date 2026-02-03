@@ -55,14 +55,19 @@ void UI::initialise() {
     dragged_piece = EMPTY_SQUARE;
 }
 
-int handle_fen_string(Game& game) {
-    std::string fen_string = game.entered_fen.toAnsiString();
-    game.final_fen = game.entered_fen.toAnsiString();
+void Result::initialise() {
+    status = 0b00000000;
+    winner = -1;
+}
+
+int Game::handle_fen_string() {
+    std::string fen_string = entered_fen.toAnsiString();
+    final_fen = entered_fen.toAnsiString();
     //std::cout << fen_string << '\n';
     std::vector<std::string> split_fen;
     if (fen_string.size() == 0) {
-        game.final_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        fen_string = game.final_fen;
+        final_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        fen_string = final_fen;
     }
     std::stringstream ss(fen_string);
     std::string section;
@@ -73,14 +78,14 @@ int handle_fen_string(Game& game) {
         return INVALID;
     }
 
-    if (fill_board(game.position, split_fen[0]) == INVALID) {
+    if (fill_board(split_fen[0]) == INVALID) {
         return INVALID;
     }
     
     if (split_fen[1] == "b") {
-        game.position.turn = BLACK;
+        position.turn = BLACK;
     } else if (split_fen[1] == "w") {
-        game.position.turn = WHITE;
+        position.turn = WHITE;
     } else {
         return INVALID;
     }
@@ -88,36 +93,36 @@ int handle_fen_string(Game& game) {
     uint64_t mask = 1ULL;
     for (char letter: split_fen[2]) {    
         if (letter == 'K') {
-            game.position.castling_rights |= (mask << 3);
+            position.castling_rights |= (mask << 3);
         } else if (letter == 'Q') {
-            game.position.castling_rights |= (mask << 2);
+            position.castling_rights |= (mask << 2);
         } else if (letter == 'k') {
-            game.position.castling_rights |= (mask << 1);
+            position.castling_rights |= (mask << 1);
         } else if (letter == 'q') {
-            game.position.castling_rights |= mask;
+            position.castling_rights |= mask;
         } else if (letter == '-') {
-            game.position.castling_rights = 0b00000000;
+            position.castling_rights = 0b00000000;
         } else {
             return INVALID;
         }  
     }
     //std::cout << std::bitset<8>(game.castling_rights);
-    if (process_en_passant_square(game.position, game.log, split_fen[3]) == INVALID) {
+    if (process_en_passant_square(split_fen[3]) == INVALID) {
         return INVALID;
     }
-    game.position.plys_to_100 = std::stoi(split_fen[4]);
-    game.position.plys_to_100_tracking.push_back(game.position.plys_to_100);
+    position.plys_to_100 = std::stoi(split_fen[4]);
+    position.plys_to_100_tracking.push_back(position.plys_to_100);
     //std::cout << "plys to 100 : " << game.plys_to_100 << '\n';
-    game.log.move_num = std::stoi(split_fen[5]);
+    log.move_num = std::stoi(split_fen[5]);
 
-    if (check_position_validity(game) == INVALID) {
+    if (check_position_validity() == INVALID) {
         return INVALID;
     }
-    game.position.find_position_hash();
+    position.find_position_hash();
     return VALID;
 }
 
-int fill_board(Position& position, std::string& fen_board_section) {
+int Game::fill_board(std::string& fen_board_section) {
     int curr_square = 56;
     int ranks = 1;
     int row_squares_recorded = 0;
@@ -198,7 +203,7 @@ int fill_board(Position& position, std::string& fen_board_section) {
     return VALID;
 }
 
-int process_en_passant_square(Position& position, Log& log, std::string& en_passant_square) {
+int Game::process_en_passant_square(std::string& en_passant_square) {
 
     if (en_passant_square == "-") {
         position.en_passant_index = 8;
@@ -259,35 +264,35 @@ int process_en_passant_square(Position& position, Log& log, std::string& en_pass
 // - there is exactly one king for each side on the board
 // - no pawns on its colour's promotion rank
 // - the king cannot be captured on the next turn 
-int check_position_validity(Game& game) {
-    if (__builtin_popcountll(game.position.bitboards.bitboards[BLACK_KING]) != 1 ||
-        __builtin_popcountll(game.position.bitboards.bitboards[WHITE_KING]) != 1) {
+int Game::check_position_validity() {
+    if (__builtin_popcountll(position.bitboards.bitboards[BLACK_KING]) != 1 ||
+        __builtin_popcountll(position.bitboards.bitboards[WHITE_KING]) != 1) {
         return INVALID;
     }
-    if ((game.position.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||
-        (game.position.bitboards.bitboards[WHITE_PAWN] & RANK_MASKS[7])) {
+    if ((position.bitboards.bitboards[BLACK_PAWN] & RANK_MASKS[0]) ||
+        (position.bitboards.bitboards[WHITE_PAWN] & RANK_MASKS[7])) {
         return INVALID;
     }
 
-    int black_king_square = __builtin_ctzll(game.position.bitboards.bitboards[BLACK_KING]);
-    int white_king_square = __builtin_ctzll(game.position.bitboards.bitboards[WHITE_KING]);
+    int black_king_square = __builtin_ctzll(position.bitboards.bitboards[BLACK_KING]);
+    int white_king_square = __builtin_ctzll(position.bitboards.bitboards[WHITE_KING]);
 
-    if (game.position.is_square_attacked(white_king_square, WHITE)) {
-        game.position.white_in_check = true;
+    if (position.is_square_attacked(white_king_square, WHITE)) {
+        position.white_in_check = true;
     }
-    if (game.position.is_square_attacked(black_king_square, BLACK)) {
-        game.position.black_in_check = true;
+    if (position.is_square_attacked(black_king_square, BLACK)) {
+        position.black_in_check = true;
     }
-    if ((game.position.black_in_check && game.position.turn == WHITE) || 
-        (game.position.white_in_check && game.position.turn == BLACK)) {
+    if ((position.black_in_check && position.turn == WHITE) || 
+        (position.white_in_check && position.turn == BLACK)) {
         return INVALID;
     }
     return VALID;
 }
 
-std::string to_algebreic_notation(Game& game) {
+std::string Game::to_algebreic_notation() {
     std::string s;
-    Move last_move = game.position.move_record.back();
+    Move last_move = position.move_record.back();
     int from_square = last_move.get_from_square();
     int to_square = last_move.get_to_square();
     uint8_t piece = last_move.get_piece();
@@ -319,10 +324,10 @@ std::string to_algebreic_notation(Game& game) {
         } else if (piece == WHITE_KING || piece == BLACK_KING) {
             s += "K";
         } 
-        if (game.log.conflict) {
-            if (!game.log.file_ambiguous) {
+        if (log.conflict) {
+            if (!log.file_ambiguous) {
                 s += ('a' + prev_col);
-            } else if (!game.log.rank_ambiguous) {
+            } else if (!log.rank_ambiguous) {
                 s += ('8' - prev_row);
             } else {
                 s += ('a' + prev_col);
@@ -347,15 +352,15 @@ std::string to_algebreic_notation(Game& game) {
             }
         }
     }
-    if (game.result.status & (1ULL << 3)) {
+    if (result.status & (1ULL << 3)) {
         s += "#";
-    } else if (game.position.black_in_check || game.position.white_in_check) {
+    } else if (position.black_in_check || position.white_in_check) {
         s += "+";
     }
     return s;
 }
 
-void disambiguate(Position& position, Log& log, Move& move) {
+void Game::disambiguate(Move& move) {
     int to_square = move.get_to_square();
     int from_square = move.get_from_square();
     log.file_ambiguous = false;

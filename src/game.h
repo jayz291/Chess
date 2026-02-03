@@ -45,10 +45,8 @@ struct Position {
     bool more_moves_available(Move_list moves);
 
     template<bool update_zobrist> void update_castling_flags(Move& move);
-    template<bool update_zobrist> void replace_piece(int turn, uint8_t prev_piece, 
-        uint8_t new_piece, int target_square);
-    template<bool update_zobrist> void remove_piece(int turn, uint8_t target_piece, 
-        int target_square);
+    template<bool update_zobrist> void replace_piece(int turn, uint8_t prev_piece, uint8_t new_piece, int target_square);
+    template<bool update_zobrist> void remove_piece(int turn, uint8_t target_piece, int target_square);
     template<bool update_zobrist> void place_piece(int turn, uint8_t target_piece, int target_square);
     template<bool update_zobrist> void restore_zobrist_en_passant_and_castling(Move& prev_move);
     template<bool update_zobrist> void update_zobrist_en_passant(Move& move);
@@ -84,10 +82,7 @@ struct UI {
 struct Result {
     uint8_t status;
     int winner;
-    void initialise() {
-        status = 0b00000000;
-        winner = -1;
-    }
+    void initialise();
 };
 
 class Game {
@@ -104,14 +99,23 @@ class Game {
     Result result {};
     Game();
     void initialise();
-};
+    int handle_fen_string();
+    int fill_board(std::string& fen_board_section);
+    int check_position_validity();
+    int process_en_passant_square(std::string& en_passant_square);
+    void disambiguate(Move& move);
 
-int handle_fen_string(Game& game);
-int fill_board(Position& position, std::string& fen_board_section);
-int check_position_validity(Game& game);
-int process_en_passant_square(Position& position, Log& log, std::string& en_passant_square);
-std::string to_algebreic_notation(Game& game);
-void disambiguate(Position& position, Log& log, Move& move);
+    void undo_game_move(bool is_game_over = false);
+    void make_game_move(int result, Move move, bool is_game_over = false);
+    void handle_pawn_promotion(Move& move, bool piece_already_selected = false, bool is_game_over = false);
+
+    void is_game_over();
+    void end_game();
+    bool determine_insufficient_material();
+    bool determine_repetition();
+
+    std::string to_algebreic_notation();
+};
 
 // for debugging
 void print_bitboard(uint64_t bitboard);
