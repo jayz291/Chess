@@ -8,11 +8,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -g")
 
-
 find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
 
 add_executable(chess
     src/main.cpp
+    src/bitboards.cpp
     src/game.cpp
     src/logic.cpp
     src/gui.cpp

@@ -4,47 +4,12 @@
 #include "perft.h"
 #include <iostream>
 
-uint64_t Bitboards::knight_attacks[64];
-uint64_t Bitboards::king_moves[64];
-uint64_t Bitboards::pawn_attacks[2][64];
-uint64_t Bitboards::pawn_moves[2][64];
-uint64_t Bitboards::between_table[64][64];
-uint64_t Bitboards::rook_attack_table[64][4096];
-uint64_t Bitboards::bishop_attack_table[64][512];
-uint64_t Bitboards::rook_masks[64];
-uint64_t Bitboards::bishop_masks[64];
-bool Bitboards::initialised = false;
-
 uint64_t zobrist_table[16][64];
 uint64_t zobrist_castling[16];
 uint64_t zobrist_en_passant[9];
 uint64_t zobrist_black_turn;
 
-const uint64_t FILE_MASKS[8] = {
-    0x0101010101010101ULL, 0x0202020202020202ULL, 0x0404040404040404ULL, 0x0808080808080808ULL,
-    0x1010101010101010ULL, 0x2020202020202020ULL, 0x4040404040404040ULL, 0x8080808080808080ULL
-};
-const uint64_t ADJACENT_FILE_MASKS[8] = {
-    FILE_MASKS[1], FILE_MASKS[0] | FILE_MASKS[2], FILE_MASKS[1] | FILE_MASKS[3], FILE_MASKS[2] | FILE_MASKS[4],
-    FILE_MASKS[3] | FILE_MASKS[5], FILE_MASKS[4] | FILE_MASKS[6], FILE_MASKS[5] | FILE_MASKS[7], FILE_MASKS[6]
-};
-const uint64_t RANK_MASKS[8] = {
-    0x00000000000000FFULL, 0x000000000000FF00ULL, 0x0000000000FF0000ULL, 0x00000000FF000000ULL,
-    0x000000FF00000000ULL, 0x0000FF0000000000ULL, 0x00FF000000000000ULL, 0xFF00000000000000ULL      
-};
-const uint64_t WHITE_PASSED_RANK_MASKS[8] = {
-    0xFFFFFFFFFFFFFF00ULL, 0xFFFFFFFFFFFF0000ULL, 0xFFFFFFFFFF000000ULL, 0xFFFFFFFF00000000ULL, 
-    0xFFFFFF0000000000ULL, 0xFFFF000000000000ULL, 0xFF00000000000000ULL, 0x0000000000000000ULL 
-};
-const uint64_t BLACK_PASSED_RANK_MASKS[8] = {
-    0x0000000000000000ULL, 0x00000000000000FFULL, 0x000000000000FFFFULL, 0x0000000000FFFFFFULL, 
-    0x00000000FFFFFFFFULL, 0x000000FFFFFFFFFFULL, 0x0000FFFFFFFFFFFFULL, 0x00FFFFFFFFFFFFFFULL  
-};
-
 const int RANK_SCORES[8] = { 0, 10, 15, 20, 40, 80, 160, 0 };
-
-uint64_t FILE_AB = FILE_MASKS[0] | FILE_MASKS[1];
-uint64_t FILE_GH = FILE_MASKS[6] | FILE_MASKS[7];
 
 void init_zobrist_table() {
     std::mt19937_64 rng(12345);
@@ -82,125 +47,6 @@ void Position::find_position_hash() {
     if (turn == BLACK) {
         zobrist_hash ^= zobrist_black_turn;
     }
-}
-
-uint64_t find_rook_attacks(int square, uint64_t& occupied) {
-    int directions[4] = {-1, 1, 8, -8};
-    int curr = square;
-    uint64_t attacks = 0ULL;
-    for (int i { 0 }; i < 4; i++) {
-        int direction = directions[i];
-        curr = square;
-        while (determine_square_validity(curr, direction) == true) {
-            curr += direction;
-            uint64_t mask = 1ULL << curr;
-            attacks |= mask;
-            if (occupied & mask) {
-                break;
-            }
-        }
-    }
-    return attacks;
-}
-
-uint64_t find_bishop_attacks(int square, uint64_t& occupied) {
-    int directions[4] = {7, -7, 9, -9};
-    int curr = square;
-    uint64_t attacks = 0ULL;
-    for (int i { 0 }; i < 4; i++) {
-        int direction = directions[i];
-        curr = square;
-        while (determine_square_validity(curr, direction) == true) {
-            curr += direction;
-            uint64_t mask = 1ULL << curr;
-            attacks |= mask;
-            if (occupied & mask) {
-                break;
-            }
-        }
-    }
-    return attacks;
-}
-
-uint64_t get_rook_mask(int square) {
-    uint64_t attacks = 0ULL;
-    int row = 7 - square / 8;
-    int col = square % 8;
-    for (int i = row + 1; i < 7; i++) {
-        attacks |= (1ULL << (56 - 8 * i + col));
-    }
-    for (int i = row - 1; i > 0; i--) {
-        attacks |= (1ULL << (56 - 8 * i + col));
-    }
-    for (int i = col + 1; i < 7; i++) {
-        attacks |= (1ULL << (56 - 8 * row + i));
-    }
-    for (int i = col - 1; i > 0; i--) {
-        attacks |= (1ULL << (56 - 8 * row + i));
-    }
-    return attacks;
-}
-
-uint64_t get_bishop_mask(int square) {
-    uint64_t attacks = 0ULL;
-    int row = 7 - square / 8;
-    int col = square % 8;
-    for (int i = row + 1, j = col + 1; i < 7 && j < 7; i++, j++) {
-        attacks |= (1ULL << (56 - 8 * i + j));
-    }
-    for (int i = row + 1, j = col - 1; i < 7 && j > 0; i++, j--) {
-        attacks |= (1ULL << (56 - 8 * i + j));
-    }
-    for (int i = row - 1, j = col + 1; i > 0 && j < 7; i--, j++) {
-        attacks |= (1ULL << (56 - 8 * i + j));
-    }
-    for (int i = row - 1, j = col - 1; i > 0 && j > 0; i--, j--) {
-        attacks |= (1ULL << (56 - 8 * i + j));
-    }
-    return attacks;
-}
-
-uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask) {
-    uint64_t occupancy = 0ULL;
-    for (int i { 0 }; i < num_bits; i++) {
-        int square = __builtin_ctzll(attack_mask);
-        attack_mask &= attack_mask - 1;  // remove bit
-
-        if (index & (1ULL << i)) {
-            occupancy |= (1ULL << square);
-        }
-    }
-    return occupancy;
-}
-
-// rook attack table lookup using magic nums
-uint64_t Bitboards::get_rook_attacks(int square, uint64_t occupancy) {
-    occupancy &= rook_masks[square];
-    occupancy *= rook_magic_nums[square];
-    occupancy >>= (64 - rook_shifts[square]);
-    return rook_attack_table[square][occupancy];
-}
-
-// bishop attack table lookup using magic nums
-uint64_t Bitboards::get_bishop_attacks(int square, uint64_t occupancy) {
-    occupancy &= bishop_masks[square];
-    occupancy *= bishop_magic_nums[square];
-    occupancy >>= (64 - bishop_shifts[square]);
-    return bishop_attack_table[square][occupancy];
-}
-
-// function to prevent board wraparounds
-bool determine_square_validity(int square, int direction) {
-    int rank = square / 8;
-    int file = square % 8;
-    if ((direction == 9 || direction == -7 || direction == 1) && file == 7) {
-        return false;
-    } else if ((direction == -9 || direction == 7 || direction == -1) && file == 0) {
-        return false;
-    } else if ((direction >= 7 && rank == 7) || (direction <= -7 && rank == 0)) {
-        return false;
-    } 
-    return true; 
 }
 
 // replace piece with another piece on all 3 representations of the board
