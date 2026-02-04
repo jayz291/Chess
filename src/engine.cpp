@@ -200,7 +200,7 @@ void generate_computer_move(Position& position) {
     computer_thread.detach();
 }
 
-void make_computer_move(Game& game) {
+void make_computer_move(Game& game, Assets& assets) {
     if (finished) {
         Move chosen_move = calculated_move;
         std::cout << "best move calculated: ";
@@ -216,6 +216,7 @@ void make_computer_move(Game& game) {
         }
         verify_board_sync(game.position);
         verify_zobrist_sync(game.position);
+        play_sound(assets, game);
         game.is_game_over();
     }
     finished = false;

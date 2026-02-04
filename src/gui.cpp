@@ -70,6 +70,17 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
     auto& position = game.position;
     auto& log = game.log;
     auto& ui = game.ui;
+    if (assets.toggle_audio.is_clicked(game_pos)) {
+        assets.sound_on = (assets.sound_on == false) ? true : false;
+        if (assets.sound_on) {
+            assets.toggle_audio.set_text("Sound: On");
+            assets.toggle_audio.set_new_default_rec_colour(sf::Color::Green);
+        } else {
+            assets.toggle_audio.set_text("Sound: Off");
+            assets.toggle_audio.set_new_default_rec_colour(sf::Color::Red);
+        }
+    }
+
     if (game.state == Gamestate::Intro) {
         handle_clicks_intro(game, window, assets, game_pos);
     } else if (game.state == Gamestate::Playing) {
@@ -84,7 +95,7 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
             handle_clicks_undoing(game, assets, game_pos);
         }
     } else if (game.state == Gamestate::Promoting_pawn) {
-        handle_clicks_promoting(game, game_pos);
+        handle_clicks_promoting(game, assets, game_pos);
     } else if (game.state == Gamestate::Gameover) {
         game.state = Gamestate::Resetting;
     } else if (game.state == Gamestate::Resetting) {
@@ -122,6 +133,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     sf::Color text_colour = thinking_in_progress ? sf::Color(59, 59, 59) : sf::Color::Red;
     sf::Vector2i mouse_pos = {static_cast<int>(assets.current_mouse_pos.x), 
                 static_cast<int>(assets.current_mouse_pos.y)};
+    assets.toggle_audio.update(window, mouse_pos);
     if (game.state == Gamestate::Intro) {
         draw_intro_screen(window, game, assets, mouse_pos);
     }
@@ -164,6 +176,19 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         assets.flip_view_button.update(window, mouse_pos);
     }
     window.display();
+}
+
+void play_sound(Assets& assets, Game& game) {
+    if (!assets.sound_on) {
+        return;
+    }
+    Move& prev_move = game.position.move_record.back();
+    if (prev_move.get_captured_piece() == EMPTY_SQUARE) {
+        assets.sound->play(); 
+    } else {
+        assets.sound2->setVolume(50);
+        assets.sound2->play();
+    }
 }
 
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
@@ -328,6 +353,7 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     if (result >= 0) {
         verify_board_sync(game.position);
         verify_zobrist_sync(game.position);
+        play_sound(assets, game);
         game.is_game_over();
     }
 }
@@ -362,14 +388,16 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         //print_all_bitboards(game.bitboards);
         if (result >= 0) {
             game.is_game_over();
+            play_sound(assets, game);
         }
     }
 }
 
-void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos) {
+void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
     bool selection_made = select_promotion_piece(game, mouse_pos);
     if (selection_made) {
         game.state = Gamestate::Playing;
+        play_sound(assets, game);
         game.is_game_over();
         //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
     }

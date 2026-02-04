@@ -1,11 +1,12 @@
 #pragma once
 #include "game.h"
+#include "gui.h"
 
 extern std::atomic<bool> terminate_search;
 constexpr int CHECKMATE_THRESHOLD = 300000;
 constexpr int NO_ENTRY_FOUND = -999999;
 
-void make_computer_move(Game& game);
+void make_computer_move(Game& game, Assets& assets);
 void generate_computer_move(Position& position);
 void clear_transposition_table();
 

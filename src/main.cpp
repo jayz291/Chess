@@ -33,7 +33,7 @@ void run_game_loop() {
                 generate_computer_move(game.position);
             } else {
                 std::cout << "Searched: " << positions_searched << '\n';
-                make_computer_move(game);
+                make_computer_move(game, assets);
             }
         } 
         handle_input(game, window, assets);

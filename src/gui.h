@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include "game.h"
 
 sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour);
@@ -195,9 +196,14 @@ class TextBox {
 struct Assets {
     sf::Font font;
     sf::Font font2;
+    sf::SoundBuffer buffer;
+    sf::SoundBuffer buffer2;
+    std::optional<sf::Sound> sound;
+    std::optional<sf::Sound> sound2;
     sf::Texture array[16];
     sf::Vector2f current_mouse_pos;
     bool allow_takebacks { true };
+    bool sound_on { false };
     Assets() {
         if (!array[BLACK_PAWN].loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;
@@ -241,6 +247,14 @@ struct Assets {
         if (!font2.openFromFile("./assets/fonts/Roboto-Regular.ttf")) {
             return;
         }
+        if (!buffer.loadFromFile("./assets/sounds/piece-placement.wav")) {
+            return;
+        }
+        if (!buffer2.loadFromFile("./assets/sounds/2917fca3.wav")) {
+            return;
+        }
+        sound.emplace(buffer);
+        sound2.emplace(buffer2);
     }
     Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 540}, 30, sf::Color::Black, 
         {135, 530}, {250, 110}, sf::Color::White};
@@ -256,10 +270,11 @@ struct Assets {
         {10, 55}, {104, 35}, sf::Color::White};
     Button undo_button {font, "Undo", {13, 103}, 15, sf::Color::Red, 
         {10, 100}, {44, 35}, sf::Color::White};
-    Button reset_button {font, "Reset", {13, 13}, 15, sf::Color::Red, 
-        {10, 10}, {44, 35}, sf::Color::White};
+    Button reset_button {font, "Reset", {13, 103}, 15, sf::Color::Red, 
+        {10, 100}, {44, 35}, sf::Color::White};
     Button toggle_takebacks {font, "Allow Takebacks: Yes", {853, 753}, 15, sf::Color::Black, 
         {850, 750}, {157, 35}, sf::Color::Green};
+    Button toggle_audio {font, "Sound: Off", {13, 13}, 15, sf::Color::Black, {10, 10}, {104, 35}, sf::Color::Red};
     Button go_back_button {font, "<-", {920, 730}, 40, sf::Color::Black, {900, 730}, {85, 50}, sf::Color::White};
     Button go_forward_button {font, "->", {1015, 730}, 40, sf::Color::Black, {995, 730}, {85, 50}, sf::Color::White};
     TextBox fen_input {font, {60, 690}, {930, 50}, {70, 700}, 15};
@@ -282,7 +297,7 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
-void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
@@ -291,7 +306,7 @@ void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos)
 int select_square(int x, int y, Position& position, UI& ui); 
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);
 
-
+void play_sound(Assets& assets, Game& game);
 
 
 

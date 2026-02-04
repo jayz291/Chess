@@ -8,7 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -g")
 
-find_package(SFML 3 COMPONENTS Graphics Window System REQUIRED)
+find_package(SFML 3 COMPONENTS Graphics Audio Window System REQUIRED)
 
 add_executable(chess
     src/main.cpp
@@ -37,4 +37,4 @@ add_custom_command(TARGET chess POST_BUILD
     $<TARGET_FILE_DIR:chess>/assets 
 )
 
-target_link_libraries(chess PRIVATE SFML::Graphics SFML::Window SFML::System)
+target_link_libraries(chess PRIVATE SFML::Graphics SFML::Window SFML::Audio SFML::System)
