@@ -462,7 +462,7 @@ int Engine::evaluate() {
     for (int piece { 9 }; piece <= 14; piece++) {
         eval -= positional_eval(position.bitboards.bitboards[piece], piece - 8, true);
     }
-    eval += passed_pawns_bonus();
+    eval += pawn_structure_eval();
     return eval;
 }
 
@@ -479,9 +479,10 @@ __attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, ui
     return eval;
 }
 
-int Engine::passed_pawns_bonus() {
+int Engine::pawn_structure_eval() {
     int score = 0;
     uint64_t pawns = position.bitboards.bitboards[WHITE_PAWN];
+    uint64_t pawns_copy = pawns;
     while (pawns) {
         int square = __builtin_ctzll(pawns);
         int rank = square / 8;
@@ -490,9 +491,16 @@ int Engine::passed_pawns_bonus() {
             position.bitboards.bitboards[BLACK_PAWN]) == 0) {
             score += RANK_SCORES[rank];
         }
+        if (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) > 1) {
+            score -= 20;
+        }
+        if (__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy) == 0) {
+            score -= 20;
+        }
         pawns &= pawns - 1;
     }
     pawns = position.bitboards.bitboards[BLACK_PAWN];
+    pawns_copy = pawns;
     while (pawns) {
         int square = __builtin_ctzll(pawns);
         int rank = square / 8;
@@ -500,6 +508,12 @@ int Engine::passed_pawns_bonus() {
         if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file] | BLACK_PASSED_RANK_MASKS[rank]) & 
             position.bitboards.bitboards[WHITE_PAWN]) == 0) {
             score -= RANK_SCORES[7 - rank];
+        }
+        if (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) > 1) {
+            score += 20;
+        }
+        if (__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy) == 0) {
+            score += 20;
         }
         pawns &= pawns - 1;
     }
@@ -575,7 +589,7 @@ bool Engine::determine_repetition() {
         if (position.board_record[i] == position.board_record[latest_move]) {
             occurrences++;
         }
-        if (occurrences == 3) {
+        if (occurrences == 2) {
             return true;
         }
     }

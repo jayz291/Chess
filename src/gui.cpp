@@ -557,8 +557,7 @@ void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& wi
 void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
     int x, int y, uint8_t piece, bool dragging) {
     //assert(piece >= 0 && piece <= 5);
-    sf::Texture texture = assets.array[piece];
-    sf::Sprite sprite(texture);
+    sf::Sprite sprite(assets.array[piece]);
     sprite.setScale({0.1f, 0.1f});
 
     if (!dragging) {

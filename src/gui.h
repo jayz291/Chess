@@ -250,7 +250,7 @@ struct Assets {
         if (!buffer.loadFromFile("./assets/sounds/piece-placement.wav")) {
             return;
         }
-        if (!buffer2.loadFromFile("./assets/sounds/2917fca3.wav")) {
+        if (!buffer2.loadFromFile("./assets/sounds/capture2.wav")) {
             return;
         }
         sound.emplace(buffer);
