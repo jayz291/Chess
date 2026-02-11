@@ -1,6 +1,8 @@
 #include "game.h"
 #include "logic.h"
 #include "engine.h"
+#include <fstream>
+#include <format>
 
 Move calculated_move;
 std::atomic<bool> computer_turn { false };
@@ -390,6 +392,69 @@ void Game::disambiguate(Move& move) {
         }
         pieces &= pieces - 1;
     }
+}
+
+void Game::create_pgn() {
+    const auto time = std::chrono::system_clock::now();
+    std::string formatted = std::format("{:%Y.%m.%d}", time);
+    std::string file_name = std::format("game_{:%Y-%m-%d_%H-%M-%S}.pgn", time);
+    std::ofstream output_file(file_name);
+    if (!output_file.is_open()) {
+        return;
+    }
+    output_file << "[Event \"Chess Game\"]\n";
+    output_file << "[Site \"Chess in C++ SFML\"]\n";
+    output_file << "[Date \"" << formatted << "\"]\n";
+    output_file << "[Round \"\"]\n";
+    if (mode == Gamemode::CPUwhite) {
+        output_file << "[White \"CPU\"]\n";
+    } else {
+        output_file << "[White \"\"]\n";
+    }
+    if (mode == Gamemode::CPUblack) {
+        output_file << "[Black \"CPU\"]\n";
+    } else {
+        output_file << "[Black \"\"]\n";
+    }
+    if (result.winner == WHITE) {
+        output_file << "[Result \"1-0\"]\n";
+    } else if (result.winner == BLACK) {
+        output_file << "[Result \"0-1\"]\n";
+    } else {
+        output_file << "[Result \"1/2-1/2\"]\n";
+    }
+    if (final_fen != "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+        output_file << "[SetUp \"1\"]\n";
+        output_file << "[FEN \"" << final_fen << "\"]\n";
+    }
+    output_file << "\n";
+    int start_index = 0;
+    int end_index = (log.notation_history.size() + 1) / 2;
+    int moves_on_line = 0;
+
+    for (int i = start_index; i < end_index; ++i) {
+        std::string line_str = std::to_string(i + log.move_num) + ".";
+        output_file << line_str << " ";
+        if (i * 2 < log.notation_history.size()) {
+            output_file << log.notation_history[i * 2] << " ";
+        } 
+        if (i * 2 + 1 < log.notation_history.size()) {
+            output_file << log.notation_history[i * 2 + 1] << " ";
+        }
+        moves_on_line++;
+        if (moves_on_line == 7) {
+            output_file << "\n";
+            moves_on_line = 0;
+        }
+    }
+    if (result.winner == WHITE) {
+        output_file << "1-0";
+    } else if (result.winner == BLACK) {
+        output_file << "0-1";
+    } else {
+        output_file << "1/2-1/2";
+    }
+    output_file.close();
 }
 
 

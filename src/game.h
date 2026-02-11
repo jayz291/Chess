@@ -115,6 +115,7 @@ class Game {
     bool determine_repetition();
 
     std::string to_algebreic_notation();
+    void create_pgn();
 };
 
 // for debugging

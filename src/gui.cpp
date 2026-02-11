@@ -105,6 +105,9 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
                 game.undo_game_move(true);
             }
         }
+        if (assets.make_pgn_file.is_clicked({game_pos})) {
+            game.create_pgn();
+        }
         if (assets.go_forward_button.is_clicked({game_pos})) {
             if (log.current_ply_num < position.move_record.size()) {
                 Move chosen_move = position.move_record[log.current_ply_num];
@@ -113,6 +116,7 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
                 if (ui.promoting_pawn) {
                     game.handle_pawn_promotion(chosen_move, true, true);
                 }
+                game.position.evaluate_king_checks();
             }
         }
     }
@@ -168,6 +172,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         assets.reset_button.update(window, mouse_pos);
         assets.go_back_button.update(window, mouse_pos);
         assets.go_forward_button.update(window, mouse_pos);
+        assets.make_pgn_file.update(window, mouse_pos);
     }
     if (game.state == Gamestate::Promoting_pawn) {
         draw_pawn_promotion_screen(game.position, game.ui, window, assets);

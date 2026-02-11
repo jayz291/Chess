@@ -6,7 +6,7 @@
 #include <iostream>
 
 std::chrono::steady_clock::time_point search_start_time;
-int nodes_searched = 0;
+//int nodes_searched = 0;
 std::atomic<bool> terminate_search { false };
 
 void clear_transposition_table() {
@@ -84,6 +84,7 @@ template<bool update_zobrist> bool Position::make_test_move(Move& move) {
     int from_square = move.get_from_square();
     int current_turn = move.get_turn();
     uint8_t move_type = move.get_move_type();
+    int king = (current_turn == WHITE) ? WHITE_KING : BLACK_KING;
 
     update_zobrist_en_passant<update_zobrist>(move);
 
@@ -103,7 +104,7 @@ template<bool update_zobrist> bool Position::make_test_move(Move& move) {
         }
         move_record.push_back(move);
 
-        if (__builtin_popcountll(bitboards.bitboards[(current_turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
+        if (__builtin_popcountll(bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
             undo_test_move<update_zobrist>(move);
             return false;
         }
