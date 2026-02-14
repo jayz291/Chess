@@ -17,72 +17,48 @@ struct MoveGen {
     Move_list determine_possible_moves();
     Move_list generate_captures_only();
 
-    template<int colour, int direction> 
-    __attribute__((always_inline)) void add_pawn_attack_moves(Move_list& moves, int& local_counter, 
+    template<int colour> 
+    void add_pawn_attack_moves(Move_list& moves, int& local_counter, 
         int promotion_rank) {
-        uint64_t wrap_mask_left  = ~FILE_MASKS[7];
-        uint64_t wrap_mask_right = ~FILE_MASKS[0];
         constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
         constexpr int opposing_turn = ((colour == WHITE) ? BLACK : WHITE);
         uint64_t en_passant_mask = (position.en_passant_square != -1) ? (1ULL << position.en_passant_square) : 0ULL;
         uint64_t enemy_pieces = bitboards.occupied_tables[opposing_turn] | en_passant_mask;
         uint64_t pawns = bitboards.bitboards[target_piece];
 
-        uint64_t attacks;
-        if constexpr (colour == WHITE) {
-            if constexpr (direction == LEFT) {
-                attacks = (pawns << 7) & wrap_mask_left & enemy_pieces;
-            } else {
-                attacks = (pawns << 9) & wrap_mask_right & enemy_pieces;
-            }
-        } else {
-            if constexpr (direction == LEFT) {
-                attacks = (pawns >> 9) & wrap_mask_left & enemy_pieces;
-            } else {
-                attacks = (pawns >> 7) & wrap_mask_right & enemy_pieces;
-            }
-        }
-        while (attacks) {
-            int to_square = __builtin_ctzll(attacks);
-            int from_square;
-            if constexpr (colour == WHITE) {
-                if constexpr (direction == LEFT) {
-                    from_square = to_square - 7;
-                } else {
-                    from_square = to_square - 9;
-                }
-            } else {
-                if constexpr (direction == LEFT) {
-                    from_square = to_square + 9;
-                } else {
-                    from_square = to_square + 7;
-                }   
-            }
-            if (to_square == position.en_passant_square) {
-                Move move;
-                move.set_move(from_square, to_square, target_piece, position.board[to_square]);
-                move.set_move_type(EN_PASSANT);
-                moves.list[local_counter++] = move;
-            } else if ((to_square >> 3) == promotion_rank) {
-                int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
-                for (int piece: promotion_choices) {
+        while (pawns) {
+            int from_square = __builtin_ctzll(pawns);
+            
+            uint64_t attacks = bitboards.pawn_attacks[colour][from_square] & enemy_pieces;
+            while (attacks) {
+                int to_square = __builtin_ctzll(attacks);
+                if (to_square == position.en_passant_square) {
                     Move move;
-                    move.set_move_type(PROMOTION);
-                    move.set_promotion_piece(piece);
+                    move.set_move(from_square, to_square, target_piece, position.board[to_square]);
+                    move.set_move_type(EN_PASSANT);
+                    moves.list[local_counter++] = move;
+                } else if ((to_square >> 3) == promotion_rank) {
+                    int promotion_choices[4] = { P_KNIGHT, P_BISHOP, P_ROOK, P_QUEEN };
+                    for (int piece: promotion_choices) {
+                        Move move;
+                        move.set_move_type(PROMOTION);
+                        move.set_promotion_piece(piece);
+                        move.set_move(from_square, to_square, target_piece, board[to_square]);
+                        moves.list[local_counter++] = move;
+                    }
+                } else {
+                    Move move;
                     move.set_move(from_square, to_square, target_piece, board[to_square]);
                     moves.list[local_counter++] = move;
                 }
-            } else {
-                Move move;
-                move.set_move(from_square, to_square, target_piece, board[to_square]);
-                moves.list[local_counter++] = move;
+                attacks &= attacks - 1;
             }
-            attacks &= attacks - 1;
+            pawns &= pawns - 1;
         }
     }
 
     template<int colour>
-    __attribute__((always_inline)) void add_pawn_non_capture_moves(Move_list& moves, 
+    void add_pawn_non_capture_moves(Move_list& moves, 
         int& local_counter, int promotion_rank) {
         uint64_t single_pushes, double_pushes;
         constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
@@ -134,12 +110,11 @@ struct MoveGen {
     }
 
     template<int colour, bool generate_captures_only>
-    __attribute__((always_inline)) void add_pawn_moves(Move_list& moves) {
+    void add_pawn_moves(Move_list& moves) {
         
         int local_counter = moves.num_moves;
         constexpr int promotion_rank = (colour == WHITE) ? 7 : 0;
-        add_pawn_attack_moves<colour, LEFT>(moves, local_counter, promotion_rank);
-        add_pawn_attack_moves<colour, RIGHT>(moves, local_counter, promotion_rank);
+        add_pawn_attack_moves<colour>(moves, local_counter, promotion_rank);
 
         if constexpr (!generate_captures_only) {
             add_pawn_non_capture_moves<colour>(moves, local_counter, promotion_rank);
@@ -148,7 +123,7 @@ struct MoveGen {
     }
 
     template<int colour, bool generate_captures_only>
-    __attribute__((always_inline)) void add_knight_moves(Move_list& moves) {
+    void add_knight_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
         constexpr uint8_t piece = (colour == WHITE) ? WHITE_KNIGHT : BLACK_KNIGHT;
         constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
@@ -180,10 +155,11 @@ struct MoveGen {
     }
 
     template<int colour, bool generate_captures_only>
-    __attribute__((always_inline)) void add_bishop_moves(Move_list& moves) {
+    void add_bishop_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
         constexpr uint8_t piece = (colour == WHITE) ? WHITE_BISHOP : BLACK_BISHOP;
         constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
+        int local_counter = moves.num_moves;
         uint64_t current_pieces = bitboards.bitboards[piece];
         uint64_t targets;
         if constexpr (generate_captures_only) {
@@ -199,15 +175,16 @@ struct MoveGen {
                 int to_square = __builtin_ctzll(bishop_attacks);
                 Move move;
                 move.set_move(from_square, to_square, piece, board[to_square]);
-                moves.list[moves.num_moves++] = move;
+                moves.list[local_counter++] = move;
                 bishop_attacks &= bishop_attacks - 1;
             }
             current_pieces &= current_pieces - 1;
         }
+        moves.num_moves = local_counter;
     }
 
     template<int colour, bool generate_captures_only>
-    __attribute__((always_inline)) void add_rook_moves(Move_list& moves) {
+    void add_rook_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
         constexpr uint8_t piece = (colour == WHITE) ? WHITE_ROOK : BLACK_ROOK;
         constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
@@ -237,7 +214,7 @@ struct MoveGen {
     }
 
     template<int colour, bool generate_captures_only>
-    __attribute__((always_inline)) void add_queen_moves(Move_list& moves) {
+    void add_queen_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
         constexpr uint8_t piece = (colour == WHITE) ? WHITE_QUEEN : BLACK_QUEEN;
         constexpr int opposing_colour = (colour == WHITE) ? BLACK : WHITE;
@@ -277,7 +254,7 @@ struct MoveGen {
     }
 
     template<int colour, bool generate_captures_only>
-    __attribute__((always_inline)) void add_king_moves(Move_list& moves) {
+    void add_king_moves(Move_list& moves) {
 
         uint64_t mask = 1ULL;
         constexpr uint8_t piece = (colour == WHITE) ? WHITE_KING : BLACK_KING;

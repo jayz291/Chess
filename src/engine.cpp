@@ -65,11 +65,11 @@ template<bool update_zobrist> void Position::undo_test_move(Move& prev_move) {
     restore_zobrist_en_passant_and_castling<update_zobrist>(prev_move);
     
     turn = ((turn == BLACK) ? WHITE : BLACK);
-    if (!move_record.empty()) {
-        move_record.pop_back();
-    }
 
     if constexpr (update_zobrist) {
+        if (!move_record.empty()) {
+            move_record.pop_back();
+        }
         zobrist_hash ^= zobrist_black_turn;
         if (!board_record.empty()) {
             board_record.pop_back();
@@ -87,41 +87,13 @@ template<bool update_zobrist> bool Position::make_test_move(Move& move) {
     int king = (current_turn == WHITE) ? WHITE_KING : BLACK_KING;
 
     update_zobrist_en_passant<update_zobrist>(move);
-
-    if (move_type == PROMOTION) {
-        //std::cout << "promoting pawn\n";
-    
-        move_piece<update_zobrist>(move.get_piece(), from_square, to_square, current_turn);
-        uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
-        replace_piece<update_zobrist>(current_turn, move.get_piece(), promotion_piece, to_square);
-
-        update_castling_flags<update_zobrist>(move);
-        //game.piece_selected = EMPTY_SQUARE;
-        turn = WHITE + BLACK - turn; // flip the turn
-        if constexpr (update_zobrist) {
-            zobrist_hash ^= zobrist_black_turn;
-            board_record.push_back(zobrist_hash);
-        }
-        move_record.push_back(move);
-
-        if (__builtin_popcountll(bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
-            undo_test_move<update_zobrist>(move);
-            return false;
-        }
-
-        if (is_square_attacked( 
-            __builtin_ctzll(bitboards.bitboards[(current_turn == WHITE) ? WHITE_KING : BLACK_KING]), current_turn)) {
-            undo_test_move<update_zobrist>(move); 
-            return false; 
-        }
-        return true;
-    }
-
-    //std::cout << "just before moving piece\n";
     assert(from_square != to_square);
     move_piece<update_zobrist>(move.get_piece(), from_square, to_square, current_turn);
 
-    if (move_type == CASTLING) {
+    if (move_type == PROMOTION) {
+        uint8_t promotion_piece = convert_promotion_piece(move, move.get_promotion_piece());
+        replace_piece<update_zobrist>(current_turn, move.get_piece(), promotion_piece, to_square);
+    } else if (move_type == CASTLING) {
         uint8_t piece = (current_turn == WHITE) ? WHITE_ROOK : BLACK_ROOK;
         int row = 7 - (to_square >> 3);
         if (to_square - from_square == 2) {
@@ -129,22 +101,21 @@ template<bool update_zobrist> bool Position::make_test_move(Move& move) {
         } else if (to_square - from_square == -2) {
             move_piece<update_zobrist>(piece, 56 - 8 * row, 56 - 8 * row + 3, current_turn);
         }
-    }
-
-    if (move_type == EN_PASSANT) {
+    } else if (move_type == EN_PASSANT) {
         int captured_square = ((turn == WHITE) ? to_square - 8 : to_square + 8);
         int opposing_turn = ((turn == WHITE)) ? BLACK : WHITE;
         uint8_t captured_piece = (turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
         remove_piece<update_zobrist>(opposing_turn, captured_piece, captured_square);
     } 
+
     update_castling_flags<update_zobrist>(move);
     turn = ((turn == WHITE) ? BLACK : WHITE);
 
     if constexpr (update_zobrist) {
         zobrist_hash ^= zobrist_black_turn;
         board_record.push_back(zobrist_hash);
+        move_record.push_back(move);
     }
-    move_record.push_back(move);
 
     if (__builtin_popcountll(bitboards.bitboards[(turn == WHITE) ? WHITE_KING : BLACK_KING]) == 0) {
         undo_test_move<update_zobrist>(move);

@@ -58,7 +58,7 @@ template<bool update_zobrist> void Position::replace_piece(int turn, uint8_t pre
 }
 
 // remove piece from all representations of the board
-template<bool update_zobrist> void Position::remove_piece(int turn, uint8_t target_piece, int target_square) {
+template<bool update_zobrist> inline void Position::remove_piece(int turn, uint8_t target_piece, int target_square) {
 
     // update bitboards
     bitboards.bitboards[target_piece] &= ~(1ULL << target_square);
@@ -75,7 +75,7 @@ template<bool update_zobrist> void Position::remove_piece(int turn, uint8_t targ
 }
 
 // place piece on all representations of the board
-template<bool update_zobrist> void Position::place_piece(int turn, uint8_t target_piece, int target_square) {
+template<bool update_zobrist> inline void Position::place_piece(int turn, uint8_t target_piece, int target_square) {
     //int zobrist_offset = (turn == WHITE) ? 0 : 6;
 
     // update bitboards
@@ -153,15 +153,12 @@ template<bool update_zobrist> void Position::undo_move(Move& prev_move) {
         uint8_t piece = (prev_move.get_opposing_turn() == WHITE) ? BLACK_PAWN : WHITE_PAWN;
         uint8_t promotion_piece = convert_promotion_piece(prev_move, prev_move.get_promotion_piece());
         replace_piece<update_zobrist>(turn, promotion_piece, piece, to_square);
-        prev_move.set_another_piece(piece);
     }
     move_piece<update_zobrist>(prev_move.get_piece(), to_square, from_square, turn);
-    prev_move.set_another_piece(original_piece);
 
     if (move_type != EN_PASSANT && prev_move.get_captured_piece() != EMPTY_SQUARE) {
         place_piece<update_zobrist>(prev_move.get_opposing_turn(), prev_move.get_captured_piece(), to_square);
     } else if (move_type == EN_PASSANT) {
-        //std::cout << "en_passant\n";
         int captured_square = ((turn == WHITE) ? to_square - 8 : to_square + 8);
         uint8_t captured = (turn == WHITE) ? BLACK_PAWN : WHITE_PAWN;
         place_piece<update_zobrist>(prev_move.get_opposing_turn(), captured, captured_square);
@@ -575,7 +572,7 @@ int Position::validate_king_move(Move& move) {
     return INVALID;
 }
 
-int Position::is_square_attacked(int square, int turn) {
+inline int Position::is_square_attacked(int square, int turn) {
     //int opposing_colour = ((turn == WHITE) ? BLACK : WHITE);
     int offset = (turn == WHITE) ? 8 : 0;
 

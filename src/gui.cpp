@@ -455,7 +455,7 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     bool prev_move_available { false };
     Move prev_move;
     int to_square, from_square;
-    if (game.position.move_record.size() > 0) {
+    if (game.position.move_record.size() > 0 && game.log.current_ply_num != 0) {
         prev_move = game.position.move_record[game.log.current_ply_num - 1];
         //std::cout << game.move_record[game.current_ply_num - 2] << '\n';
         to_square = prev_move.get_to_square();

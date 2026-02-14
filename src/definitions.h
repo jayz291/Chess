@@ -128,10 +128,6 @@ class Move {
     void set_piece(uint8_t piece) {
         data |= (piece & MASK) << PIECE_SHIFT;
     }
-    void set_another_piece(uint8_t piece) {
-        data &= ~(MASK << PIECE_SHIFT);
-        data |= (piece & MASK) << PIECE_SHIFT;
-    }
     void set_captured(uint8_t captured) {
         data &= ~(MASK << CAPTURED_SHIFT);
         data |= (captured & MASK) << CAPTURED_SHIFT;

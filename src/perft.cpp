@@ -1,7 +1,7 @@
 #include "perft.h"
 #include "movegen.h"
 
-long long perft(Position& position, int depth) {
+inline long long perft(Position& position, int depth) {
     if (depth == 0) {
         return 1ULL;
     }
@@ -12,11 +12,11 @@ long long perft(Position& position, int depth) {
     Move_list moves = move_generator.determine_possible_moves();
 
     for (int i { 0 }; i < moves.num_moves; i++) {
-        auto& move = moves.list[i];
+        //auto& move = moves.list[i];
 
-        if (position.make_test_move<false>(move)) {
+        if (position.make_test_move<false>(moves.list[i])) {
             nodes += perft(position, depth - 1);
-            position.undo_test_move<false>(move);
+            position.undo_test_move<false>(moves.list[i]);
         }
     }
 
