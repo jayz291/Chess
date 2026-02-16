@@ -6,7 +6,6 @@
 #include <iostream>
 
 std::chrono::steady_clock::time_point search_start_time;
-//int nodes_searched = 0;
 std::atomic<bool> terminate_search { false };
 
 void clear_transposition_table() {
@@ -95,11 +94,12 @@ template<bool update_zobrist> bool Position::make_test_move(Move& move) {
         replace_piece<update_zobrist>(current_turn, move.get_piece(), promotion_piece, to_square);
     } else if (move_type == CASTLING) {
         uint8_t piece = (current_turn == WHITE) ? WHITE_ROOK : BLACK_ROOK;
-        int row = 7 - (to_square >> 3);
+        //int row = 7 - (to_square >> 3);
+        int base_square = to_square & 56; // 56 is 111000 in binary
         if (to_square - from_square == 2) {
-            move_piece<update_zobrist>(piece, 56 - 8 * row + 7, 56 - 8 * row + 5, current_turn);
+            move_piece<update_zobrist>(piece, base_square + 7, base_square + 5, current_turn);
         } else if (to_square - from_square == -2) {
-            move_piece<update_zobrist>(piece, 56 - 8 * row, 56 - 8 * row + 3, current_turn);
+            move_piece<update_zobrist>(piece, base_square, base_square + 3, current_turn);
         }
     } else if (move_type == EN_PASSANT) {
         int captured_square = ((turn == WHITE) ? to_square - 8 : to_square + 8);
@@ -492,7 +492,7 @@ int Engine::pawn_structure_eval() {
     return score;
 }
 
-int Engine::sort_moves_by_priority(Move& move) {
+int Engine::sort_moves_by_priority(const Move& move) {
     int move_score_guess = 0;
     int square = (move.get_turn() == WHITE) ? move.get_to_square() : move.get_to_square() ^ 56;
     uint8_t piece = move.get_piece();
@@ -537,7 +537,6 @@ int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
     [&](Move& move1, Move& move2) {
         return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
     });
-    //std::cout << possible_moves.num_moves << '\n';
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         if (!position.make_test_move<true>(possible_moves.list[i])) {
             continue;

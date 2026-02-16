@@ -2,11 +2,6 @@
 #include "game.h"
 #include "logic.h"
 
-enum {
-    LEFT = 0,
-    RIGHT = 1
-};
-
 struct MoveGen {
     Position& position;
     Bitboards& bitboards;
@@ -18,8 +13,7 @@ struct MoveGen {
     Move_list generate_captures_only();
 
     template<int colour> 
-    void add_pawn_attack_moves(Move_list& moves, int& local_counter, 
-        int promotion_rank) {
+    void add_pawn_attack_moves(Move_list& moves, int& local_counter, int promotion_rank) {
         constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
         constexpr int opposing_turn = ((colour == WHITE) ? BLACK : WHITE);
         uint64_t en_passant_mask = (position.en_passant_square != -1) ? (1ULL << position.en_passant_square) : 0ULL;
@@ -58,8 +52,7 @@ struct MoveGen {
     }
 
     template<int colour>
-    void add_pawn_non_capture_moves(Move_list& moves, 
-        int& local_counter, int promotion_rank) {
+    void add_pawn_non_capture_moves(Move_list& moves, int& local_counter, int promotion_rank) {
         uint64_t single_pushes, double_pushes;
         constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
         if constexpr (colour == WHITE) {
@@ -198,9 +191,8 @@ struct MoveGen {
         }
         while (current_pieces) {
             int from_square = __builtin_ctzll(current_pieces);
-            uint64_t rook_attacks = bitboards.get_rook_attacks(from_square, bitboards.occupied) & 
-            targets;
-            //std::cout << "finding rook attacks\n";
+            uint64_t rook_attacks = bitboards.get_rook_attacks(from_square, bitboards.occupied) & targets;
+            
             while (rook_attacks) {
                 int to_square = __builtin_ctzll(rook_attacks);
                 Move move;
@@ -273,7 +265,6 @@ struct MoveGen {
             while (king_moves) {
                 int to_square = __builtin_ctzll(king_moves);
                 if (mask << to_square & targets) {
-                    //print_bitboard(bitboards.occupied_tables[turn]);
                     Move move;
                     move.set_move(from_square, to_square, piece, board[to_square]);
                     moves.list[local_counter++] = move;
@@ -296,7 +287,6 @@ struct MoveGen {
                     }
                     if (position.validate_castling(move2) == 2) {
                         moves.list[local_counter++] = move2;
-                        //std::cout << "here\n";
                     }
                 } 
             }

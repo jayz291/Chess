@@ -29,7 +29,7 @@ struct Engine {
     int negamax(int depth, int alpha, int beta, int ply, int& seldepth);
     inline int find_eval(int move_num, int depth, int beta, int alpha, int ply, int& seldepth);
     int evaluate();
-    int sort_moves_by_priority(Move& move);
+    int sort_moves_by_priority(const Move& move);
     inline int positional_eval(uint64_t bitboard, uint8_t piece, bool black = false);
     int quiescence_search(int alpha, int beta, int ply, int& seldepth);
     int pawn_structure_eval();

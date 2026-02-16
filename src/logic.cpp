@@ -1,8 +1,6 @@
 #include "logic.h"
-#include "engine.h"
 #include "movegen.h"
 #include "perft.h"
-#include <iostream>
 
 uint64_t zobrist_table[16][64];
 uint64_t zobrist_castling[16];
@@ -164,9 +162,9 @@ template<bool update_zobrist> void Position::undo_move(Move& prev_move) {
         place_piece<update_zobrist>(prev_move.get_opposing_turn(), captured, captured_square);
     }
 
-    int castling_row = (turn == BLACK) ? 0 : 7;
-    uint8_t piece = (turn == BLACK) ? BLACK_ROOK : WHITE_ROOK;
     if (move_type == CASTLING) {
+        int castling_row = (turn == BLACK) ? 0 : 7;
+        uint8_t piece = (turn == BLACK) ? BLACK_ROOK : WHITE_ROOK;
         if (to_square - from_square == 2) {
             move_piece<update_zobrist>(piece, 56 - 8 * castling_row + 5, 56 - 8 * castling_row + 7, turn);
         } else {
@@ -175,14 +173,12 @@ template<bool update_zobrist> void Position::undo_move(Move& prev_move) {
     }  
 }
 
-
 void Game::undo_game_move(bool is_game_over) {
 
     if (position.move_record.size() == 0) {
         return;
     }
     ui.selected_square = -1;
-    //std::cout << "size: " << game.move_record.size() << '\n';
 
     Move prev_move; 
     if (!is_game_over) {
@@ -198,7 +194,6 @@ void Game::undo_game_move(bool is_game_over) {
     if (!is_game_over && !position.plys_to_100_tracking.empty()) {
         position.plys_to_100 = position.plys_to_100_tracking.back();
         position.plys_to_100_tracking.pop_back();
-        //std::cout << game.plys_to_100 << '\n';
     }
     
     // std::cout << "previous: " << std::bitset<8>(game.castling_rights) << '\n';
@@ -280,6 +275,8 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
+// update castling rights in the Game class/zobrist hash. Store the castling rights in the Move
+// struct so that it can be restored later (when an undo occurs)
 template<bool update_zobrist> void Position::update_castling_flags(Move& move) {
     uint64_t mask = 1ULL;
     move.set_castling_flags(castling_rights);
@@ -307,7 +304,6 @@ template<bool update_zobrist> void Position::update_castling_flags(Move& move) {
     if (update_zobrist) {
         zobrist_hash ^= zobrist_castling[castling_rights];
     }
-    //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
 void Game::is_game_over() {
@@ -326,10 +322,8 @@ void Game::is_game_over() {
     }
     if (!position.move_record.empty()) {
         std::string algebreic_move = to_algebreic_notation();
-        //std::cout << algebreic_move << '\n';
         log.notation_history.push_back(algebreic_move);
         int total_lines = (log.notation_history.size() + 1) / 2;
-        //std::cout << "here\n";
         if (total_lines > 26) {
             log.history_scroll_offset = total_lines - 26;
         }
@@ -412,8 +406,8 @@ void Position::evaluate_king_checks() {
     }
 }
 
+// ends the game and updates the game status encoding accordingly
 void Game::end_game() {
-    //std::cout << "It is over\n";
     result.status |= (1UL << 7);
     //game.state = Gamestate::Gameover;
     if ((result.status & (1UL << 1)) | (result.status & 1UL) || position.plys_to_100 == 100) {
@@ -436,6 +430,8 @@ void Game::end_game() {
     }
 }
 
+// moves a piece from one square to another. Equivalent to removing the piece from its original square,
+// placing the piece at its new square, and also removing any captured pieces at the new square
 template<bool update_zobrist> void Position::move_piece(uint8_t target_piece, int from_square, int to_square, int turn) {
 
     uint8_t captured = board[to_square];
@@ -489,7 +485,6 @@ int Position::validate_move(Move& move) {
 }
 
 int Position::validate_pawn_move(Move& move) {
-    //Bitboards& bitboards = bitboards;
     uint64_t mask = 1ULL;
     int direction = (turn == WHITE) ? 1 : -1;
     int from = move.get_from_square();
@@ -647,12 +642,11 @@ int Position::validate_castling(Move& move) {
     return INVALID;
 }
 
-uint8_t convert_promotion_piece(Move& move, const uint8_t& promotion_piece) {
+uint8_t convert_promotion_piece(const Move& move, const uint8_t& promotion_piece) {
     uint8_t converted = promotion_piece + 2;
     if (move.get_turn() == BLACK) {
         converted |= (1UL << 3);
     }
-    //std::cout << "Converted: " << std::bitset<8>(converted) << '\n';
     return converted;
 }
 
@@ -660,6 +654,7 @@ int get_piece_colour(uint8_t piece) {
     return (piece >> 3);
 }
 
+// determines whether there is a legal move in the list of pseudolegal moves
 bool Position::more_moves_available(Move_list moves) {
     for (int i { 0 }; i < moves.num_moves; i++) {
         if (make_test_move<false>(moves.list[i])) {
