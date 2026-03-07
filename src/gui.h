@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include "game.h"
 
 sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour);
@@ -10,12 +11,15 @@ class Button {
     public:
     Button(const sf::Font& font, const std::string& string, sf::Vector2f text_pos, 
     int text_size, sf::Color text_colour, sf::Vector2f rec_pos, sf::Vector2f rec_size, sf::Color rec_colour) :
-        text(font), rectangle(rec_size) {
+        text(font), rectangle(rec_size), default_colour(rec_colour) {
         text = configure_text(font, string, text_pos, text_size, text_colour);
         rectangle = make_rectangle(rec_pos, rec_size, rec_colour);
     }
     void set_rec_colour(sf::Color new_rec_colour) {
         rectangle.setFillColor(new_rec_colour);
+    }
+    void set_new_default_rec_colour(sf::Color new_rec_colour) {
+        default_colour = new_rec_colour;
     }
     void set_text_colour(sf::Color new_text_colour) {
         text.setFillColor(new_text_colour);
@@ -38,9 +42,18 @@ class Button {
         window.draw(rectangle);
         window.draw(text);
     }
+    void update(sf::RenderWindow& window, sf::Vector2i mouse_pos) {
+        if (is_clicked(mouse_pos)) {
+            rectangle.setFillColor(sf::Color(255, 127, 0));
+        } else {
+            rectangle.setFillColor(default_colour);
+        }
+        draw(window);
+    }
     private:
     sf::Text text;
     sf::RectangleShape rectangle;
+    sf::Color default_colour;
 };
 
 using Screen = Button;
@@ -148,7 +161,7 @@ class TextBox {
                 }
             }
         }
-        if (game.invalid_fen_position) {
+        if (game.ui.invalid_fen_position) {
             window.draw(error_text);
         }
     }
@@ -182,8 +195,15 @@ class TextBox {
 
 struct Assets {
     sf::Font font;
+    sf::Font font2;
+    sf::SoundBuffer buffer;
+    sf::SoundBuffer buffer2;
+    std::optional<sf::Sound> sound;
+    std::optional<sf::Sound> sound2;
     sf::Texture array[16];
     sf::Vector2f current_mouse_pos;
+    bool allow_takebacks { true };
+    bool sound_on { false };
     Assets() {
         if (!array[BLACK_PAWN].loadFromFile("./assets/images/Chess_pdt45.png")) {
             return;
@@ -224,52 +244,70 @@ struct Assets {
         if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
             return;
         }
+        if (!font2.openFromFile("./assets/fonts/Roboto-Regular.ttf")) {
+            return;
+        }
+        if (!buffer.loadFromFile("./assets/sounds/piece-placement.wav")) {
+            return;
+        }
+        if (!buffer2.loadFromFile("./assets/sounds/capture2.wav")) {
+            return;
+        }
+        sound.emplace(buffer);
+        sound2.emplace(buffer2);
     }
-    Button play_black_cpu {font, "Play CPU as\n WHITE", {105, 540}, 30, sf::Color::Black, 
-        {85, 530}, {250, 110}, sf::Color::White};
-    Button play_white_cpu {font, "Play CPU as\n BLACK", {395, 540}, 30, sf::Color::Black, 
-        {375, 530}, {250, 110}, sf::Color::White};
-    Button play_two_player {font, "Two player", {685, 540}, 30, sf::Color::Black, 
-        {665, 530}, {250, 110}, sf::Color::White};
-    Button play_button {font, "Play", {450, 380}, 60, sf::Color::Black, 
-        {330, 330}, {350, 160}, sf::Color::White};
-    Button flip_view_button {font, "Flip view", {924, 60}, 15, sf::Color::Red, 
-        {920, 55}, {74, 35}, sf::Color::White};
+    Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 540}, 30, sf::Color::Black, 
+        {135, 530}, {250, 110}, sf::Color::White};
+    Button play_white_cpu {font, "Play CPU as\n BLACK", {445, 540}, 30, sf::Color::Black, 
+        {425, 530}, {250, 110}, sf::Color::White};
+    Button play_two_player {font, "Two player", {735, 540}, 30, sf::Color::Black, 
+        {715, 530}, {250, 110}, sf::Color::White};
+    Button play_button {font, "Play", {500, 380}, 60, sf::Color::Black, 
+        {380, 330}, {350, 160}, sf::Color::White};
+    Button flip_view_button {font, "Flip view", {13, 148}, 15, sf::Color::Red, 
+        {10, 145}, {74, 35}, sf::Color::White};
     Button home_button {font, "Back to Home", {13, 58}, 15, sf::Color::Red, 
         {10, 55}, {104, 35}, sf::Color::White};
-    Button undo_button {font, "Undo", {953, 13}, 15, sf::Color::Red, 
-        {950, 10}, {44, 35}, sf::Color::White};
-    Button reset_button {font, "Reset", {13, 13}, 15, sf::Color::Red, 
-        {10, 10}, {44, 35}, sf::Color::White};
-    TextBox fen_input {font, {60, 690}, {870, 50}, {70, 700}, 15};
+    Button undo_button {font, "Undo", {13, 103}, 15, sf::Color::Red, 
+        {10, 100}, {44, 35}, sf::Color::White};
+    Button reset_button {font, "Reset", {13, 103}, 15, sf::Color::Red, 
+        {10, 100}, {44, 35}, sf::Color::White};
+    Button toggle_takebacks {font, "Allow Takebacks: Yes", {853, 753}, 15, sf::Color::Black, 
+        {850, 750}, {157, 35}, sf::Color::Green};
+    Button make_pgn_file {font, "Make PGN file", {13, 728}, 15, sf::Color::Red, {10, 725}, {104, 35}, sf::Color::White};
+    Button toggle_audio {font, "Sound: Off", {13, 13}, 15, sf::Color::Black, {10, 10}, {104, 35}, sf::Color::Red};
+    Button go_back_button {font, "<-", {920, 730}, 40, sf::Color::Black, {900, 730}, {85, 50}, sf::Color::White};
+    Button go_forward_button {font, "->", {1015, 730}, 40, sf::Color::Black, {995, 730}, {85, 50}, sf::Color::White};
+    TextBox fen_input {font, {60, 690}, {930, 50}, {70, 700}, 15};
     Screen pawn_promotion_screen {font, "Choose Promotion Piece", {280, 280}, 40, sf::Color::White, 
         {250, 250}, {500, 300}, sf::Color::Blue};
     Screen end_screen {font, "", {280, 280}, 40, sf::Color::Red, {250, 250}, {500, 300}, sf::Color::Black};
 };
 
 void render(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets);
+void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_piece(Game& game, sf::RenderWindow& window, Assets& assets, int x, int y, uint8_t piece, 
-    bool dragging = false);
-void draw_end_screen(Game& game, sf::RenderWindow& window, Assets& assets);
-void draw_pawn_promotion_screen(Game& game, sf::RenderWindow& window, Assets& assets);
+void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
+    int x, int y, uint8_t piece, bool dragging = false);
+void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets);
+void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets);
+void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets);
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
 void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos);
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
-void handle_clicks_promoting(Game& game, sf::Vector2i mouse_pos);
+void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 
-int select_square(int x, int y, Game& game);
+int select_square(int x, int y, Position& position, UI& ui); 
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);
 
-
+void play_sound(Assets& assets, Game& game);
 
 
 

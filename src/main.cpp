@@ -20,19 +20,20 @@ void run_game_loop() {
     Game game {};
     Assets assets {};
     game.state = Gamestate::Intro;
-    sf::RenderWindow window(sf::VideoMode({1000, 800}), "Chess");
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
+    sf::RenderWindow window(sf::VideoMode({1100, 800}), "Chess", sf::Style::Default);
     init_zobrist_table();
     window.setFramerateLimit(60);
 
     while (window.isOpen()) {
-        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.turn == WHITE) ||
-            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.turn == BLACK)) {
+        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.position.turn == WHITE) ||
+            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.position.turn == BLACK)) {
             
             if (!finished) {
-                generate_computer_move(game);
+                generate_computer_move(game.position);
             } else {
                 std::cout << "Searched: " << positions_searched << '\n';
-                make_computer_move(game);
+                make_computer_move(game, assets);
             }
         } 
         handle_input(game, window, assets);
