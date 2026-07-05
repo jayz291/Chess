@@ -400,7 +400,6 @@ void Position::evaluate_king_checks() {
     }
 }
 
-// ends the game and updates the game status encoding accordingly
 void Game::end_game() {
     result.status |= (1UL << 7);
     //game.state = Gamestate::Gameover;

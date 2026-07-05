@@ -262,10 +262,6 @@ int Game::process_en_passant_square(std::string& en_passant_square) {
     return INVALID;
 }
 
-// ensures that:
-// - there is exactly one king for each side on the board
-// - no pawns on its colour's promotion rank
-// - the king cannot be captured on the next turn 
 int Game::check_position_validity() {
     if (__builtin_popcountll(position.bitboards.bitboards[BLACK_KING]) != 1 ||
         __builtin_popcountll(position.bitboards.bitboards[WHITE_KING]) != 1) {

@@ -248,31 +248,153 @@ class Game {
     Log log {};
     Result result {};
     Game();
+
+    /**
+     * @brief initialises all the necessary components for a new game
+     */
     void initialise();
+
+    /**
+     * @brief reads the fen string that has been inputted into the textbox, or the fen string for
+     * the default position if none is inputted
+     * @return -1 (INVALID) if the fen string produced an illegal position, or 0 (VALID) otherwise 
+     */
     int handle_fen_string();
+
+    /**
+     * @brief fills the chessboard based on the fen string.
+     * Updates both the array representation (of length 64) and also the bitboards. 
+     * @param fen_board_section the section of the fen string pertaining to the board setup
+     * @return -1 (INVALID) if the position is not possible, and 0 (VALID) otherwise
+     */
     int fill_board(std::string& fen_board_section);
+
+    /**
+     * @brief checks whether a position is legal. 
+     * Specifically, it ensures that:
+     * there is exactly one king for each side on the board,
+     * no pawns on its colour's promotion rank,
+     * the king cannot be captured on the next turn 
+     * @return -1 (INVALID) if the position is illegal, and 0 (VALID) otherwise 
+     */
     int check_position_validity();
+
+    /**
+     * @brief automatically sets a previous move, which leads to a valid en passant square
+     * @param en_passant_square the index of the en passant square on the board (0-63)
+     * @return -1 (INVALID) if the en passant square is impossible, and 0 (VALID) otherwise
+     */
     int process_en_passant_square(std::string& en_passant_square);
+
+    /**
+     * @brief checks whether two pieces of the same type can move the same square, necessary to
+     * provide accurate algebraic chess notation
+     * @param move the move to be evaluated
+     */
     void disambiguate(Move& move);
 
+    /**
+     * @brief undoes a game move. 
+     * If the game is over, this function will not update the game log and the 50 move rule count
+     * (this function serves to allow the user to look back over the game)
+     * @param is_game_over boolean flag, true if the game is over and false otherwise 
+     */
     void undo_game_move(bool is_game_over = false);
+
+    /**
+     * @brief does a game move. 
+     * If the game is over, this function will not update the game log and 50 move rule count
+     * (this function serves to allow the user to look back over the game)
+     * @param result represents the integer returned from the validate_move function, allowing the
+     * function to do special moves
+     * @param move the move done
+     * @param is_game_over boolean flag, true if the game is over and false otherwise 
+     */
     void make_game_move(int result, Move move, bool is_game_over = false);
+
+    /**
+     * @brief does pawn promotion 
+     * @param piece_already_selected if a piece is already selected, record the promotion piece in the move data
+     * @param is_game_over boolean flag, true if the game is over and false otherwise 
+     */
     void handle_pawn_promotion(Move& move, bool piece_already_selected = false, bool is_game_over = false);
 
+    /**
+     * @brief calls a function to end the game if any of the game over conditions are met
+     */
     void is_game_over();
+
+    /**
+     * @brief ends the game and updates the game status encoding accordingly
+     */
     void end_game();
+
+    /**
+     * @brief determines if there are enough pieces on the board for a checkmate
+     */
     bool determine_insufficient_material();
+
+    /**
+     * @brief checks whether there is a draw by threefold repetition
+     */
     bool determine_repetition();
 
+    /**
+     * @brief translates the move into algebraic chess notation e.g. Qf7+
+     */
     std::string to_algebreic_notation();
+
+    /**
+     * @brief creates a pgn file of the game
+     */
     void create_pgn();
 };
 
-// for debugging
+// DEBUGGING FUNCTIONS
+
+/**
+ * @brief prints out the bitboard into an 8x8 array
+ * @param bitboard the bitboard to be printed out
+ */
 void print_bitboard(uint64_t bitboard);
+
+/**
+ * @brief prints out all the bitboards for every type of pieces (6 types of pieces x 2 colours)
+ * @param bitboards class containing all bitboards
+ */
 void print_all_bitboards(Bitboards& bitboards);
+
+/**
+ * @brief prints out the array representation of the board into an 8x8 array
+ * @param board the board to the printed
+ */
 void print_board(std::array<uint8_t, 64> board);
+
+/**
+ * @brief determines whether the array representation and the bitboards of a position are in sync
+ * @param position position to be analysed
+ */
 void verify_board_sync(Position& position);
+
+/**
+ * @brief checks how many times a specific index on the bitboard is filled across all bitboards
+ * @param position position to be analysed
+ * @param bitboards_filled list of bitboards were the bitboard was filled at that index
+ * @param square index of the board square evaluated
+ * @return the number of bitboards where that bit is filled
+ */
 int bit_filled_count(Position& position, std::vector<int>& bitboards_filled, int square);
+
+/**
+ * @brief determines whether the zobrist hash is correct.
+ * Compares the incremental hash to one generated from scratch.
+ * @param position position to be analysed
+ * @return true if they match and false otherwise
+ */
 bool verify_zobrist_sync(Position& position);
+
+/**
+ * @brief determines the possible reasons for the zobrist hash discrepancy
+ * @param diff the XOR between the two hashes
+ */
 void debug_diff(uint64_t diff);
