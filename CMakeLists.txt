@@ -27,6 +27,8 @@ add_executable(chess
     src/uci.cpp
     src/uci.h
     src/movegen.h
+    src/components.h
+    src/components.cpp
 )
 
 target_include_directories(chess PRIVATE src)

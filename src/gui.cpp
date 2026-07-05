@@ -7,6 +7,59 @@
 
 extern std::atomic<bool> thinking_in_progress;
 
+Assets::Assets() {
+    if (!array[BLACK_PAWN].loadFromFile("./assets/images/Chess_pdt45.png")) {
+        return;
+    }
+    if (!array[WHITE_PAWN].loadFromFile("./assets/images/Chess_plt45.png")) {
+        return;
+    }
+    if (!array[BLACK_KNIGHT].loadFromFile("./assets/images/Chess_ndt45.png")) {
+        return;
+    }
+    if (!array[WHITE_KNIGHT].loadFromFile("./assets/images/Chess_nlt45.png")) {
+        return;
+    }
+    if (!array[BLACK_BISHOP].loadFromFile("./assets/images/Chess_bdt45.png")) {
+        return;
+    }
+    if (!array[WHITE_BISHOP].loadFromFile("./assets/images/Chess_blt45.png")) {
+        return;
+    }
+    if (!array[BLACK_ROOK].loadFromFile("./assets/images/Chess_rdt45.png")) {
+        return;
+    }
+    if (!array[WHITE_ROOK].loadFromFile("./assets/images/Chess_rlt45.png")) {
+        return;
+    }
+    if (!array[BLACK_QUEEN].loadFromFile("./assets/images/Chess_qdt45.png")) {
+        return;
+    }
+    if (!array[WHITE_QUEEN].loadFromFile("./assets/images/Chess_qlt45.png")) {
+        return;
+    }
+    if (!array[BLACK_KING].loadFromFile("./assets/images/Chess_kdt45.png")) {
+        return;
+    }
+    if (!array[WHITE_KING].loadFromFile("./assets/images/Chess_klt45.png")) {
+        return;
+    }
+    if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
+        return;
+    }
+    if (!font2.openFromFile("./assets/fonts/Roboto-Regular.ttf")) {
+        return;
+    }
+    if (!buffer.loadFromFile("./assets/sounds/piece-placement.wav")) {
+        return;
+    }
+    if (!buffer2.loadFromFile("./assets/sounds/capture2.wav")) {
+        return;
+    }
+    sound.emplace(buffer);
+    sound2.emplace(buffer2);
+}
+
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
     while (const std::optional event = window.pollEvent()) {
         if (event->is<sf::Event::Closed>()) {
@@ -286,25 +339,6 @@ void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets)
             panel_pos.y + (bar_y_range * scroll_ratio)}, {5.f, bar_height}, sf::Color(100, 100, 100));
         window.draw(scroll_bar);
     }
-}
-
-// set the font, content, position, size and colour of a text string
-sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
-    int size, sf::Color colour) {
-    sf::Text text(font);
-    text.setString(string);
-    text.setPosition(pos);
-    text.setFillColor(colour);
-    text.setCharacterSize(size);
-    return text;
-}
-
-// set the position, size and colour of a rectangle
-sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour) {
-    sf::RectangleShape rectangle(size);
-    rectangle.setPosition(pos);
-    rectangle.setFillColor(colour);
-    return rectangle;
 }
 
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos) {
