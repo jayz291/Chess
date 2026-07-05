@@ -47,7 +47,6 @@ void Position::find_position_hash() {
     }
 }
 
-// replace piece with another piece on all 3 representations of the board
 template<bool update_zobrist> void Position::replace_piece(int turn, uint8_t prev_piece, 
     uint8_t new_piece, int target_square) {
     assert(board[target_square] != EMPTY_SQUARE);
@@ -55,7 +54,6 @@ template<bool update_zobrist> void Position::replace_piece(int turn, uint8_t pre
     place_piece<update_zobrist>(turn, new_piece, target_square);
 }
 
-// remove piece from all representations of the board
 template<bool update_zobrist> inline void Position::remove_piece(int turn, uint8_t target_piece, int target_square) {
 
     // update bitboards
@@ -72,7 +70,6 @@ template<bool update_zobrist> inline void Position::remove_piece(int turn, uint8
     }
 }
 
-// place piece on all representations of the board
 template<bool update_zobrist> inline void Position::place_piece(int turn, uint8_t target_piece, int target_square) {
     //int zobrist_offset = (turn == WHITE) ? 0 : 6;
 
@@ -90,7 +87,6 @@ template<bool update_zobrist> inline void Position::place_piece(int turn, uint8_
     }
 }
 
-// restores the previous en passant square and castling rights (and the zobrist hash, if applicable)
 template<bool update_zobrist> void Position::restore_zobrist_en_passant_and_castling(Move& prev_move) {
     if constexpr (update_zobrist) {
         zobrist_hash ^= zobrist_castling[castling_rights];
@@ -275,8 +271,6 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
-// update castling rights in the Game class/zobrist hash. Store the castling rights in the Move
-// struct so that it can be restored later (when an undo occurs)
 template<bool update_zobrist> void Position::update_castling_flags(Move& move) {
     uint64_t mask = 1ULL;
     move.set_castling_flags(castling_rights);
@@ -430,8 +424,6 @@ void Game::end_game() {
     }
 }
 
-// moves a piece from one square to another. Equivalent to removing the piece from its original square,
-// placing the piece at its new square, and also removing any captured pieces at the new square
 template<bool update_zobrist> void Position::move_piece(uint8_t target_piece, int from_square, int to_square, int turn) {
 
     uint8_t captured = board[to_square];
@@ -654,7 +646,6 @@ int get_piece_colour(uint8_t piece) {
     return (piece >> 3);
 }
 
-// determines whether there is a legal move in the list of pseudolegal moves
 bool Position::more_moves_available(Move_list moves) {
     for (int i { 0 }; i < moves.num_moves; i++) {
         if (make_test_move<false>(moves.list[i])) {

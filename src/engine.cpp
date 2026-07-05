@@ -511,8 +511,7 @@ int Engine::sort_moves_by_priority(const Move& move) {
     }
     if (move.get_move_type() == PROMOTION) {
         move_score_guess += 70 * piece_values[move.get_promotion_piece() + 2];
-    }
-    if (move.get_move_type() == CASTLING) {
+    } else if (move.get_move_type() == CASTLING) {
         move_score_guess += 100;
     }
     return move_score_guess;
