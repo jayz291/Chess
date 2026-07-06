@@ -9,9 +9,25 @@ struct MoveGen {
     MoveGen(Position& position) : position(position), bitboards(position.bitboards), 
         board(position.board) {};
 
+    /**
+     * @brief generates all possible pseudolegal moves (does not care if it leaves king in check)
+     * @return list of pseudolegal moves
+     */
     Move_list determine_possible_moves();
+
+    /**
+     * @brief generates all possible pseudolegal capture moves (does not care if it leaves king in check)
+     * @return list of pseudolegal capture moves
+     */
     Move_list generate_captures_only();
 
+    /**
+     * @brief generates all pseudolegal pawn capture moves
+     * @tparam colour the colour of the pieces
+     * @param moves reference to a list of pseudolegal moves generated so far
+     * @param local_counter variable tracking the number of moves in the move list
+     * @param promotion_rank the pawn must reach this rank index for promotion
+     */
     template<int colour> 
     void add_pawn_attack_moves(Move_list& moves, int& local_counter, int promotion_rank) {
         constexpr uint8_t target_piece = (colour == WHITE) ? WHITE_PAWN : BLACK_PAWN;
@@ -51,6 +67,13 @@ struct MoveGen {
         }
     }
 
+    /**
+     * @brief generates all pseudolegal pawn non-capture moves
+     * @tparam colour the colour of the pieces (0 = WHITE, 1 = BLACK)
+     * @param moves reference to a list of pseudolegal moves generated so far
+     * @param local_counter variable tracking the number of moves in the move list
+     * @param promotion_rank the pawn must reach this rank index for promotion
+     */
     template<int colour>
     void add_pawn_non_capture_moves(Move_list& moves, int& local_counter, int promotion_rank) {
         uint64_t single_pushes, double_pushes;
@@ -102,6 +125,12 @@ struct MoveGen {
         }
     }
 
+    /**
+     * @brief adds all pseudolegal pawn moves (capture/non-capture)
+     * @tparam colour the relevant colour (0 = WHITE, 1 = BLACK)
+     * @tparam generate_captures_only true to generate capture moves only, and false otherwise
+     * @param moves reference to a list of pseudolegal moves generated so far
+     */
     template<int colour, bool generate_captures_only>
     void add_pawn_moves(Move_list& moves) {
         
@@ -115,6 +144,12 @@ struct MoveGen {
         moves.num_moves = local_counter;
     }
 
+    /**
+     * @brief adds all pseudolegal knight moves
+     * @tparam colour the relevant colour (0 = WHITE, 1 = BLACK)
+     * @tparam generate_captures_only true to generate capture moves only, and false otherwise
+     * @param moves reference to a list of pseudolegal moves generated so far
+     */
     template<int colour, bool generate_captures_only>
     void add_knight_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
@@ -147,6 +182,12 @@ struct MoveGen {
         moves.num_moves = local_counter;
     }
 
+    /**
+     * @brief adds all pseudolegal bishop moves
+     * @tparam colour the relevant colour (0 = WHITE, 1 = BLACK)
+     * @tparam generate_captures_only true to generate capture moves only, and false otherwise
+     * @param moves reference to a list of pseudolegal moves generated so far
+     */
     template<int colour, bool generate_captures_only>
     void add_bishop_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
@@ -176,6 +217,12 @@ struct MoveGen {
         moves.num_moves = local_counter;
     }
 
+    /**
+     * @brief adds all pseudolegal rook moves
+     * @tparam colour the relevant colour (0 = WHITE, 1 = BLACK)
+     * @tparam generate_captures_only true to generate capture moves only, and false otherwise
+     * @param moves reference to a list of pseudolegal moves generated so far
+     */
     template<int colour, bool generate_captures_only>
     void add_rook_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
@@ -205,6 +252,12 @@ struct MoveGen {
         moves.num_moves = local_counter;
     }
 
+    /**
+     * @brief adds all pseudolegal queen moves
+     * @tparam colour the relevant colour (0 = WHITE, 1 = BLACK)
+     * @tparam generate_captures_only true to generate capture moves only, and false otherwise
+     * @param moves reference to a list of pseudolegal moves generated so far
+     */
     template<int colour, bool generate_captures_only>
     void add_queen_moves(Move_list& moves) {
         uint64_t mask = 1ULL;
@@ -245,6 +298,12 @@ struct MoveGen {
         moves.num_moves = local_counter;
     }
 
+    /**
+     * @brief adds all pseudolegal king moves (including castling)
+     * @tparam colour the relevant colour (0 = WHITE, 1 = BLACK)
+     * @tparam generate_captures_only true to generate capture moves only, and false otherwise
+     * @param moves reference to a list of pseudolegal moves generated so far
+     */
     template<int colour, bool generate_captures_only>
     void add_king_moves(Move_list& moves) {
 
