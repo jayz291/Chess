@@ -4,7 +4,18 @@
 #include "engine.h"
 #include "uci.h"
 
+/**
+ * @brief processes the position inputted through uci text input
+ * @param game class containing all game variables/classes
+ * @param stream the text input
+ */
 void parse_position(Game& game, std::istringstream& stream);
+
+/**
+ * @brief 
+ * @param game class containing all game variables/classes
+ * @param stream the text input
+ */
 void parse_go(Game& game, std::istringstream& stream);
 
 void run_uci_loop() {
