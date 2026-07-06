@@ -17,19 +17,27 @@ struct Position {
     Chessboard board;
     Bitboards bitboards;
     bool white_in_check, black_in_check;
-    int plys_to_100;
+    int plys_to_100; ///< 50 move rule tracking 
     int turn;
-    int en_passant_index; // (0 - 7 for col of en passant square, 8 if there is none )
-    int en_passant_square;
+    int en_passant_index; ///< 0 - 7 for col of en passant square, 8 if there is none
+    int en_passant_square; ///< index of the square where an en passant capture pawn will land on
     std::vector<int> plys_to_100_tracking {};
     std::vector<Move> move_record {};
     std::vector<uint64_t> board_record {};
-    uint8_t castling_rights;
-    int value_white_pieces;
-    int value_black_pieces;
-    uint64_t zobrist_hash;
+    uint8_t castling_rights; ///< record of the castling rights for each player
+    int value_white_pieces; 
+    int value_black_pieces; 
+    uint64_t zobrist_hash; ///< an unsigned 64-bit number representing a position
     Move current_move;
+
+    /**
+     * @brief initialises all the necessary variables to start the game 
+     */
     void initialise();
+
+    /**
+     * @brief generates a zobrist hash value from scratch by XORing all relevant values
+     */
     void find_position_hash();
 
     /**
@@ -379,7 +387,7 @@ void verify_board_sync(Position& position);
 /**
  * @brief checks how many times a specific index on the bitboard is filled across all bitboards
  * @param position position to be analysed
- * @param bitboards_filled list of bitboards were the bitboard was filled at that index
+ * @param bitboards_filled list of bitboards where the bitboard was filled at that index
  * @param square index of the board square evaluated
  * @return the number of bitboards where that bit is filled
  */

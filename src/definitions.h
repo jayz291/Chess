@@ -313,43 +313,136 @@ inline uint64_t FILE_AB = FILE_MASKS[0] | FILE_MASKS[1];
 inline uint64_t FILE_GH = FILE_MASKS[6] | FILE_MASKS[7];
 
 struct Bitboards {
-    uint64_t bitboards[16];
-    uint64_t occupied_tables[2];
-    uint64_t occupied;
-    static uint64_t knight_attacks[64];
-    static uint64_t king_moves[64];
-    static uint64_t pawn_attacks[2][64];
-    static uint64_t pawn_moves[2][64];
-    static uint64_t between_table[64][64];
-    static uint64_t rook_attack_table[64][4096];
-    static uint64_t bishop_attack_table[64][512];
-    static uint64_t rook_masks[64];
-    static uint64_t bishop_masks[64];
-    static uint64_t rook_magic_nums[64];
-    static uint64_t bishop_magic_nums[64];
+    uint64_t bitboards[16]; ///< array of bitboards for every unique type of piece on the board
+    uint64_t occupied_tables[2]; ///< bitboards representing which squares are occupied by white or black pieces
+    uint64_t occupied; ///< a bitboard representing which squares are occupied
+    static uint64_t knight_attacks[64]; ///< bitboards showing possible knight moves from each square
+    static uint64_t king_moves[64]; ///< bitboards showing possible king moves from each square
+    static uint64_t pawn_attacks[2][64]; ///< bitboards showing possible pawn capture moves for white and black
+    static uint64_t pawn_moves[2][64]; ///< bitboards showing possible pawn non-capture moves for white and black
+    static uint64_t between_table[64][64]; ///< bitboards holding bit masks between squares of the same row/col/diagonal
+    static uint64_t rook_attack_table[64][4096]; ///< bitboards for looking up rook attacks based on the piece arrangement/square
+    static uint64_t bishop_attack_table[64][512]; ///< bitboards for looking up bishop attacks based on the piece arrangement/square
+    static uint64_t rook_masks[64]; ///< bitboards representing the possible rook moves from each square
+    static uint64_t bishop_masks[64]; ///< bitboards representing the possible bishop moves from each square
+    static uint64_t rook_magic_nums[64]; ///< magic numbers for hashing purposes, preventing collisions
+    static uint64_t bishop_magic_nums[64]; ///< magic numbers for hashing purposes, preventing collisions
     static int rook_shifts[64];
     static int bishop_shifts[64];
     static bool initialised;
+
     Bitboards();
+
+    /**
+     * @brief initialises the array of bitboards to all zeroes
+     */
     void init_bitboards();
+
+    /**
+     * @brief sets the bitboards representing which squares are occupied, using the 
+     * bitboards for all the pieces
+     */
     void update_occupied();
+
+    /**
+     * @brief precomputes the valid knight moves from every single square
+     */
     void find_valid_knight_moves();
+
+    /**
+     * @brief precomputes the valid king moves from every single square
+     */
     void find_valid_king_moves();
+
+    /**
+     * @brief creates bitmasks representing cells on the same diagonal and cells on the same row/column
+     */
     void make_between_table();
+
+    /**
+     * @brief precomputes the pawn moves/captures from every square on the board
+     */
     void find_pawn_attacks();
+
+    /**
+     * @brief precalculates/initialises lookup tables for sliding piece attacks using magic bitboards
+     * @param square the index of the relevant square
+     * @param piece the relevant piece (ROOK or BISHOP)
+     */
     constexpr void fill_attack_square(int square, int piece);
+
+    /**
+     * @brief fills the attack tables for bishops/rooks for each square 
+     */
     constexpr void fill_attack_tables();
+
+    /**
+     * @brief rook attack table lookup using magic nums (in definitions.h so it can be inlined)
+     * @param square the index of the relevant square
+     * @param occupancy the bitboard occupancy table
+     * @return a mask representing the possible rook attacks from that square
+     */
     uint64_t get_rook_attacks(int square, uint64_t occupancy);
+
+    /**
+     * @brief bishop attack table lookup using magic nums (in definitions.h so it can be inlined)
+     * @param square the index of the relevant square
+     * @param occupancy the bitboard occupancy table
+     * @return a mask representing the possible bishop attacks from that square 
+     */
     uint64_t get_bishop_attacks(int square, uint64_t occupancy);
+
+    /**
+     * @brief precomputes a rook mask (all the squares the rook could move to) for the square, 
+     * taking into account of other pieces
+     * @param square the index of the relevant square 
+     * @param occupied the bitboard occupancy table
+     * @return the rook mask
+     */
     inline uint64_t find_rook_attacks(int square, uint64_t& occupied);
+
+    /**
+     * @brief precomputes a bishop mask (all the squares the bishop could move to) for the square, 
+     * taking into account of other pieces
+     * @param square the index of the relevant square
+     * @param occupied the bitboard occupancy table
+     * @return the bishop mask
+     */
     inline uint64_t find_bishop_attacks(int square, uint64_t& occupied);
+
+    /**
+     * @brief computes a rook mask (all the squares a rook could move to), ignoring other pieces
+     * @param square the index of the relevant square
+     * @return the rook mask
+     */
     uint64_t get_rook_mask(int square);
+
+    /**
+     * @brief computes a bishop mask (all the squares a bishop could move to), ignoring other pieces
+     * @param square the index of the relevant square
+     * @return the bishop mask
+     */
     uint64_t get_bishop_mask(int square);
+
+    /**
+     * @brief computes the blocker pattern for the sliding pieces
+     * @param index number from 0 to 2^num_bits representing all possible permutations of blockers
+     * @param num_bits total number of set bits (relevant blockers) in the attack mask
+     * @param attack_mask attack mask of the bishop/rook from a particular square 
+     * @return a bitboard mask representing the blocker pattern
+     */
     uint64_t set_occupancy(int index, int num_bits, uint64_t attack_mask);
+
+    /**
+     * @brief function to prevent board wraparounds.
+     * A wraparound occurs when a piece is about to go off the board and instead reappears on the other side. 
+     * @param square the index of the current square
+     * @param direction the direction of the piece from this square (represented as a bitwise shift)
+     * @return false if a wraparound is about to occur, and true otherwise
+     */
     bool determine_square_validity(int square, int direction);
 };
 
-// rook attack table lookup using magic nums (in definitions.h so it can be inlined)
 inline uint64_t Bitboards::get_rook_attacks(int square, uint64_t occupancy) {
     occupancy &= rook_masks[square];
     occupancy *= rook_magic_nums[square];
@@ -357,7 +450,6 @@ inline uint64_t Bitboards::get_rook_attacks(int square, uint64_t occupancy) {
     return rook_attack_table[square][occupancy];
 }
 
-// bishop attack table lookup using magic nums (in definitions.h so it can be inlined)
 inline uint64_t Bitboards::get_bishop_attacks(int square, uint64_t occupancy) {
     occupancy &= bishop_masks[square];
     occupancy *= bishop_magic_nums[square];

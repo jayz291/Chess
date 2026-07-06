@@ -164,13 +164,15 @@ void Bitboards::make_between_table() {
     }
 }
 
-// computes the blocker pattern for the sliding pieces
 uint64_t Bitboards::set_occupancy(int index, int num_bits, uint64_t attack_mask) {
     uint64_t occupancy = 0ULL;
     for (int i { 0 }; i < num_bits; i++) {
         int square = __builtin_ctzll(attack_mask);
         attack_mask &= attack_mask - 1;  // remove bit
 
+        // generates a blocker pattern based on the index
+        // e.g. if the blocker pattern is bits set as 2,5,8 and the index is 5
+        // (binary 101), on the occupancy table bits 2 and 8 will be set. 
         if (index & (1ULL << i)) {
             occupancy |= (1ULL << square);
         }
@@ -178,7 +180,6 @@ uint64_t Bitboards::set_occupancy(int index, int num_bits, uint64_t attack_mask)
     return occupancy;
 }
 
-// function to prevent board wraparounds
 bool Bitboards::determine_square_validity(int square, int direction) {
     int rank = square / 8;
     int file = square % 8;
@@ -192,7 +193,6 @@ bool Bitboards::determine_square_validity(int square, int direction) {
     return true; 
 }
 
-// precomputes the pawn moves/captures from every square on the board
 void Bitboards::find_pawn_attacks() {
     for (int cell { 0 }; cell < 64; cell++) {
         uint64_t position = 1ULL << cell;
@@ -222,8 +222,6 @@ void Bitboards::find_pawn_attacks() {
     }
 }
 
-// precomputes a rook mask (all the squares the rook could move to) for each square, 
-// taking into account of other pieces
 uint64_t Bitboards::find_rook_attacks(int square, uint64_t& occupied) {
     int directions[4] = {-1, 1, 8, -8};
     int curr = square;
@@ -243,8 +241,6 @@ uint64_t Bitboards::find_rook_attacks(int square, uint64_t& occupied) {
     return attacks;
 }
 
-// precomputes a bishop mask (all the squares the bishop could move to) for each square, 
-// taking into account of other pieces
 uint64_t Bitboards::find_bishop_attacks(int square, uint64_t& occupied) {
     int directions[4] = {7, -7, 9, -9};
     int curr = square;
@@ -311,19 +307,25 @@ constexpr void Bitboards::fill_attack_square(int square, int piece) {
     }
     int num_bits = __builtin_popcountll(mask);
     
+    // 12 relevant blocker squares at most for a piece (for the rook specifically), edge squares discounted
     uint64_t blocker[4096], attack[4096], used[4096];
     for (int i { 0 }; i < (1 << num_bits); i++) {
         blocker[i] = set_occupancy(i, num_bits, mask);
         attack[i] = (piece == WHITE_BISHOP) ? find_bishop_attacks(square, blocker[i]) : find_rook_attacks(square, blocker[i]);
     }
 
+    // iteration over all the possible blocker patterns 
+    // if there are num_bits relevant squares, there are 2^num_bits possible occupied/empty
+    // occupations, equivalent to 1 << num_bits
     if (piece == WHITE_BISHOP) {
         for (int i = 0; i < (1 << num_bits); i++) {
+            // shift to use the most significant bits as the array index
             int magic_index = (int)((blocker[i] * bishop_magic_nums[square]) >> (64 - bishop_shifts[square]));
             bishop_attack_table[square][magic_index] = attack[i];
         }
     } else {
         for (int i = 0; i < (1 << num_bits); i++) {
+            // shift to use the most significant bits as the array index
             int magic_index = (int)((blocker[i] * rook_magic_nums[square]) >> (64 - rook_shifts[square]));
             rook_attack_table[square][magic_index] = attack[i];
         }

@@ -566,7 +566,6 @@ bool Engine::determine_repetition() {
     return false;
 }
 
-// generates all possible pseudolegal moves (does not care if it leaves king in check)
 Move_list MoveGen::determine_possible_moves() {
     Move_list moves;
     if (position.turn == WHITE) {
@@ -587,7 +586,6 @@ Move_list MoveGen::determine_possible_moves() {
     return moves;
 }
 
-// generates all possible pseudolegal capture moves (does not care if it leaves king in check)
 Move_list MoveGen::generate_captures_only() {
     Move_list moves;
     if (position.turn == WHITE) {
