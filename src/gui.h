@@ -1,6 +1,10 @@
 #pragma once
 #include "components.h"
 
+/**
+ * @class Assets 
+ * @brief contains all fonts, sounds, buttons and images used within the game. 
+ */
 struct Assets {
     sf::Font font;
     sf::Font font2;
@@ -13,6 +17,9 @@ struct Assets {
     bool allow_takebacks { true };
     bool sound_on { false };
     
+    /**
+     * @brief loads all pictures and sounds into the game
+     */
     Assets();
 
     Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 540}, 30, sf::Color::Black, 
@@ -43,29 +50,178 @@ struct Assets {
     Screen end_screen {font, "", {280, 280}, 40, sf::Color::Red, {250, 250}, {500, 300}, sf::Color::Black};
 };
 
+/**
+ * @brief renders the screen and all its components (board, buttons, move log)
+ * @param game class containing all game variables/classes
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ */
 void render(Game& game, sf::RenderWindow& window, Assets& assets);
+
+/**
+ * @brief renders the initial screen
+ * @param window serves as target for 2D drawing
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos the current cursor position on the screen
+ */
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+
+/**
+ * @brief draws the chessboard
+ * @param window serves as target for 2D drawing
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ */
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
+
+/**
+ * @brief draws the piece at the appropriate location
+ * @param position class containing variables concerning the chess game
+ * @param ui class containing variables regarding user interaction with the chess pieces
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ * @param x the rank of the piece
+ * @param y the file of the piece
+ * @param piece the piece being drawn
+ * @param dragging boolean flag which is true if the piece is being dragged and false otherwise
+ */
 void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
     int x, int y, uint8_t piece, bool dragging = false);
+
+/**
+ * @brief draws the pop-up 'game is over' message
+ * @param position class containing variables concerning the chess game
+ * @param result the outcome of the game 
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ */
 void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets);
+
+/**
+ * @brief draws the pop-up to allow the player to select a promotion piece 
+ * @param position class containing variables concerning the chess game
+ * @param ui class containing variables regarding user interaction with the chess pieces
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ */
 void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets);
+
+/**
+ * @brief draws the panel showing the move history is algebraic chess notation
+ * @param log class containing variables concerning the move log
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ */
 void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets);
 
+/**
+ * @brief handles user input
+ * @param game class containing all game variables/classes
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ */
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
+
+/**
+ * @brief calls the appropriate input handler function based on the click event
+ * @param game class containing all game variables/classes
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ * @param world_pos position of the click
+ */
 void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos);
+
+/**
+ * @brief handles click events that occur on the intro screen
+ * @param game class containing all game variables/classes
+ * @param window serves as target for 2D drawing
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos position of the cursor on the screen
+ */
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos);
+
+/**
+ * @brief handles cursor movement and clicks during the game
+ * @param game class containing all game variables/classes
+ * @param window serves as target for 2D drawing
+ * @param mouse_pos position of the cursor on the screen
+ * @param assets class containing everything drawn in the game
+ */
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
+
+/**
+ * @brief handles what occurs when the player drops a piece (stops dragging it)
+ * @param game class containing all game variables/classes
+ * @param window serves as target for 2D drawing
+ * @param mouse_pos position of the cursor on the screen
+ * @param assets class containing everything drawn in the game
+ */
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
+
+/**
+ * @brief controls the game state on the pawn promotion screen
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos position of the cursor on the screen
+ */
 void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+/**
+ * @brief handles clicks for when the player resets the game (clicking the reset button)
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos position of the cursor on the screen
+ */
 void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+/** 
+ * @brief handles clicks to undo a move (clicking the undo button)
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos position of the cursor on the screen
+ */
 void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+/**
+ * @brief handles clicks for returning to the intro screen
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos position of the cursor on the screen
+ */
 void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+/**
+ * @brief handles clicks to flip the chessboard
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ * @param mouse_pos position of the cursor on the screen
+ */
 void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 
+/**
+ * @brief handles clicks on the chessboard during gameplay
+ * @param x rank of the clicked square
+ * @param y file of the clicked square 
+ * @param position class containing variables concerning the chess game
+ * @param ui class containing variables regarding user interaction with the chess pieces
+ * @return number greater than 0 for a valid move/click, and a number less than 0 for an invalid move/click
+ */
 int select_square(int x, int y, Position& position, UI& ui); 
+
+/**
+ * @brief allows the player to select a promotion piece on the pawn promotion screen
+ * @param game class containing all game variables/classes
+ * @param mouse_pos position of the cursor on the screen
+ * @returns true if a valid selection was made, and false otherwise
+ */
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);
 
+/**
+ * @brief plays a sound within the game
+ * @param game class containing all game variables/classes
+ * @param assets class containing everything drawn in the game
+ */
 void play_sound(Assets& assets, Game& game);
 
 
