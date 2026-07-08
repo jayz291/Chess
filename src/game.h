@@ -198,6 +198,7 @@ struct Position {
      * @brief does a trial move
      * @tparam update_zobrist true if the zobrist hash is to be updated, and false otherwise
      * @param move move to be done
+     * @return false if the move is illegal (king captured, or leaves king in check), and true otherwise
      */
     template<bool update_zobrist> bool make_test_move(Move& move);
 

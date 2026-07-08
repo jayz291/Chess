@@ -21,10 +21,13 @@ enum {
     BLACK = 1
 };
 
+/**
+ * @brief flags for different types of positions stored in the transposition table
+ */
 enum tt_flag {
-    tt_exact,
-    tt_alpha, 
-    tt_beta,
+    tt_exact, ///< position that stayed within the window (good enough for both players) (eval score is exact)
+    tt_alpha, ///< position isn't good enough for the current player (eval score is an upper bound)
+    tt_beta, ///< position will be avoided by the opposing player (eval score is a lower bound)
 };
 
 using Chessboard = std::array<uint8_t, 64>;

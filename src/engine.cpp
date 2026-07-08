@@ -18,6 +18,8 @@ void clear_transposition_table() {
 void Engine::record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     int stored_score = eval;
+
+    // store checkmates with ply adjustments 
     if (eval > CHECKMATE_THRESHOLD) {
         stored_score = eval + ply;
     } else if (eval < -CHECKMATE_THRESHOLD) {
@@ -37,6 +39,8 @@ int Engine::probe_transposition_table(uint64_t key, int depth, int alpha, int be
     int index = key & (TABLE_SIZE - 1);
     table_entry entry = transposition_table[index];
     int return_eval = entry.eval;
+
+    // ensures that the checkmate calculation is relative to the root
     if (return_eval > CHECKMATE_THRESHOLD) {
         return_eval -= ply; 
     } else if (return_eval < -CHECKMATE_THRESHOLD) {
@@ -44,12 +48,19 @@ int Engine::probe_transposition_table(uint64_t key, int depth, int alpha, int be
     }
     if (key == entry.zobrist_key) {
         best_move = entry.best_move;
+        // ensures the saved entry is just as accurate, or even more accurate
         if (entry.depth >= depth) {
             if (entry.flag == tt_flag::tt_exact) {
+                // the position was searched before and it is not too bad for either player.
+                // As the depth is deep enough, return the exact evaluation. 
                 return return_eval;
             } else if (entry.flag == tt_flag::tt_alpha && return_eval <= alpha) {
+                // the new guaranteed maximum is higher than the previous upper bound stored
+                // in the transposition table. Use the new alpha (another move is better for the player)
                 return alpha;
             } else if (entry.flag == tt_flag::tt_beta && return_eval >= beta) {
+                // the new guaranteed minimum is lower than the previous lower bound stored
+                // in the transposition table. The opponent will avoid this position (again)
                 return beta;
             }
         }
@@ -210,6 +221,8 @@ Move Engine::get_best_move(int search_depth) {
         int alpha = -500000, beta = 500000;
         int move_eval = 0;
         int move_num = 0;
+
+        // order the moves so that more promising moves are prioritised 
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
             return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
@@ -243,6 +256,7 @@ Move Engine::get_best_move(int search_depth) {
                 current_best_move = move;
             }
         
+            // if this occurs, something has gone wrong 
             if (current_best_move.get_to_square() == current_best_move.get_from_square()) {
                 current_best_move = move;
             }
@@ -270,9 +284,6 @@ Move Engine::get_best_move(int search_depth) {
     return overall_best_move;
 }
 
-// negamax function:
-// - alpha: the highest score that the maximising player can guarantee
-// - beta: the lowest score that the minimising player can guarantee
 int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) { 
     nodes_searched++;
     if (ply > seldepth) {
@@ -294,6 +305,8 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     int king_square = __builtin_ctzll(position.bitboards.bitboards[piece]);
     bool in_check = position.is_square_attacked(king_square, position.turn);
     int extension = 0;
+
+    // if the king is in check, extend the search 
     if (in_check && ply <= 50) {
         extension = 1;
     }
@@ -301,6 +314,8 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     if (depth + extension == 0) {
         return quiescence_search(alpha, beta, ply, seldepth);
     }
+
+    // checks whether the time is over every 2048 seconds
     if ((nodes_searched & 2047) == 0) {
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
@@ -310,6 +325,8 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
         }
     }
     bool has_major_pieces = false;
+
+    // quickly determines, using bitboards, whether any major pieces are present on the board
     if (position.turn == WHITE) {
         has_major_pieces = (position.bitboards.bitboards[WHITE_KNIGHT] | position.bitboards.bitboards[WHITE_BISHOP] | 
             position.bitboards.bitboards[WHITE_ROOK] | position.bitboards.bitboards[WHITE_QUEEN]);
@@ -337,6 +354,8 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     Move_list possible_moves = move_generator.determine_possible_moves();
     uint8_t king = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
 
+    // sorts the moves so that moves likelier to be better are first
+    // the move stored from a previous depth is used first
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
         if (move1 == stored_move) {
@@ -356,6 +375,7 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         auto& possible_move = possible_moves.list[i];
 
+        // if the pseudolegal move is actually illegal, skip to the next move in the list
         if (!position.make_test_move<true>(possible_move)) {
             continue;
         };
@@ -368,7 +388,12 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
             best_move_this_node = possible_move;
         }
 
+        // update the alpha to the higher maximum guaranteed score (for the maximising player)
         alpha = std::max(move_eval, alpha);
+
+        // the maximum guaranteed score is higher than the minimum guaranteed score. The
+        // minimising player has a better move somewhere else in the tree, so they will not go
+        // down this branch - cut off the search here
         if (alpha >= beta) {
             break;
         } 
@@ -377,8 +402,10 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     if (num_legal_moves == 0) {
         int king_square = __builtin_ctzll(position.bitboards.bitboards[king]);
         if (position.is_square_attacked(king_square, position.turn)) {
+            // checkmate in sight: +ply so the computer favours shorter checkmates
             return -400000 + ply;
         } else {
+            // stalemate
             return 0;
         }
     }
@@ -386,10 +413,14 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     if (!terminate_search) {
         tt_flag flag;
         if (max_eval <= original_alpha) {
+            // no move improved on the original alpha score from the position. (failed low)
             flag = tt_flag::tt_alpha;
         } else if (max_eval >= beta) {
+            // a move found was too good (evaluation is higher than the opponent's guaranteed min
+            // score), so the opponent will avoid this position
             flag = tt_flag::tt_beta;
         } else {
+            // the move found is plausible (not too bad for either player)
             flag = tt_flag::tt_exact;
         }
         record_entry(position.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
@@ -397,24 +428,32 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     return max_eval;
 }
 
-// principal variation search
 inline int Engine::find_eval(int move_num, int depth, int beta, int alpha, int ply, int& seldepth) {
     if (terminate_search) {
         return 0;
     }
     int move_eval;
     if (move_num == 0) {
+        // do a full window search on only the first move, to return an exact evaluation score
         move_eval = -negamax(depth - 1, -beta, -alpha, ply, seldepth);
     } else {
+        // does a zero-window search
+        // beta value: -alpha, alpha value: -alpha - 1
+        // if the evaluation is worse than alpha, the move is discarded (not good enough)
+        // if it is better, the loop immediately breaks as it is above the beta cutoff
         move_eval = -negamax(depth - 1, -alpha - 1, -alpha, ply, seldepth);
-        if (move_eval > alpha && move_eval < beta) {
+
+        // re-search condition: if the move evaluation is bigger than alpha and smaller than
+        // beta, this means that the move is an improvement for the maximising player (better
+        // guaranteed max score), but not so bad that the opposing player will reject it
+        // (less than the opposing player's minimum guaranteed score) 
+        if (alpha < move_eval && move_eval < beta) {
             move_eval = -negamax(depth - 1, -beta, -alpha, ply, seldepth);
         }
     }
     return move_eval;
 }
 
-// evaluation function, based on material and piece square tables
 int Engine::evaluate() {
     int eval { 0 };
     position.value_white_pieces = position.value_black_pieces = 0;
@@ -517,16 +556,23 @@ int Engine::sort_moves_by_priority(const Move& move) {
     return move_score_guess;
 }
 
-// search captures deeper, until the position is "quiet"
 int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
+
+    // score achieved if there are no further changes
     int stand_pat = evaluate() * ((position.turn == WHITE) ? 1 : -1);
     positions_searched++;
+
+    // update the selective depth count
     if (ply > seldepth) {
         seldepth = ply;
     }
+
+    // if the stand pat is above beta, that means that the opponent will avoid this position 
     if (stand_pat >= beta) {
         return beta;
     }
+
+    // if the stand pat is above alpha, set this as the new baseline
     if (stand_pat > alpha) {
         alpha = stand_pat;
     }
@@ -545,6 +591,7 @@ int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
         if (score >= beta) {
             return beta;
         } 
+        // raise the baseline if a better score is found
         if (score > alpha) {
             alpha = score;
         }
