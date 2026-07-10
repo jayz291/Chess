@@ -1,6 +1,5 @@
 #include "components.h"
 
-// set the position, size and colour of a rectangle
 sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour) {
     sf::RectangleShape rectangle(size);
     rectangle.setPosition(pos);
@@ -8,7 +7,6 @@ sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color
     return rectangle;
 }
 
-// set the font, content, position, size and colour of a text string
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
     int size, sf::Color colour) {
     sf::Text text(font);

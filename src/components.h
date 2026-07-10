@@ -2,7 +2,24 @@
 #include <SFML/Audio.hpp>
 #include "game.h"
 
+/**
+ * @brief set the position, size and colour of a rectangle
+ * @param pos the position of the rectangle
+ * @param size the size of the rectangle
+ * @param colour the colour of the rectangle
+ * @return a rectangle instance
+ */
 sf::RectangleShape make_rectangle(sf::Vector2f pos, sf::Vector2f size, sf::Color colour);
+
+/**
+ * @brief set the font, content, position, size and colour of a text string
+ * @param font the text font
+ * @param string the text content
+ * @param pos the text position
+ * @param size the text size
+ * @param colour the text colour
+ * @return a text instance 
+ */
 sf::Text configure_text(const sf::Font& font, const std::string& string, sf::Vector2f pos, 
     int size, sf::Color colour);
 

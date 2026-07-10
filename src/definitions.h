@@ -92,63 +92,161 @@ class Move {
     static constexpr uint32_t MASK = 0xF;
     static constexpr uint32_t TWO_BIT_MASK = 0x3;
     public:
+
+    /**
+     * @brief returns the square the piece moved from
+     * @return the square index (0-63)
+     */
     int get_from_square() const {
         return (data >> FROM_SHIFT) & SQUARE_MASK;
     }
+
+    /**
+     * @brief returns the square the piece moved to
+     * @return the square index (0-63)
+     */
     int get_to_square() const {
         return (data >> TO_SHIFT) & SQUARE_MASK;
     }
+
+    /**
+     * @brief returns the piece that moved
+     * @return the encoding of the piece
+     */
     int get_piece() const {
         return (data >> PIECE_SHIFT) & MASK;
     }
+
+    /**
+     * @brief returns the player that did the move
+     * @return 0 for WHITE, 1 for BLACK
+     */
     int get_turn() const {
         return (data >> 19) & 1;
     }
+
+    /**
+     * @brief returns the opposing player
+     * @return 0 for WHITE, 1 for BLACK
+     */
     int get_opposing_turn() const {
         return ~(data >> 19) & 1;
     }
+
+    /**
+     * @brief returns the piece captured in the move (if any)
+     * @return an encoding of the piece captured in the move
+     */
     int get_captured_piece() const {
         return (data >> CAPTURED_SHIFT) & MASK;
     }
+
+    /**
+     * @brief gets the move type (quiet, castling, en passant, promotion)
+     * @return a number corresponding to the num value of the move type
+     */
     int get_move_type() const {
         return (data >> SPECIAL_MOVE_SHIFT) & TWO_BIT_MASK;
     }
+
+    /**
+     * @brief gets the promotion piece (should the move be a promotion move)
+     * @return the promotion piece encoding
+     */
     int get_promotion_piece() const {
         return (data >> PROMOTION_PIECE_SHIFT) & TWO_BIT_MASK;
     }
+
+    /**
+     * @brief gets the encoding for the castling rights at the time of the move
+     * @return the encoding for the castling rights
+     */
     int get_castling_rights() const {
         return (data >> CASTLING_RIGHTS_SHIFT) & MASK;
     }
+
+    /**
+     * @brief gets the en passant file at the time of the move
+     * @return the en passant index corresponding to the file
+     */
     int get_en_passant_index() const {
         return data & MASK;
     }
+
+    /**
+     * @brief sets the square in the encoding for where the piece moved from
+     * @param from_square the index of the square (0-63)
+     */
     void set_from_square(int from_square) {
         data |= (from_square & SQUARE_MASK) << FROM_SHIFT;
     }
+
+    /**
+     * @brief sets the square in the encoding for where the piece moved to
+     * @param to_square the index of the square (0-63)
+     */
     void set_to_square(int to_square) {
         data |= (to_square & SQUARE_MASK) << TO_SHIFT;
     }
+
+    /**
+     * @brief sets the piece that moved
+     * @param piece the encoding of the piece
+     */
     void set_piece(uint8_t piece) {
         data |= (piece & MASK) << PIECE_SHIFT;
     }
+
+    /**
+     * @brief sets the piece that was captured
+     * @param captured the encoding of the captured piece
+     */
     void set_captured(uint8_t captured) {
         data &= ~(MASK << CAPTURED_SHIFT);
         data |= (captured & MASK) << CAPTURED_SHIFT;
     }
+
+    /**
+     * @brief sets the type of the move
+     * @param move_type encoding for the type of move
+     */
     void set_move_type(uint8_t move_type) {
         data |= (move_type & TWO_BIT_MASK) << SPECIAL_MOVE_SHIFT;
     }
+
+    /**
+     * @brief sets the promotion piece (if the move is a promotion move)
+     * @param promotion_piece encoding for the promotion piece
+     */
     void set_promotion_piece(uint8_t promotion_piece) {
         data |= (promotion_piece & TWO_BIT_MASK) << PROMOTION_PIECE_SHIFT;
     }
+
+    /**
+     * @brief sets the current castling rights at the time of the move
+     * @param castling_rights encoding for the current castling rights
+     */
     void set_castling_flags(uint8_t castling_rights) {
         data &= ~(MASK << CASTLING_RIGHTS_SHIFT);
         data |= (castling_rights & MASK) << CASTLING_RIGHTS_SHIFT;
     }
+
+    /**
+     * @brief sets the en passant index at the time of the move
+     * @param index the file of the en passant square
+     */
     void set_en_passant_index(uint8_t index) {
         data &= ~(MASK);
         data |= (index & MASK);
     }
+
+    /**
+     * @brief sets the attributes of the move in one function
+     * @param from_square the index of the square the piece moved from (0-63)
+     * @param to_square the index of the square the piece moved to (0-63)
+     * @param piece encoding of the piece that moved
+     * @param captured encoding of the piece captured (if any)
+     */
     void set_move(int from_square, int to_square, uint8_t piece, uint8_t captured) {
         set_from_square(from_square);
         set_to_square(to_square);
@@ -315,6 +413,9 @@ inline const uint64_t BLACK_PASSED_RANK_MASKS[8] = {
 inline uint64_t FILE_AB = FILE_MASKS[0] | FILE_MASKS[1];
 inline uint64_t FILE_GH = FILE_MASKS[6] | FILE_MASKS[7];
 
+/**
+ * @brief struct that has attributes and methods to manage the bitboards within the game
+ */
 struct Bitboards {
     uint64_t bitboards[16]; ///< array of bitboards for every unique type of piece on the board
     uint64_t occupied_tables[2]; ///< bitboards representing which squares are occupied by white or black pieces
@@ -334,6 +435,9 @@ struct Bitboards {
     static int bishop_shifts[64];
     static bool initialised;
 
+    /**
+     * @brief initialises all the necessary bitboards
+     */
     Bitboards();
 
     /**

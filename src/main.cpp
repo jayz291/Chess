@@ -3,7 +3,14 @@
 #include "logic.h"
 #include "uci.h"
 
+/**
+ * @brief starts the chess game with the user interface
+ */
 void run_game_loop();
+
+/**
+ * @brief checks whether the game is compiled in build or release mode
+ */
 void check_build_mode();
 
 int main(int argc, char* argv[]) {
