@@ -301,9 +301,7 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
         return 0;
     }
 
-    uint8_t piece = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
-    int king_square = __builtin_ctzll(position.bitboards.bitboards[piece]);
-    bool in_check = position.is_square_attacked(king_square, position.turn);
+    bool in_check = is_in_check();
     int extension = 0;
 
     // if the king is in check, extend the search 
@@ -315,27 +313,12 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
         return quiescence_search(alpha, beta, ply, seldepth);
     }
 
-    // checks whether the time is over every 2048 seconds
-    if ((nodes_searched & 2047) == 0) {
-        auto now = std::chrono::steady_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
-        if (elapsed > search_allocated_time_ms) {
-            terminate_search = true;
-            return 0;
-        }
-    }
-    bool has_major_pieces = false;
-
-    // quickly determines, using bitboards, whether any major pieces are present on the board
-    if (position.turn == WHITE) {
-        has_major_pieces = (position.bitboards.bitboards[WHITE_KNIGHT] | position.bitboards.bitboards[WHITE_BISHOP] | 
-            position.bitboards.bitboards[WHITE_ROOK] | position.bitboards.bitboards[WHITE_QUEEN]);
-    } else {
-        has_major_pieces = (position.bitboards.bitboards[BLACK_KNIGHT] | position.bitboards.bitboards[BLACK_BISHOP] | 
-            position.bitboards.bitboards[BLACK_ROOK] | position.bitboards.bitboards[BLACK_QUEEN]);
+    if (is_time_over()) {
+        terminate_search = true;
+        return 0;
     }
 
-    if (depth >= 3 && !in_check && ply > 0 && has_major_pieces) {
+    if (depth >= 3 && !in_check && ply > 0 && major_pieces_present()) {
         int stored_ep_square;
         uint64_t stored_hash;
         int reduction = 2;
@@ -400,29 +383,11 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     }
 
     if (num_legal_moves == 0) {
-        int king_square = __builtin_ctzll(position.bitboards.bitboards[king]);
-        if (position.is_square_attacked(king_square, position.turn)) {
-            // checkmate in sight: +ply so the computer favours shorter checkmates
-            return -400000 + ply;
-        } else {
-            // stalemate
-            return 0;
-        }
+        return calculate_checkmate_or_stalemate_eval(king, ply);
     }
 
     if (!terminate_search) {
-        tt_flag flag;
-        if (max_eval <= original_alpha) {
-            // no move improved on the original alpha score from the position. (failed low)
-            flag = tt_flag::tt_alpha;
-        } else if (max_eval >= beta) {
-            // a move found was too good (evaluation is higher than the opponent's guaranteed min
-            // score), so the opponent will avoid this position
-            flag = tt_flag::tt_beta;
-        } else {
-            // the move found is plausible (not too bad for either player)
-            flag = tt_flag::tt_exact;
-        }
+        tt_flag flag = set_entry_flag(original_alpha, beta, max_eval);
         record_entry(position.zobrist_hash, max_eval, depth, flag, best_move_this_node, ply);
     }
     return max_eval;
@@ -529,6 +494,56 @@ int Engine::pawn_structure_eval() {
         pawns &= pawns - 1;
     }
     return score;
+}
+
+inline bool Engine::major_pieces_present() {
+    if (position.turn == WHITE) {
+        return (position.bitboards.bitboards[WHITE_KNIGHT] | position.bitboards.bitboards[WHITE_BISHOP] | 
+            position.bitboards.bitboards[WHITE_ROOK] | position.bitboards.bitboards[WHITE_QUEEN]);
+    } else {
+        return (position.bitboards.bitboards[BLACK_KNIGHT] | position.bitboards.bitboards[BLACK_BISHOP] | 
+            position.bitboards.bitboards[BLACK_ROOK] | position.bitboards.bitboards[BLACK_QUEEN]);
+    }
+}
+
+inline bool Engine::is_in_check() {
+    uint8_t piece = (position.turn == WHITE) ? WHITE_KING : BLACK_KING;
+    int king_square = __builtin_ctzll(position.bitboards.bitboards[piece]);
+    return position.is_square_attacked(king_square, position.turn);
+}
+
+inline int Engine::calculate_checkmate_or_stalemate_eval(const uint8_t& king, const int& ply) {
+    int king_square = __builtin_ctzll(position.bitboards.bitboards[king]);
+    if (position.is_square_attacked(king_square, position.turn)) {
+        // checkmate in sight: +ply so the computer favours shorter checkmates
+        return -400000 + ply;
+    } else {
+        // stalemate
+        return 0;
+    }
+}
+
+inline tt_flag Engine::set_entry_flag(const int& original_alpha, const int& beta, const int& max_eval) {
+    if (max_eval <= original_alpha) {
+        // no move improved on the original alpha score from the position. (failed low)
+        return tt_flag::tt_alpha;
+    } else if (max_eval >= beta) {
+        // a move found was too good (evaluation is higher than the opponent's guaranteed min
+        // score), so the opponent will avoid this position
+        return tt_flag::tt_beta;
+    } else {
+        // the position found is plausible (not too bad for either player)
+        return tt_flag::tt_exact;
+    }
+}
+
+inline bool Engine::is_time_over() {
+    if ((nodes_searched & 2047) == 0) {
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
+        return (elapsed > search_allocated_time_ms);
+    } 
+    return false;
 }
 
 int Engine::sort_moves_by_priority(const Move& move) {

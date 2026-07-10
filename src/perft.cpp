@@ -23,7 +23,6 @@ inline long long perft(Position& position, int depth) {
     return nodes;
 }
 
-// Function to run the test and print detailed results
 void run_perft_suite(Position& position, int depth) {
     std::cout << "Starting Perft Test Depth " << depth << "...\n";
     auto start = std::chrono::steady_clock::now();

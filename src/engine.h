@@ -143,6 +143,42 @@ struct Engine {
      * @return true if a position has been repeated and false otherwise 
      */
     bool determine_repetition();
+
+    /**
+     * @brief checks whether there are still non-pawn and non-king pieces on the board
+     * @return true if there are, and false otherwise 
+     */
+    bool major_pieces_present();
+
+    /**
+     * @brief checks whether the king is in check (colour of the current turn)
+     * @return true if the king is in check and false otherwise 
+     */
+    bool is_in_check();
+
+    /**
+     * @brief calculates the evaluation for checkmate/stalemate situations
+     * @param king the colour of the king 
+     * @param ply how deep the search is from the root position
+     * @return the evaluation (0 for stalemate, -checkmate number + ply for checkmates)
+     */
+    int calculate_checkmate_or_stalemate_eval(const uint8_t& king, const int& ply);
+
+    /**
+     * @brief returns an enum value describing the nature of the score being stored in the transposition
+     * table
+     * @param original_alpha the highest score that the maximising player can guarantee (original baseline)
+     * @param beta the lowest score that the minimising player can guarantee
+     * @param max_eval maximum evaluation found
+     * @return a flag describing whether the evaluation is a lower bound, upper bound, or exact
+     */
+    inline tt_flag set_entry_flag(const int& original_alpha, const int& beta, const int& max_eval);
+
+    /**
+     * @brief checks whether all the allocated time for the search has passed, every 2048 nodes
+     * @return true if all the time has elapsed and false otherwise 
+     */
+    bool is_time_over();
 };
 
 
