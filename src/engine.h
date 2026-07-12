@@ -115,10 +115,11 @@ struct Engine {
      * of the pieces on the board, using a preset piece square table. 
      * @param bitboard the bitboard showing which square the piece occupies 
      * @param piece the piece being evaluated
+     * @param material_phase measure of how many pieces remain on the board
      * @param black a boolean flag which is true if the piece is black and false otherwise 
      * @return the evaluation for the position (positive for white leading, negative for black leading)
      */
-    inline int positional_eval(uint64_t bitboard, uint8_t piece, bool black = false);
+    inline int positional_eval(uint64_t bitboard, uint8_t piece, const double& material_phase, bool black = false);
 
     /**
      * @brief search captures deeper, until the position is "quiet": defined as if there are
@@ -163,6 +164,12 @@ struct Engine {
      * @return the evaluation (0 for stalemate, -checkmate number + ply for checkmates)
      */
     int calculate_checkmate_or_stalemate_eval(const uint8_t& king, const int& ply);
+
+    /**
+     * @brief calculates a mobility evaluation based on how many free squares each major piece has
+     * @return the evaluation (positive if white has more mobile pieces, negative if black does)
+     */
+    int mobility_eval();
 
     /**
      * @brief returns an enum value describing the nature of the score being stored in the transposition

@@ -432,19 +432,21 @@ int Engine::evaluate() {
         position.value_black_pieces += current_material;
         eval -= current_material;
     }
+    double material_phase = (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0;
     for (int piece { 1 }; piece <= 6; piece++) {
-        eval += positional_eval(position.bitboards.bitboards[piece], piece);
+        eval += positional_eval(position.bitboards.bitboards[piece], piece, material_phase);
     }
     for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= positional_eval(position.bitboards.bitboards[piece], piece - 8, true);
+        eval -= positional_eval(position.bitboards.bitboards[piece], piece - 8, material_phase, true);
     }
     eval += pawn_structure_eval();
+    eval += mobility_eval();
     return eval;
 }
 
-__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, bool black) {
+__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, 
+    const double& material_phase, bool black) {
     int eval { 0 };
-    double material_phase = (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0;
     int idx = piece - 1;
     while (bitboard) {
         int square = (!black) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
@@ -453,6 +455,70 @@ __attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, ui
         bitboard &= bitboard - 1;
     }
     return eval;
+}
+
+int Engine::mobility_eval() {
+    int eval { 0 };
+    Bitboards& bitboards = position.bitboards;
+    uint64_t white_knights = bitboards.bitboards[WHITE_KNIGHT];
+    uint64_t black_knights = bitboards.bitboards[BLACK_KNIGHT];
+    while (white_knights) {
+        eval += 4 * __builtin_popcountll(bitboards.knight_attacks[__builtin_ctzll(white_knights)] & 
+        ~(bitboards.occupied_tables[WHITE] | bitboards.bitboards[BLACK_PAWN]));
+        white_knights &= white_knights - 1;
+    }
+    while (black_knights) {
+        eval -= 4 * __builtin_popcountll(bitboards.knight_attacks[__builtin_ctzll(black_knights)] & 
+        ~(bitboards.occupied_tables[BLACK] | bitboards.bitboards[WHITE_PAWN]));
+        black_knights &= black_knights - 1;
+    }
+
+    uint64_t white_bishops = bitboards.bitboards[WHITE_BISHOP];
+    uint64_t black_bishops = bitboards.bitboards[BLACK_BISHOP];
+    while (white_bishops) {
+        eval += 4 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(white_bishops), 
+        bitboards.occupied) & ~bitboards.bitboards[BLACK_PAWN]);
+        white_bishops &= white_bishops - 1;
+    }
+    while (black_bishops) {
+        eval -= 4 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(black_bishops), 
+        bitboards.occupied & ~ bitboards.bitboards[WHITE_PAWN]));
+        black_bishops &= black_bishops - 1;
+    }
+
+    uint64_t white_rooks = bitboards.bitboards[WHITE_ROOK];
+    uint64_t black_rooks = bitboards.bitboards[BLACK_ROOK];
+    while (white_rooks) {
+        eval += 4 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(white_rooks), 
+        bitboards.occupied) & ~(bitboards.bitboards[BLACK_PAWN] | bitboards.bitboards[BLACK_KNIGHT]
+        | bitboards.bitboards[BLACK_BISHOP]));
+        white_rooks &= white_rooks - 1;
+    }
+    while (black_rooks) {
+        eval -= 4 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(black_rooks), 
+        bitboards.occupied) & ~(bitboards.bitboards[WHITE_PAWN] | bitboards.bitboards[WHITE_KNIGHT]
+        | bitboards.bitboards[WHITE_BISHOP]));
+        black_rooks &= black_rooks - 1;
+    }
+
+    uint64_t white_queens = bitboards.bitboards[WHITE_QUEEN];
+    uint64_t black_queens = bitboards.bitboards[BLACK_QUEEN];
+    while (white_queens) {
+        eval += 3 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(white_queens), 
+        bitboards.occupied) & ~(bitboards.occupied_tables[BLACK] & ~bitboards.bitboards[BLACK_QUEEN]));
+        eval += 3 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(white_queens), 
+        bitboards.occupied) & ~(bitboards.occupied_tables[BLACK] & ~bitboards.bitboards[BLACK_QUEEN]));
+        white_queens &= white_queens - 1;
+    }
+    while (black_queens) {
+        eval -= 3 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(black_queens), 
+        bitboards.occupied) & ~(bitboards.occupied_tables[WHITE] & ~bitboards.bitboards[WHITE_QUEEN]));
+        eval -= 3 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(black_queens), 
+        bitboards.occupied) & ~(bitboards.occupied_tables[WHITE] & ~bitboards.bitboards[WHITE_QUEEN]));
+        black_queens &= black_queens - 1;
+    }
+    return eval;
+
 }
 
 int Engine::pawn_structure_eval() {
