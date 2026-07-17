@@ -166,7 +166,8 @@ struct Engine {
     int calculate_checkmate_or_stalemate_eval(const uint8_t& king, const int& ply);
 
     /**
-     * @brief calculates a mobility evaluation based on how many free squares each major piece has
+     * @brief calculates a mobility evaluation based on how many free squares each major piece has, 
+     * and also king safety
      * @return the evaluation (positive if white has more mobile pieces, negative if black does)
      */
     int mobility_eval();

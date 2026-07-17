@@ -7,7 +7,7 @@
 #include <ctime>
 #include <cstring>
 
-extern Move calculated_move;
+extern Move calculated_move; ///< move chosen by the computer 
 extern std::atomic<bool> computer_turn;
 extern std::atomic<bool> thinking_in_progress;
 extern std::atomic<bool> finished;

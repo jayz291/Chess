@@ -214,6 +214,10 @@ Move Engine::get_best_move(int search_depth) {
     int overall_best_score, depth_best_score = -50000;
     MoveGen move_generator(position);
     Move_list possible_moves = move_generator.determine_possible_moves();
+    if (possible_moves.num_moves == 0) {
+        return current_best_move;
+    }
+    overall_best_move = possible_moves.list[0];
 
     for (int depth { 1 }; depth <= search_depth; depth++) {
         int seldepth = 0;
@@ -460,63 +464,103 @@ __attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, ui
 int Engine::mobility_eval() {
     int eval { 0 };
     Bitboards& bitboards = position.bitboards;
+
+    uint64_t white_pawns = bitboards.bitboards[WHITE_PAWN];
+    uint64_t black_pawns = bitboards.bitboards[BLACK_PAWN];
+    uint64_t white_pawn_attacks = 0ULL;
+    uint64_t black_pawn_attacks = 0ULL;
+    while (white_pawns) {
+        white_pawn_attacks |= bitboards.pawn_attacks[WHITE][__builtin_ctzll(white_pawns)];
+        white_pawns &= white_pawns - 1;
+    }
+    while (black_pawns) {
+        black_pawn_attacks |= bitboards.pawn_attacks[BLACK][__builtin_ctzll(black_pawns)];
+        black_pawns &= black_pawns - 1;
+    }
+
     uint64_t white_knights = bitboards.bitboards[WHITE_KNIGHT];
     uint64_t black_knights = bitboards.bitboards[BLACK_KNIGHT];
+    uint64_t white_knight_attacks = 0ULL;
+    uint64_t black_knight_attacks = 0ULL;
     while (white_knights) {
-        eval += 4 * __builtin_popcountll(bitboards.knight_attacks[__builtin_ctzll(white_knights)] & 
-        ~(bitboards.occupied_tables[WHITE] | bitboards.bitboards[BLACK_PAWN]));
+        white_knight_attacks |= bitboards.knight_attacks[__builtin_ctzll(white_knights)];
         white_knights &= white_knights - 1;
     }
     while (black_knights) {
-        eval -= 4 * __builtin_popcountll(bitboards.knight_attacks[__builtin_ctzll(black_knights)] & 
-        ~(bitboards.occupied_tables[BLACK] | bitboards.bitboards[WHITE_PAWN]));
+        black_knight_attacks |= bitboards.knight_attacks[__builtin_ctzll(black_knights)];
         black_knights &= black_knights - 1;
     }
 
     uint64_t white_bishops = bitboards.bitboards[WHITE_BISHOP];
     uint64_t black_bishops = bitboards.bitboards[BLACK_BISHOP];
+    uint64_t white_bishop_attacks = 0ULL;
+    uint64_t black_bishop_attacks = 0ULL;
     while (white_bishops) {
-        eval += 4 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(white_bishops), 
-        bitboards.occupied) & ~bitboards.bitboards[BLACK_PAWN]);
+        white_bishop_attacks |= bitboards.get_bishop_attacks(__builtin_ctzll(white_bishops), bitboards.occupied);
         white_bishops &= white_bishops - 1;
     }
     while (black_bishops) {
-        eval -= 4 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(black_bishops), 
-        bitboards.occupied & ~ bitboards.bitboards[WHITE_PAWN]));
+        black_bishop_attacks |= bitboards.get_bishop_attacks(__builtin_ctzll(black_bishops), bitboards.occupied);
         black_bishops &= black_bishops - 1;
     }
 
     uint64_t white_rooks = bitboards.bitboards[WHITE_ROOK];
     uint64_t black_rooks = bitboards.bitboards[BLACK_ROOK];
+    uint64_t white_rook_attacks = 0ULL;
+    uint64_t black_rook_attacks = 0ULL;
     while (white_rooks) {
-        eval += 4 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(white_rooks), 
-        bitboards.occupied) & ~(bitboards.bitboards[BLACK_PAWN] | bitboards.bitboards[BLACK_KNIGHT]
-        | bitboards.bitboards[BLACK_BISHOP]));
+        white_rook_attacks |= bitboards.get_rook_attacks(__builtin_ctzll(white_rooks), bitboards.occupied); 
         white_rooks &= white_rooks - 1;
     }
     while (black_rooks) {
-        eval -= 4 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(black_rooks), 
-        bitboards.occupied) & ~(bitboards.bitboards[WHITE_PAWN] | bitboards.bitboards[WHITE_KNIGHT]
-        | bitboards.bitboards[WHITE_BISHOP]));
+        black_rook_attacks |= bitboards.get_rook_attacks(__builtin_ctzll(black_rooks), bitboards.occupied); 
         black_rooks &= black_rooks - 1;
     }
 
     uint64_t white_queens = bitboards.bitboards[WHITE_QUEEN];
     uint64_t black_queens = bitboards.bitboards[BLACK_QUEEN];
+    uint64_t white_queen_attacks = 0ULL;
+    uint64_t black_queen_attacks = 0ULL;
     while (white_queens) {
-        eval += 3 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(white_queens), 
-        bitboards.occupied) & ~(bitboards.occupied_tables[BLACK] & ~bitboards.bitboards[BLACK_QUEEN]));
-        eval += 3 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(white_queens), 
-        bitboards.occupied) & ~(bitboards.occupied_tables[BLACK] & ~bitboards.bitboards[BLACK_QUEEN]));
+        white_queen_attacks |= bitboards.get_bishop_attacks(__builtin_ctzll(white_queens), bitboards.occupied);
+        white_queen_attacks |= bitboards.get_rook_attacks(__builtin_ctzll(white_queens), bitboards.occupied); 
         white_queens &= white_queens - 1;
     }
     while (black_queens) {
-        eval -= 3 * __builtin_popcountll(bitboards.get_bishop_attacks(__builtin_ctzll(black_queens), 
-        bitboards.occupied) & ~(bitboards.occupied_tables[WHITE] & ~bitboards.bitboards[WHITE_QUEEN]));
-        eval -= 3 *  __builtin_popcountll(bitboards.get_rook_attacks(__builtin_ctzll(black_queens), 
-        bitboards.occupied) & ~(bitboards.occupied_tables[WHITE] & ~bitboards.bitboards[WHITE_QUEEN]));
+        black_queen_attacks |= bitboards.get_bishop_attacks(__builtin_ctzll(black_queens), bitboards.occupied);
+        black_queen_attacks |= bitboards.get_rook_attacks(__builtin_ctzll(black_queens), bitboards.occupied); 
         black_queens &= black_queens - 1;
     }
+
+    uint64_t white_king_attacks = bitboards.king_moves[__builtin_ctzll(bitboards.bitboards[WHITE_KING])];
+    uint64_t black_king_attacks = bitboards.king_moves[__builtin_ctzll(bitboards.bitboards[BLACK_KING])];
+
+    uint64_t white_attacks = white_pawn_attacks | white_knight_attacks | white_bishop_attacks |
+    white_rook_attacks | white_queen_attacks | white_king_attacks;
+    uint64_t black_attacks = black_pawn_attacks | black_knight_attacks | black_bishop_attacks |
+    black_rook_attacks | black_queen_attacks | black_king_attacks;
+    eval += 3 * __builtin_popcountll(white_knight_attacks & ~black_attacks);
+    eval -= 3 * __builtin_popcountll(black_knight_attacks & ~white_attacks);
+    eval += 3 * __builtin_popcountll(white_bishop_attacks & ~black_attacks);
+    eval -= 3 * __builtin_popcountll(black_bishop_attacks & ~white_attacks);
+    eval += 2 * __builtin_popcountll(white_rook_attacks & ~black_attacks);
+    eval -= 2 * __builtin_popcountll(black_rook_attacks & ~white_attacks);
+    eval += 2 * __builtin_popcountll(white_queen_attacks & ~black_attacks);
+    eval -= 2 * __builtin_popcountll(black_queen_attacks & ~white_attacks);
+
+    // king safety evaluation
+    uint64_t white_king_squares = white_king_attacks & bitboards.bitboards[WHITE_KING];
+    uint64_t black_king_squares = black_king_attacks & bitboards.bitboards[BLACK_KING];
+    eval -= 5 * __builtin_popcountll(white_king_attacks & black_pawn_attacks);
+    eval += 5 * __builtin_popcountll(black_king_squares & white_pawn_attacks);
+    eval -= 10 * __builtin_popcountll(white_king_squares & 
+        (black_knight_attacks | black_bishop_attacks));
+    eval += 10 * __builtin_popcountll(black_king_squares & 
+        (white_knight_attacks | white_bishop_attacks));
+    eval -= 20 * __builtin_popcountll(white_king_squares & black_rook_attacks);
+    eval += 20 * __builtin_popcountll(black_king_squares & white_rook_attacks);
+    eval -= 40 * __builtin_popcountll(white_king_squares & black_queen_attacks);
+    eval += 40 * __builtin_popcountll(black_king_squares & white_queen_attacks);
     return eval;
 
 }
@@ -604,7 +648,7 @@ inline tt_flag Engine::set_entry_flag(const int& original_alpha, const int& beta
 }
 
 inline bool Engine::is_time_over() {
-    if ((nodes_searched & 2047) == 0) {
+    if (((nodes_searched + positions_searched) & 2047) == 0) {
         auto now = std::chrono::steady_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
         return (elapsed > search_allocated_time_ms);

@@ -32,6 +32,7 @@ enum tt_flag {
 
 using Chessboard = std::array<uint8_t, 64>;
 
+/// @brief binary representations of all the pieces
 enum : uint8_t {
     EMPTY_SQUARE = 0b0000,
     WHITE_PAWN = 0b0001,
