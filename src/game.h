@@ -248,6 +248,11 @@ class Game {
     public:
     Gamemode mode { Gamemode::Twoplayer };
     Gamestate state {};
+    Timesetting time_control { Timesetting::Untimed };
+    float white_time = 600;
+    float black_time = 600;
+    std::chrono::time_point<std::chrono::steady_clock> prev_time;
+    float time_increment;
     Move calculated_move;
     bool move_ready;
     sf::String entered_fen;
@@ -336,7 +341,7 @@ class Game {
     /**
      * @brief ends the game and updates the game status encoding accordingly
      */
-    void end_game();
+    void end_game(bool on_time = false);
 
     /**
      * @brief determines if there are enough pieces on the board for a checkmate
@@ -357,6 +362,10 @@ class Game {
      * @brief creates a pgn file of the game
      */
     void create_pgn();
+
+    void update_time();
+
+    void add_time_increment();
 };
 
 // DEBUGGING FUNCTIONS

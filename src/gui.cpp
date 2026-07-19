@@ -204,6 +204,22 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         } else {
             assets.home_button.update(window, mouse_pos);
         }
+        if (game.time_control != Timesetting::Untimed) {
+            if (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn) {
+                game.update_time();
+                assets.white_clock.set_text(convert_time_to_display(game.white_time));
+                assets.black_clock.set_text(convert_time_to_display(game.black_time));
+            }
+            if (game.position.turn == WHITE) {
+                assets.black_clock.set_rec_colour(sf::Color(128, 128, 128));
+                assets.white_clock.set_rec_colour(sf::Color::White);
+            } else {
+                assets.black_clock.set_rec_colour(sf::Color::White);
+                assets.white_clock.set_rec_colour(sf::Color(128, 128, 128));
+            }
+            assets.black_clock.draw(window);
+            assets.white_clock.draw(window);
+        }
     }
     if (game.state != Gamestate::Gameover && game.state != Gamestate::Resetting && game.state != Gamestate::Intro) {
         if (assets.allow_takebacks) {
@@ -236,6 +252,14 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     window.display();
 }
 
+std::string convert_time_to_display(double time) {
+    //int minutes = time / 60;
+    //int seconds = (int) time % 60;
+    return std::format("{:02}:{:02}:{:02}", (int) time / 60, (int) time % 60, 
+    (int)((time - (int)time) * 100));
+    //return std::to_string((int)time / 60) + ":" + std::to_string((int)time % 60);
+}
+
 void play_sound(Assets& assets, Game& game) {
     if (!assets.sound_on) {
         return;
@@ -252,20 +276,32 @@ void play_sound(Assets& assets, Game& game) {
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
  
     sf::Text title = configure_text(assets.font, "Chess", {270, 20}, 210, sf::Color::Black);
+    assets.play_white_cpu.set_default_thickness();
+    assets.play_two_player.set_default_thickness();
+    assets.play_black_cpu.set_default_thickness();
 
     if (game.mode == Gamemode::CPUblack) {
         assets.play_black_cpu.set_outline_thickness(-5.0f, sf::Color::Black);
-        assets.play_white_cpu.set_default_thickness();
-        assets.play_two_player.set_default_thickness();
     } else if (game.mode == Gamemode::CPUwhite) {
         assets.play_white_cpu.set_outline_thickness(-5.0f, sf::Color::Black);
-        assets.play_two_player.set_default_thickness();
-        assets.play_black_cpu.set_default_thickness();
     } else {
         assets.play_two_player.set_outline_thickness(-5.0f, sf::Color::Black);   
-        assets.play_white_cpu.set_default_thickness();
-        assets.play_black_cpu.set_default_thickness();  
     }
+
+    assets.untimed_button.set_default_thickness();
+    assets.bullet0_button.set_default_thickness();
+    assets.bullet1_button.set_default_thickness();
+    
+    if (game.time_control == Timesetting::Untimed) {
+        assets.untimed_button.set_outline_thickness(-2.0f, sf::Color::Black);
+    } else if (game.time_control == Timesetting::Bullet1) {
+        assets.bullet1_button.set_outline_thickness(-2.0f, sf::Color::Black);
+    } else if (game.time_control == Timesetting::Bullet0) {
+        assets.bullet0_button.set_outline_thickness(-2.0f, sf::Color::Black);
+    }
+    assets.untimed_button.update(window, mouse_pos);
+    assets.bullet0_button.update(window, mouse_pos);
+    assets.bullet1_button.update(window, mouse_pos);
     assets.play_black_cpu.update(window, mouse_pos);
     assets.play_white_cpu.update(window, mouse_pos);
     assets.play_two_player.update(window, mouse_pos);
@@ -362,12 +398,15 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
     if (assets.play_black_cpu.is_clicked(mouse_pos)) {
         game.ui.view = WHITE;
         game.mode = Gamemode::CPUblack;
+        set_clock_positions(assets, game.ui.view);
     } else if (assets.play_white_cpu.is_clicked(mouse_pos)) {
         game.ui.view = BLACK;
         game.mode = Gamemode::CPUwhite;
+        set_clock_positions(assets, game.ui.view);
     } else if (assets.play_two_player.is_clicked(mouse_pos)) {
         game.ui.view = WHITE;
         game.mode = Gamemode::Twoplayer;
+        set_clock_positions(assets, game.ui.view);
     } else if (assets.toggle_takebacks.is_clicked(mouse_pos)) {
         assets.allow_takebacks = (assets.allow_takebacks == true) ? false : true;
         if (assets.allow_takebacks) {
@@ -378,6 +417,17 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
             assets.toggle_takebacks.set_new_default_rec_colour(sf::Color::Red);
         }
     }
+    handle_time_control_selection(game, assets, mouse_pos);
+}
+
+void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
+    if (assets.untimed_button.is_clicked(mouse_pos)) {
+        game.time_control = Timesetting::Untimed;
+    } else if (assets.bullet0_button.is_clicked(mouse_pos)) {
+        game.time_control = Timesetting::Bullet0;
+    } else if (assets.bullet1_button.is_clicked(mouse_pos)) {
+        game.time_control = Timesetting::Bullet1;
+    } 
 }
 
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
@@ -481,6 +531,17 @@ void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos)
     if (assets.flip_view_button.is_clicked({mouse_pos})) {
         game.ui.view = (game.ui.view == WHITE) ? BLACK : WHITE;
     }
+    set_clock_positions(assets, game.ui.view);
+}
+
+void set_clock_positions(Assets& assets, int& view) {
+    if (view == WHITE) {
+        assets.white_clock.set_new_position({16, 425}, {10, 408});
+        assets.black_clock.set_new_position({16, 335}, {10, 318});
+    } else {
+        assets.white_clock.set_new_position({16, 335}, {10, 318});
+        assets.black_clock.set_new_position({16, 425}, {10, 408});
+    }
 }
 
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
@@ -556,7 +617,13 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets) {
 
-    if (result.status & (1UL << 3)) {
+    if (result.status & (1UL << 4)) {
+        if (result.winner == WHITE) {
+            assets.end_screen.set_text("WHITE WON\nON TIME\n-----------------------------\nClick anywhere to \ncontinue");
+        } else {
+            assets.end_screen.set_text("BLACK WON\nON TIME\n-----------------------------\nClick anywhere to \ncontinue");
+        }
+    } else if (result.status & (1UL << 3)) {
         if (result.winner == WHITE) {
             assets.end_screen.set_text("CHECKMATE\nWHITE WON!\n-----------------------------\nClick anywhere to \ncontinue");
         } else {

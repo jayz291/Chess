@@ -260,6 +260,7 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
         move.set_captured(board[captured_square]);
         position.remove_piece<true>(opposing_turn, move.get_captured_piece(), captured_square);
     } 
+    add_time_increment();
 
     position.turn = ((position.turn == WHITE) ? BLACK : WHITE);
     position.zobrist_hash ^= zobrist_black_turn;
@@ -400,9 +401,18 @@ void Position::evaluate_king_checks() {
     }
 }
 
-void Game::end_game() {
+void Game::end_game(bool on_time) {
     result.status |= (1UL << 7);
     //game.state = Gamestate::Gameover;
+    if (on_time) {
+        result.status |= (1UL << 4);
+        if (white_time <= 0) {
+            result.winner = BLACK;
+        } else {
+            result.winner = WHITE;
+        }
+        return;
+    }
     if ((result.status & (1UL << 1)) | (result.status & 1UL) || position.plys_to_100 == 100) {
         return;
     }

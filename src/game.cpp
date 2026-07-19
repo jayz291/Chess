@@ -21,6 +21,10 @@ void Game::initialise() {
     position.initialise();
     log.initialise();
     result.initialise();
+    prev_time = std::chrono::steady_clock::now();
+    white_time = black_time = time_settings[(int)time_control][0];
+    time_increment = time_settings[(int)time_control][1];
+    finished = false;  // prevent move spillover from possibly incomplete computer search
     clear_transposition_table();
 }
 
@@ -451,6 +455,44 @@ void Game::create_pgn() {
         output_file << "1/2-1/2";
     }
     output_file.close();
+}
+
+void Game::update_time() {
+    auto current_time = std::chrono::steady_clock::now();
+    std::chrono::duration<float> elapsed = current_time - prev_time;
+    prev_time = current_time;
+    float delta_time = elapsed.count();
+    if (position.turn == WHITE) {
+        white_time -= delta_time; 
+        if (white_time <= 0) {
+            white_time = 0;
+            terminate_search = true;
+            thinking_in_progress = false;
+            end_game(true);
+            state = Gamestate::Gameover;
+        }
+    } else {
+        black_time -= delta_time;
+        if (black_time <= 0) {
+            black_time = 0;
+            terminate_search = true;
+            thinking_in_progress = false;
+            end_game(true);
+            state = Gamestate::Gameover;
+        }
+    }
+    //std::cout << "White time: " << white_time << " Black time: " << black_time << '\n';
+}
+
+void Game::add_time_increment() {
+    if (time_control == Timesetting::Untimed) {
+        return;
+    }
+    if (position.turn == WHITE) {
+        white_time += time_increment;
+    } else {
+        black_time += time_increment;
+    }
 }
 
 

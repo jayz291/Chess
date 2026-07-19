@@ -579,6 +579,14 @@ enum class Gamemode {
     Twoplayer
 };
 
+enum class Timesetting {
+    Untimed = -1,
+    Bullet0 = 0,
+    Bullet1 = 1
+};
+
+const int time_settings[2][2] = { {60, 0}, {60, 1} };
+
 std::ostream& operator<<(std::ostream& os, const Move& move);
 bool operator==(Move& move1, Move& move2);
 

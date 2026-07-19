@@ -22,14 +22,20 @@ struct Assets {
      */
     Assets();
 
-    Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 540}, 30, sf::Color::Black, 
-        {135, 530}, {250, 110}, sf::Color::White};
-    Button play_white_cpu {font, "Play CPU as\n BLACK", {445, 540}, 30, sf::Color::Black, 
-        {425, 530}, {250, 110}, sf::Color::White};
-    Button play_two_player {font, "Two player", {735, 540}, 30, sf::Color::Black, 
-        {715, 530}, {250, 110}, sf::Color::White};
+    Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 525}, 30, sf::Color::Black, 
+        {135, 515}, {250, 110}, sf::Color::White};
+    Button play_white_cpu {font, "Play CPU as\n BLACK", {445, 525}, 30, sf::Color::Black, 
+        {425, 515}, {250, 110}, sf::Color::White};
+    Button play_two_player {font, "Two player", {735, 525}, 30, sf::Color::Black, 
+        {715, 515}, {250, 110}, sf::Color::White};
     Button play_button {font, "Play", {500, 380}, 60, sf::Color::Black, 
         {380, 330}, {350, 160}, sf::Color::White};
+    Button untimed_button {font, "Untimed", {232, 650}, 15, sf::Color::Black, 
+        {228, 647}, {64, 35}, sf::Color::White};
+    Button bullet0_button {font, "1|0", {317, 650}, 15, sf::Color::Black, 
+        {298, 647}, {64, 35}, sf::Color::White};
+    Button bullet1_button {font, "1|1", {387, 650}, 15, sf::Color::Black, 
+        {368, 647}, {64, 35}, sf::Color::White};
     Button flip_view_button {font, "Flip view", {13, 148}, 15, sf::Color::Red, 
         {10, 145}, {74, 35}, sf::Color::White};
     Button home_button {font, "Back to Home", {13, 58}, 15, sf::Color::Red, 
@@ -48,6 +54,8 @@ struct Assets {
     Screen pawn_promotion_screen {font, "Choose Promotion Piece", {280, 280}, 40, sf::Color::White, 
         {250, 250}, {500, 300}, sf::Color::Blue};
     Screen end_screen {font, "", {280, 280}, 40, sf::Color::Red, {250, 250}, {500, 300}, sf::Color::Black};
+    Screen black_clock {font, "10:00", {16, 335}, 20, sf::Color::Black, {10, 318}, {90, 65}, sf::Color::White};
+    Screen white_clock {font, "10:00", {16, 425}, 20, sf::Color::Black, {10, 408}, {90, 65}, sf::Color::White};
 };
 
 /**
@@ -115,6 +123,10 @@ void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& wi
  */
 void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets);
 
+std::string convert_time_to_display(double time);
+
+void set_clock_positions(Assets& assets, int& view);
+
 /**
  * @brief handles user input
  * @param game class containing all game variables/classes
@@ -140,6 +152,8 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
  * @param mouse_pos position of the cursor on the screen
  */
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos);
+
+void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 
 /**
  * @brief handles cursor movement and clicks during the game
