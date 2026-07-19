@@ -582,10 +582,18 @@ enum class Gamemode {
 enum class Timesetting {
     Untimed = -1,
     Bullet0 = 0,
-    Bullet1 = 1
+    Bullet1 = 1,
+    Bullet2 = 2,
+    Blitz0 = 3, 
+    Blitz1 = 4,
+    Blitz2 = 5,
+    Rapid0 = 6,
+    Rapid1 = 7, 
+    Rapid2 = 8
 };
 
-const int time_settings[2][2] = { {60, 0}, {60, 1} };
+const int time_settings[9][2] = { {60, 0}, {60, 1}, {120, 1}, {180, 0}, {180, 2}, {300, 0}, {600, 0}, 
+{900, 10}, {1800, 0} };
 
 std::ostream& operator<<(std::ostream& os, const Move& move);
 bool operator==(Move& move1, Move& move2);

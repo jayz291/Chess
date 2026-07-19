@@ -1,6 +1,14 @@
 #pragma once
 #include "components.h"
 
+constexpr int TIME_Y_POS = 645;
+constexpr int TIME_BASE_X_POS = 218;
+constexpr int TEXT_BASE_X_POS = 237;
+constexpr int TIME_OFFSET = 70;
+constexpr int TEXT_OFFSET = 3;
+constexpr int TIME_TEXT_Y_POS = TIME_Y_POS + TEXT_OFFSET;
+constexpr sf::Vector2f TIME_BUTTON_SIZE = {64, 35};
+
 /**
  * @class Assets 
  * @brief contains all fonts, sounds, buttons and images used within the game. 
@@ -30,12 +38,33 @@ struct Assets {
         {715, 515}, {250, 110}, sf::Color::White};
     Button play_button {font, "Play", {500, 380}, 60, sf::Color::Black, 
         {380, 330}, {350, 160}, sf::Color::White};
-    Button untimed_button {font, "Untimed", {232, 650}, 15, sf::Color::Black, 
-        {228, 647}, {64, 35}, sf::Color::White};
-    Button bullet0_button {font, "1|0", {317, 650}, 15, sf::Color::Black, 
-        {298, 647}, {64, 35}, sf::Color::White};
-    Button bullet1_button {font, "1|1", {387, 650}, 15, sf::Color::Black, 
-        {368, 647}, {64, 35}, sf::Color::White};
+
+    Button untimed_button {font, "Untimed", {TEXT_BASE_X_POS - 15, TIME_TEXT_Y_POS}, 15, sf::Color::Black, 
+        {TIME_BASE_X_POS, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button bullet0_button {font, "1|0", {TEXT_BASE_X_POS + TIME_OFFSET, TIME_TEXT_Y_POS}, 15, sf::Color::Black, 
+        {TIME_BASE_X_POS + TIME_OFFSET, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button bullet1_button {font, "1|1", {TEXT_BASE_X_POS + TIME_OFFSET * 2, TIME_TEXT_Y_POS}, 15, sf::Color::Black, 
+        {TIME_BASE_X_POS + TIME_OFFSET * 2, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button bullet2_button {font, "2|1", {TEXT_BASE_X_POS + TIME_OFFSET * 3, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 3, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button blitz0_button {font, "3|0", {TEXT_BASE_X_POS + TIME_OFFSET * 4, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 4, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button blitz1_button {font, "3|2", {TEXT_BASE_X_POS + TIME_OFFSET * 5, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 5, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button blitz2_button {font, "5|0", {TEXT_BASE_X_POS + TIME_OFFSET * 6, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 6, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button rapid0_button {font, "10|0", {TEXT_BASE_X_POS + TIME_OFFSET * 7 - 5, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 7, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button rapid1_button {font, "15|10", {TEXT_BASE_X_POS + TIME_OFFSET * 8 - 5, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 8, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+    Button rapid2_button {font, "30|0", {TEXT_BASE_X_POS + TIME_OFFSET * 9 - 5, TIME_TEXT_Y_POS}, 15, sf::Color::Black,
+        {TIME_BASE_X_POS + TIME_OFFSET * 9, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
+
+    std::vector<Button*> time_control_choices {&untimed_button, &bullet0_button, &bullet1_button, 
+    &bullet2_button, &blitz0_button, &blitz1_button, &blitz2_button, &rapid0_button, &rapid1_button, 
+    &rapid2_button};
+
+
     Button flip_view_button {font, "Flip view", {13, 148}, 15, sf::Color::Red, 
         {10, 145}, {74, 35}, sf::Color::White};
     Button home_button {font, "Back to Home", {13, 58}, 15, sf::Color::Red, 
@@ -74,6 +103,8 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets);
  * @param mouse_pos the current cursor position on the screen
  */
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+
+void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 
 /**
  * @brief draws the chessboard

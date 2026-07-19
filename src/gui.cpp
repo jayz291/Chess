@@ -287,21 +287,8 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
     } else {
         assets.play_two_player.set_outline_thickness(-5.0f, sf::Color::Black);   
     }
+    draw_time_control_buttons(window, game, assets, mouse_pos);
 
-    assets.untimed_button.set_default_thickness();
-    assets.bullet0_button.set_default_thickness();
-    assets.bullet1_button.set_default_thickness();
-    
-    if (game.time_control == Timesetting::Untimed) {
-        assets.untimed_button.set_outline_thickness(-2.0f, sf::Color::Black);
-    } else if (game.time_control == Timesetting::Bullet1) {
-        assets.bullet1_button.set_outline_thickness(-2.0f, sf::Color::Black);
-    } else if (game.time_control == Timesetting::Bullet0) {
-        assets.bullet0_button.set_outline_thickness(-2.0f, sf::Color::Black);
-    }
-    assets.untimed_button.update(window, mouse_pos);
-    assets.bullet0_button.update(window, mouse_pos);
-    assets.bullet1_button.update(window, mouse_pos);
     assets.play_black_cpu.update(window, mouse_pos);
     assets.play_white_cpu.update(window, mouse_pos);
     assets.play_two_player.update(window, mouse_pos);
@@ -309,6 +296,17 @@ void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf:
     window.draw(title);
     assets.fen_input.draw(game, window);
     assets.toggle_takebacks.update(window, mouse_pos);
+}
+
+void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
+    for (auto& choice : assets.time_control_choices) {
+        choice->set_default_thickness();
+    }
+    assets.time_control_choices[static_cast<int>(game.time_control) + 1]->set_outline_thickness(-3.0f, sf::Color::Black);
+
+    for (auto& choice : assets.time_control_choices) {
+        choice->update(window, mouse_pos);
+    }
 }
 
 void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets) {
@@ -421,13 +419,11 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
 }
 
 void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
-    if (assets.untimed_button.is_clicked(mouse_pos)) {
-        game.time_control = Timesetting::Untimed;
-    } else if (assets.bullet0_button.is_clicked(mouse_pos)) {
-        game.time_control = Timesetting::Bullet0;
-    } else if (assets.bullet1_button.is_clicked(mouse_pos)) {
-        game.time_control = Timesetting::Bullet1;
-    } 
+    for (int i = 0; i < assets.time_control_choices.size(); i++) {
+        if (assets.time_control_choices[i]->is_clicked(mouse_pos)) {
+            game.time_control = static_cast<Timesetting>(i - 1);
+        }
+    }
 }
 
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
