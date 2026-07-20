@@ -33,14 +33,18 @@ void run_game_loop() {
     window.setFramerateLimit(60);
 
     while (window.isOpen()) {
-        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.position.turn == WHITE) ||
-            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.position.turn == BLACK)) {
+        if ((game.mode == Gamemode::CPUwhite && (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn_premove)
+            && game.position.turn == WHITE) ||
+            (game.mode == Gamemode::CPUblack && (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn_premove)
+            && game.position.turn == BLACK)) {
             
             if (!finished) {
                 generate_computer_move(game.position);
             } else {
                 std::cout << "Searched: " << positions_searched << '\n';
                 make_computer_move(game, assets);
+                game.assess_and_make_premove_moves();
+                game.premove = false;
             }
         } 
         handle_input(game, window, assets);

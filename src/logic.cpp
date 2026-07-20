@@ -267,9 +267,48 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
     position.update_castling_flags<true>(move);
     if (!is_game_over) {
         position.move_record.push_back(move);
+        std::cout << "here\n";
     }
     log.current_ply_num++;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
+}
+
+void Game::assess_and_make_premove_moves() {
+    if (position.premoves.empty()) {
+        return;
+    }
+    for (auto& move : position.premoves) {
+        std::cout << "Piece: " << move.get_piece() << " From: " << move.get_from_square() << " To: "
+        << move.get_to_square() << " Promotion piece: " << move.get_promotion_piece() << '\n';
+    }
+    Move move_to_consider = position.premoves.front();
+    position.premoves.pop_front();
+    if (position.board[move_to_consider.get_from_square()] != move_to_consider.get_piece())  {
+        position.premoves.clear();
+        return;
+    }
+    int to_square_piece = position.board[move_to_consider.get_to_square()];
+    if (to_square_piece != EMPTY_SQUARE) {
+        if (get_piece_colour(to_square_piece) == get_piece_colour(move_to_consider.get_piece())) {
+            position.premoves.clear();
+            return;
+        } else {
+            move_to_consider.set_captured(to_square_piece);
+        }
+    }
+    int result = position.validate_move(move_to_consider);
+    if (result != INVALID) {
+        make_game_move(result, move_to_consider);
+        if (ui.promoting_pawn) {
+            move_to_consider.set_promotion_piece(ui.piece_selected);
+            handle_pawn_promotion(move_to_consider);
+        }
+        verify_board_sync(position);
+        verify_zobrist_sync(position);
+        is_game_over();
+    } else {
+        position.premoves.clear();
+    }
 }
 
 template<bool update_zobrist> void Position::update_castling_flags(Move& move) {

@@ -144,7 +144,8 @@ void draw_end_screen(Position& position, Result& result, sf::RenderWindow& windo
  * @param window serves as target for 2D drawing
  * @param assets class containing everything drawn in the game
  */
-void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets);
+void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
+    bool premove = false);
 
 /**
  * @brief draws the panel showing the move history is algebraic chess notation
@@ -195,6 +196,8 @@ void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mou
  */
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
 
+void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
+
 /**
  * @brief handles what occurs when the player drops a piece (stops dragging it)
  * @param game class containing all game variables/classes
@@ -204,6 +207,8 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
  */
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
 
+void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos);
+
 /**
  * @brief controls the game state on the pawn promotion screen
  * @param game class containing all game variables/classes
@@ -211,6 +216,8 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
  * @param mouse_pos position of the cursor on the screen
  */
 void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+void handle_clicks_promoting_premove(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 
 /**
  * @brief handles clicks for when the player resets the game (clicking the reset button)
@@ -260,7 +267,7 @@ int select_square(int x, int y, Position& position, UI& ui);
  * @param mouse_pos position of the cursor on the screen
  * @returns true if a valid selection was made, and false otherwise
  */
-bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos);
+bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove = false);
 
 /**
  * @brief plays a sound within the game

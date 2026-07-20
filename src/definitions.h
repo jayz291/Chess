@@ -570,7 +570,8 @@ enum class Gamestate {
     Playing,
     Promoting_pawn,
     Gameover,
-    Resetting
+    Resetting,
+    Promoting_pawn_premove
 };
 
 enum class Gamemode {

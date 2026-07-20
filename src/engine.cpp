@@ -202,6 +202,12 @@ void make_computer_move(Game& game, Assets& assets) {
         play_sound(assets, game);
         game.is_game_over();
     }
+    if (game.state == Gamestate::Promoting_pawn_premove) {
+        game.state = Gamestate::Playing;
+        if (!game.position.premoves.empty()) {
+            game.position.premoves.pop_back();
+        }
+    }
     finished = false;
 }
 

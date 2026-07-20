@@ -29,6 +29,7 @@ struct Position {
     int value_black_pieces; 
     uint64_t zobrist_hash; ///< an unsigned 64-bit number representing a position
     Move current_move;
+    std::deque<Move> premoves {};
 
     /**
      * @brief initialises all the necessary variables to start the game 
@@ -255,6 +256,7 @@ class Game {
     float time_increment;
     Move calculated_move;
     bool move_ready;
+    bool premove;
     sf::String entered_fen;
     std::string final_fen;
     Position position {};
@@ -366,6 +368,8 @@ class Game {
     void update_time();
 
     void add_time_increment();
+
+    void assess_and_make_premove_moves();
 };
 
 // DEBUGGING FUNCTIONS

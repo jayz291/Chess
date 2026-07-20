@@ -110,7 +110,11 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
             if (game.ui.is_dragging) {
                 sf::Vector2f world_pos = window.mapPixelToCoords(mouse_release->position);
                 sf::Vector2i game_pos = { (int)world_pos.x, (int)world_pos.y};
-                handle_drag_release(game, window, game_pos, assets);
+                if (!game.premove) {
+                    handle_drag_release(game, window, game_pos, assets);
+                } else {
+                    handle_clicks_premoving(game, window, game_pos, assets);
+                }  
             }
 
             game.ui.is_dragging = false;
@@ -139,16 +143,20 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
     } else if (game.state == Gamestate::Playing) {
         if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && position.turn == BLACK) ||
             game.mode == Gamemode::CPUblack && position.turn == WHITE) {
+            game.premove = false;
             handle_clicks_playing(game, window, game_pos, assets);
-            if (ui.selected_square != -1) {
-                ui.is_dragging = true;
-                assets.current_mouse_pos = world_pos;
-                ui.dragged_piece = position.board[ui.selected_square];
-            }
+            set_piece_dragging(game, assets, world_pos);
             handle_clicks_undoing(game, assets, game_pos);
+        } else if ((game.mode == Gamemode::CPUwhite && position.turn == WHITE) || 
+                   (game.mode == Gamemode::CPUblack && position.turn == BLACK)) {
+            game.premove = true;
+            handle_clicks_premoving(game, window, game_pos, assets);
+            set_piece_dragging(game, assets, world_pos);
         }
     } else if (game.state == Gamestate::Promoting_pawn) {
         handle_clicks_promoting(game, assets, game_pos);
+    } else if (game.state == Gamestate:: Promoting_pawn_premove) {
+        handle_clicks_promoting_premove(game, assets, game_pos);
     } else if (game.state == Gamestate::Gameover) {
         game.state = Gamestate::Resetting;
     } else if (game.state == Gamestate::Resetting) {
@@ -205,7 +213,8 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
             assets.home_button.update(window, mouse_pos);
         }
         if (game.time_control != Timesetting::Untimed) {
-            if (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn) {
+            if (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn ||
+                game.state == Gamestate::Promoting_pawn_premove) {
                 game.update_time();
                 assets.white_clock.set_text(convert_time_to_display(game.white_time));
                 assets.black_clock.set_text(convert_time_to_display(game.black_time));
@@ -245,6 +254,8 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     }
     if (game.state == Gamestate::Promoting_pawn) {
         draw_pawn_promotion_screen(game.position, game.ui, window, assets);
+    } else if (game.state == Gamestate::Promoting_pawn_premove) {
+        draw_pawn_promotion_screen(game.position, game.ui, window, assets, true);
     }
     if (game.mode == Gamemode::Twoplayer && game.state != Gamestate::Intro) {
         assets.flip_view_button.update(window, mouse_pos);
@@ -253,11 +264,8 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
 }
 
 std::string convert_time_to_display(double time) {
-    //int minutes = time / 60;
-    //int seconds = (int) time % 60;
     return std::format("{:02}:{:02}:{:02}", (int) time / 60, (int) time % 60, 
     (int)((time - (int)time) * 100));
-    //return std::to_string((int)time / 60) + ":" + std::to_string((int)time % 60);
 }
 
 void play_sound(Assets& assets, Game& game) {
@@ -443,6 +451,41 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
     }
 }
 
+void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
+    int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
+    int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
+    
+    if (game.ui.view == BLACK) {
+        row = 7 - row;
+        col = 7 - col;
+    }
+    int square = 56 - 8 * row + col;
+    if (game.ui.selected_square != -1 && game.ui.selected_square != square) {
+        
+        Move move;
+        move.set_from_square(game.ui.selected_square);
+        move.set_to_square(square);
+        move.set_piece(game.position.board[game.ui.selected_square]);
+        game.ui.selected_square = -1; 
+        game.position.premoves.push_back(move);
+        //std::cout << game.position.turn << ' ' << move.get_piece() << ' ' << move.get_to_square() / 8 << '\n';
+        if ((game.position.turn == WHITE && move.get_piece() == BLACK_PAWN && move.get_to_square() / 8 == 0) || 
+            (game.position.turn == BLACK && move.get_piece() == WHITE_PAWN && move.get_to_square() / 8 == 7)) {
+            game.state = Gamestate::Promoting_pawn_premove;
+        }
+    } else {
+        game.ui.selected_square = 56 - 8 * row + col;
+    } 
+}
+
+void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos) {
+    if (game.ui.selected_square != -1) {
+        game.ui.is_dragging = true;
+        assets.current_mouse_pos = world_pos;
+        game.ui.dragged_piece = game.position.board[game.ui.selected_square];
+    }
+}
+
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
              
     int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
@@ -485,6 +528,14 @@ void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos)
         play_sound(assets, game);
         game.is_game_over();
         //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
+    }
+}
+
+void handle_clicks_promoting_premove(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
+    bool selection_made = select_promotion_piece(game, mouse_pos, true);
+    if (selection_made) {
+        game.position.premoves.back().set_promotion_piece(game.ui.piece_selected);
+        game.state = Gamestate::Playing;
     }
 }
 
@@ -588,6 +639,21 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
             } 
+            for (Move& move : game.position.premoves) {
+                int from_square = move.get_from_square();
+                int to_square = move.get_to_square();
+                if (game.ui.view == BLACK) {
+                    from_square ^= 63;
+                    to_square ^= 63;
+                }
+                if (square == from_square || square == to_square) {
+                    if (((i + j) & 1) != 0) {
+                        cell.setFillColor(sf::Color::Red);
+                    } else {
+                        cell.setFillColor(sf::Color(255, 176, 156));
+                    }
+                }
+            }
             cell.setPosition({x_offset, y_offset});
             window.draw(cell);
         }
@@ -637,22 +703,34 @@ void draw_end_screen(Position& position, Result& result, sf::RenderWindow& windo
     assets.end_screen.draw(window);
 }
 
-void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets) {
+void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
+    bool premove) {
 
-    sf::Color colour = (position.turn == WHITE) ? sf::Color::White : sf::Color::Black;
+    sf::Color colour;
+    if (!premove) {
+        colour = (position.turn == WHITE) ? sf::Color::White : sf::Color::Black;
+    } else {
+        colour = (position.turn == BLACK) ? sf::Color::White : sf::Color::Black;
+    }
+    int piece_colour;
+    if (premove) {
+        piece_colour = !position.turn;
+    } else {
+        piece_colour = position.turn;
+    }
     assets.pawn_promotion_screen.set_text_colour(colour);
     assets.pawn_promotion_screen.draw(window);
     int rank = ((ui.view == WHITE) ? 4 : 3);
     if (ui.view == WHITE) {
-        draw_piece(position, ui, window, assets, 4, 2, piece_array[position.turn][ROOK]);
-        draw_piece(position, ui, window, assets, 4, 3, piece_array[position.turn][KNIGHT]);
-        draw_piece(position, ui, window, assets, 4, 4, piece_array[position.turn][BISHOP]);
-        draw_piece(position, ui, window, assets, 4, 5, piece_array[position.turn][QUEEN]); 
+        draw_piece(position, ui, window, assets, 4, 2, piece_array[piece_colour][ROOK]);
+        draw_piece(position, ui, window, assets, 4, 3, piece_array[piece_colour][KNIGHT]);
+        draw_piece(position, ui, window, assets, 4, 4, piece_array[piece_colour][BISHOP]);
+        draw_piece(position, ui, window, assets, 4, 5, piece_array[piece_colour][QUEEN]); 
     } else {
-        draw_piece(position, ui, window, assets, 3, 5, piece_array[position.turn][ROOK]);
-        draw_piece(position, ui, window, assets, 3, 4, piece_array[position.turn][KNIGHT]);
-        draw_piece(position, ui, window, assets, 3, 3, piece_array[position.turn][BISHOP]);
-        draw_piece(position, ui, window, assets, 3, 2, piece_array[position.turn][QUEEN]);
+        draw_piece(position, ui, window, assets, 3, 5, piece_array[piece_colour][ROOK]);
+        draw_piece(position, ui, window, assets, 3, 4, piece_array[piece_colour][KNIGHT]);
+        draw_piece(position, ui, window, assets, 3, 3, piece_array[piece_colour][BISHOP]);
+        draw_piece(position, ui, window, assets, 3, 2, piece_array[piece_colour][QUEEN]);
     }
 }
 
@@ -728,7 +806,7 @@ int select_square(int x, int y, Position& position, UI& ui) {
     return -3;
 }
 
-bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos) {
+bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove) {
     
     int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
@@ -743,7 +821,9 @@ bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos) {
         game.ui.piece_selected = P_QUEEN;
     }
     if (game.ui.piece_selected != -1) {
-        game.handle_pawn_promotion(game.position.current_move);
+        if (!premove) {
+            game.handle_pawn_promotion(game.position.current_move);
+        }
         return true;
     }
     return false;

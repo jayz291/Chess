@@ -26,6 +26,7 @@ void Game::initialise() {
     time_increment = time_settings[(int)time_control][1];
     finished = false;  // prevent move spillover from possibly incomplete computer search
     clear_transposition_table();
+    premove = false;
 }
 
 void Position::initialise() {
@@ -41,6 +42,7 @@ void Position::initialise() {
     castling_rights = 0b00000000;
     zobrist_hash = 0ULL;
     current_move = {};
+    premoves.clear();
 }
 
 void Log::initialise() {
