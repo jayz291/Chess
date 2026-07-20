@@ -575,9 +575,9 @@ enum class Gamestate {
 };
 
 enum class Gamemode {
-    CPUwhite,
-    CPUblack,
-    Twoplayer
+    CPUblack = 0,
+    CPUwhite = 1,
+    Twoplayer = 2
 };
 
 enum class Timesetting {

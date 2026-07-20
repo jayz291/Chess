@@ -284,26 +284,25 @@ void play_sound(Assets& assets, Game& game) {
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
  
     sf::Text title = configure_text(assets.font, "Chess", {270, 20}, 210, sf::Color::Black);
-    assets.play_white_cpu.set_default_thickness();
-    assets.play_two_player.set_default_thickness();
-    assets.play_black_cpu.set_default_thickness();
-
-    if (game.mode == Gamemode::CPUblack) {
-        assets.play_black_cpu.set_outline_thickness(-5.0f, sf::Color::Black);
-    } else if (game.mode == Gamemode::CPUwhite) {
-        assets.play_white_cpu.set_outline_thickness(-5.0f, sf::Color::Black);
-    } else {
-        assets.play_two_player.set_outline_thickness(-5.0f, sf::Color::Black);   
-    }
+  
+    draw_game_mode_buttons(window, game, assets, mouse_pos);
     draw_time_control_buttons(window, game, assets, mouse_pos);
 
-    assets.play_black_cpu.update(window, mouse_pos);
-    assets.play_white_cpu.update(window, mouse_pos);
-    assets.play_two_player.update(window, mouse_pos);
     assets.play_button.update(window, mouse_pos);
     window.draw(title);
     assets.fen_input.draw(game, window);
     assets.toggle_takebacks.update(window, mouse_pos);
+}
+
+void draw_game_mode_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
+    for (auto& button : assets.gamemode_buttons) {
+        button->set_default_thickness();
+    }
+    assets.gamemode_buttons[static_cast<int>(game.mode)]->set_outline_thickness(-5.0f, sf::Color::Black);
+
+    for (auto& button : assets.gamemode_buttons) {
+        button->update(window, mouse_pos);
+    }
 }
 
 void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos) {
@@ -390,7 +389,6 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
         game.initialise();
         int result = game.handle_fen_string();
         if (result == 0) {
-            //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
             game.ui.invalid_fen_position = false;
             game.state = Gamestate::Playing;
             //run_perft_suite(game, 5);
@@ -452,21 +450,21 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
 }
 
 void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
-    int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
-    int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
-    
-    if (game.ui.view == BLACK) {
-        row = 7 - row;
-        col = 7 - col;
+
+    int square = find_square_selected(game, mouse_pos);
+    if (square == -2) {
+        game.position.premoves.clear();
+        game.ui.selected_square = NO_SQUARE_SELECTED;
+        return;
     }
-    int square = 56 - 8 * row + col;
-    if (game.ui.selected_square != -1 && game.ui.selected_square != square) {
+
+    if (game.ui.selected_square != NO_SQUARE_SELECTED && game.ui.selected_square != square) {
         
         Move move;
         move.set_from_square(game.ui.selected_square);
         move.set_to_square(square);
-        move.set_piece(game.position.board[game.ui.selected_square]);
-        game.ui.selected_square = -1; 
+        //move.set_piece(game.position.board[game.ui.selected_square]);
+        game.ui.selected_square = NO_SQUARE_SELECTED; 
         game.position.premoves.push_back(move);
         //std::cout << game.position.turn << ' ' << move.get_piece() << ' ' << move.get_to_square() / 8 << '\n';
         if ((game.position.turn == WHITE && move.get_piece() == BLACK_PAWN && move.get_to_square() / 8 == 0) || 
@@ -474,12 +472,12 @@ void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i 
             game.state = Gamestate::Promoting_pawn_premove;
         }
     } else {
-        game.ui.selected_square = 56 - 8 * row + col;
+        game.ui.selected_square = square;
     } 
 }
 
 void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos) {
-    if (game.ui.selected_square != -1) {
+    if (game.ui.selected_square != NO_SQUARE_SELECTED) {
         game.ui.is_dragging = true;
         assets.current_mouse_pos = world_pos;
         game.ui.dragged_piece = game.position.board[game.ui.selected_square];
@@ -488,13 +486,8 @@ void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos) {
 
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
              
-    int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
-    int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
-    int square = 56 - 8 * row + col;
-    if (game.ui.view == BLACK) {
-        square = square ^ 63;
-    }
-    if (square != game.ui.selected_square) {
+    int square = find_square_selected(game, mouse_pos);
+    if (square != game.ui.selected_square && square != -2) {
         Move move;
         move.set_from_square(game.ui.selected_square);
         move.set_to_square(square);
@@ -506,7 +499,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
         int result = game.position.validate_move(move);
         if (result >= 0) {
             game.position.current_move = move;
-            game.ui.selected_square = -1;
+            game.ui.selected_square = NO_SQUARE_SELECTED;
             game.make_game_move(result, game.position.current_move);  
         }
         if (game.ui.promoting_pawn) {
@@ -518,7 +511,23 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             game.is_game_over();
             play_sound(assets, game);
         }
+    } else if (square == -2) {
+        game.ui.selected_square = NO_SQUARE_SELECTED;
     }
+}
+
+inline int find_square_selected(Game& game, sf::Vector2i& mouse_pos) {
+    int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
+    int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
+    //std::cout << row << ' ' << col << '\n';
+    if (row < 0 || col < 0 || row > 7 || col > 7) {
+        return -2;
+    }
+    int square = 56 - 8 * row + col;
+    if (game.ui.view == BLACK) {
+        square = square ^ 63;
+    }
+    return square;
 }
 
 void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
@@ -752,9 +761,18 @@ void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& as
         }
         sprite.setPosition({x_offset, y_offset});
     } else {
-        sf::FloatRect bounds = sprite.getLocalBounds();
-        sprite.setOrigin({bounds.size.x / 2, bounds.size.y / 2});
-        sprite.setPosition(assets.current_mouse_pos);
+        if (assets.current_mouse_pos.x > 880 || assets.current_mouse_pos.x < 110 ||
+            assets.current_mouse_pos.y > 781 || assets.current_mouse_pos.y < 13) {
+            // if the piece is dragged out of bounds, snap it back in place
+            ui.selected_square = NO_SQUARE_SELECTED;
+            ui.is_dragging = false;
+            return;
+        } else {
+            sf::FloatRect bounds = sprite.getLocalBounds();
+            sprite.setOrigin({bounds.size.x / 2, bounds.size.y / 2});
+            sprite.setPosition(assets.current_mouse_pos);
+        }
+        //std::cout << assets.current_mouse_pos.y << '\n';
     }
 
     if (piece == WHITE_KING && position.white_in_check && position.turn == WHITE) {
@@ -780,7 +798,7 @@ int select_square(int x, int y, Position& position, UI& ui) {
         return -2;
     }
     //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
-    if (ui.selected_square != -1) {
+    if (ui.selected_square != NO_SQUARE_SELECTED) {
         
         Move move;
         move.set_from_square(ui.selected_square);
@@ -790,7 +808,7 @@ int select_square(int x, int y, Position& position, UI& ui) {
             move.set_captured(position.board[square]);
         }
         int result = position.validate_move(move);
-        ui.selected_square = -1; 
+        ui.selected_square = NO_SQUARE_SELECTED; 
   
         if (result >= 0) {
             position.current_move = move;
@@ -799,7 +817,7 @@ int select_square(int x, int y, Position& position, UI& ui) {
         return -1;
     } else if (((mask & position.bitboards.occupied_tables[WHITE]) && position.turn == WHITE) || 
         ((mask & position.bitboards.occupied_tables[BLACK]) && position.turn == BLACK)) {
-        ui.selected_square = 56 - 8 * row + col;
+        ui.selected_square = square;
         return -1;
   
     } 

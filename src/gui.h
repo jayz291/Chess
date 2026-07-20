@@ -9,6 +9,8 @@ constexpr int TEXT_OFFSET = 3;
 constexpr int TIME_TEXT_Y_POS = TIME_Y_POS + TEXT_OFFSET;
 constexpr sf::Vector2f TIME_BUTTON_SIZE = {64, 35};
 
+constexpr int NO_SQUARE_SELECTED = -1;
+
 /**
  * @class Assets 
  * @brief contains all fonts, sounds, buttons and images used within the game. 
@@ -38,6 +40,8 @@ struct Assets {
         {715, 515}, {250, 110}, sf::Color::White};
     Button play_button {font, "Play", {500, 380}, 60, sf::Color::Black, 
         {380, 330}, {350, 160}, sf::Color::White};
+
+    std::vector<Button*> gamemode_buttons {&play_black_cpu, &play_white_cpu, &play_two_player};
 
     Button untimed_button {font, "Untimed", {TEXT_BASE_X_POS - 15, TIME_TEXT_Y_POS}, 15, sf::Color::Black, 
         {TIME_BASE_X_POS, TIME_Y_POS}, TIME_BUTTON_SIZE, sf::Color::White};
@@ -103,6 +107,8 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets);
  * @param mouse_pos the current cursor position on the screen
  */
 void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+
+void draw_game_mode_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 
 void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 
@@ -208,6 +214,8 @@ void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i 
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
 
 void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos);
+
+inline int find_square_selected(Game& game, sf::Vector2i& mouse_pos);
 
 /**
  * @brief controls the game state on the pawn promotion screen

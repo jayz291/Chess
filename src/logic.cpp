@@ -267,7 +267,6 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
     position.update_castling_flags<true>(move);
     if (!is_game_over) {
         position.move_record.push_back(move);
-        std::cout << "here\n";
     }
     log.current_ply_num++;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
@@ -283,7 +282,13 @@ void Game::assess_and_make_premove_moves() {
     }
     Move move_to_consider = position.premoves.front();
     position.premoves.pop_front();
-    if (position.board[move_to_consider.get_from_square()] != move_to_consider.get_piece())  {
+    move_to_consider.set_piece(position.board[move_to_consider.get_from_square()]);
+    if (move_to_consider.get_piece() == EMPTY_SQUARE)  {
+        position.premoves.clear();
+        //std::cout << (int) position.board[move_to_consider.get_from_square()] << '\n';
+        //std::cout << (int) move_to_consider.get_piece() << '\n';
+        return;
+    } else if (get_piece_colour(move_to_consider.get_piece()) != position.turn) {
         position.premoves.clear();
         return;
     }
