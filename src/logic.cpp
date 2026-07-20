@@ -276,10 +276,10 @@ void Game::assess_and_make_premove_moves() {
     if (position.premoves.empty()) {
         return;
     }
-    for (auto& move : position.premoves) {
+    /*for (auto& move : position.premoves) {
         std::cout << "Piece: " << move.get_piece() << " From: " << move.get_from_square() << " To: "
         << move.get_to_square() << " Promotion piece: " << move.get_promotion_piece() << '\n';
-    }
+    }*/
     Move move_to_consider = position.premoves.front();
     position.premoves.pop_front();
     move_to_consider.set_piece(position.board[move_to_consider.get_from_square()]);

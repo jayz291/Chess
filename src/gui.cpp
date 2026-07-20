@@ -155,8 +155,8 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
         }
     } else if (game.state == Gamestate::Promoting_pawn) {
         handle_clicks_promoting(game, assets, game_pos);
-    } else if (game.state == Gamestate:: Promoting_pawn_premove) {
-        handle_clicks_promoting_premove(game, assets, game_pos);
+    } else if (game.state == Gamestate::Promoting_pawn_premove) {
+        handle_clicks_promoting(game, assets, game_pos, true);
     } else if (game.state == Gamestate::Gameover) {
         game.state = Gamestate::Resetting;
     } else if (game.state == Gamestate::Resetting) {
@@ -433,7 +433,7 @@ void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mou
 }
 
 void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
-    int result = select_square(mouse_pos.x, mouse_pos.y, game.position, game.ui);
+    int result = select_square(mouse_pos, game.position, game.ui);
     if (result >= 0) {
         game.make_game_move(result, game.position.current_move);  
     }
@@ -451,8 +451,8 @@ void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mo
 
 void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
 
-    int square = find_square_selected(game, mouse_pos);
-    if (square == -2) {
+    int square = find_square_selected(game.ui, mouse_pos);
+    if (square == OUT_OF_BOUNDS) {
         game.position.premoves.clear();
         game.ui.selected_square = NO_SQUARE_SELECTED;
         return;
@@ -463,7 +463,7 @@ void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i 
         Move move;
         move.set_from_square(game.ui.selected_square);
         move.set_to_square(square);
-        //move.set_piece(game.position.board[game.ui.selected_square]);
+        move.set_piece(game.position.board[game.ui.selected_square]);
         game.ui.selected_square = NO_SQUARE_SELECTED; 
         game.position.premoves.push_back(move);
         //std::cout << game.position.turn << ' ' << move.get_piece() << ' ' << move.get_to_square() / 8 << '\n';
@@ -486,8 +486,8 @@ void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos) {
 
 void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
              
-    int square = find_square_selected(game, mouse_pos);
-    if (square != game.ui.selected_square && square != -2) {
+    int square = find_square_selected(game.ui, mouse_pos);
+    if (square != game.ui.selected_square && square != OUT_OF_BOUNDS) {
         Move move;
         move.set_from_square(game.ui.selected_square);
         move.set_to_square(square);
@@ -511,40 +511,37 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             game.is_game_over();
             play_sound(assets, game);
         }
-    } else if (square == -2) {
+    } else if (square == OUT_OF_BOUNDS) {
         game.ui.selected_square = NO_SQUARE_SELECTED;
     }
 }
 
-inline int find_square_selected(Game& game, sf::Vector2i& mouse_pos) {
+inline int find_square_selected(UI& ui, sf::Vector2i& mouse_pos) {
     int col = floor(((mouse_pos.x - 135.f) / (SQUARE_SIZE)) + 0.1473);
     int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
     //std::cout << row << ' ' << col << '\n';
     if (row < 0 || col < 0 || row > 7 || col > 7) {
-        return -2;
+        return OUT_OF_BOUNDS;
     }
     int square = 56 - 8 * row + col;
-    if (game.ui.view == BLACK) {
+    if (ui.view == BLACK) {
         square = square ^ 63;
     }
     return square;
 }
 
-void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
-    bool selection_made = select_promotion_piece(game, mouse_pos);
+void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos, bool premove) {
+    bool selection_made = select_promotion_piece(game, mouse_pos, premove);
     if (selection_made) {
+        if (premove) {
+            game.position.premoves.back().set_promotion_piece(game.ui.piece_selected);
+        }
         game.state = Gamestate::Playing;
-        play_sound(assets, game);
-        game.is_game_over();
+        if (!premove) {
+            play_sound(assets, game);
+            game.is_game_over();
+        }
         //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
-    }
-}
-
-void handle_clicks_promoting_premove(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
-    bool selection_made = select_promotion_piece(game, mouse_pos, true);
-    if (selection_made) {
-        game.position.premoves.back().set_promotion_piece(game.ui.piece_selected);
-        game.state = Gamestate::Playing;
     }
 }
 
@@ -783,21 +780,14 @@ void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& as
     window.draw(sprite);
 }
 
-int select_square(int x, int y, Position& position, UI& ui) {
-    int col = floor(((x - 135.f) / (SQUARE_SIZE)) + 0.1473);
-    int row = floor(((y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
-    
-    if (ui.view == BLACK) {
-        row = 7 - row;
-        col = 7 - col;
-    }
-    int square = 56 - 8 * row + col;
-    uint64_t mask = 1ULL << square;
-    
-    if (row < 0 || col < 0 || row > 7 || col > 7) {
-        return -2;
+int select_square(sf::Vector2i& mouse_pos, Position& position, UI& ui) {
+
+    int square = find_square_selected(ui, mouse_pos);
+    if (square == OUT_OF_BOUNDS) {
+        return OUT_OF_BOUNDS;
     }
     //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
+    uint64_t mask = 1ULL << square;
     if (ui.selected_square != NO_SQUARE_SELECTED) {
         
         Move move;

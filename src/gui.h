@@ -10,6 +10,7 @@ constexpr int TIME_TEXT_Y_POS = TIME_Y_POS + TEXT_OFFSET;
 constexpr sf::Vector2f TIME_BUTTON_SIZE = {64, 35};
 
 constexpr int NO_SQUARE_SELECTED = -1;
+constexpr int OUT_OF_BOUNDS = -2;
 
 /**
  * @class Assets 
@@ -215,7 +216,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
 
 void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos);
 
-inline int find_square_selected(Game& game, sf::Vector2i& mouse_pos);
+inline int find_square_selected(UI& ui, sf::Vector2i& mouse_pos);
 
 /**
  * @brief controls the game state on the pawn promotion screen
@@ -223,9 +224,7 @@ inline int find_square_selected(Game& game, sf::Vector2i& mouse_pos);
  * @param assets class containing everything drawn in the game
  * @param mouse_pos position of the cursor on the screen
  */
-void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
-
-void handle_clicks_promoting_premove(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos, bool premove = false);
 
 /**
  * @brief handles clicks for when the player resets the game (clicking the reset button)
@@ -261,21 +260,21 @@ void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos)
 
 /**
  * @brief handles clicks on the chessboard during gameplay
- * @param x rank of the clicked square
- * @param y file of the clicked square 
+ * @param mouse_pos position of the cursor on the screen
  * @param position class containing variables concerning the chess game
  * @param ui class containing variables regarding user interaction with the chess pieces
  * @return number greater than 0 for a valid move/click, and a number less than 0 for an invalid move/click
  */
-int select_square(int x, int y, Position& position, UI& ui); 
+int select_square(sf::Vector2i& mouse_pos, Position& position, UI& ui); 
 
 /**
  * @brief allows the player to select a promotion piece on the pawn promotion screen
  * @param game class containing all game variables/classes
  * @param mouse_pos position of the cursor on the screen
+ * @param premove boolean flag which is true if the a piece is being selected for a premove and false otherwise
  * @returns true if a valid selection was made, and false otherwise
  */
-bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove = false);
+bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove);
 
 /**
  * @brief plays a sound within the game
