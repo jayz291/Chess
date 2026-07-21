@@ -487,7 +487,6 @@ template<bool update_zobrist> void Position::move_piece(uint8_t target_piece, in
         remove_piece<update_zobrist>(opposing_turn, captured, to_square);
     }
     place_piece<update_zobrist>(turn, target_piece, to_square);
-    assert(game.board[to_square] != EMPTY_SQUARE);
 }
 
 int Position::validate_move(Move& move) {

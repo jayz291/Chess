@@ -8,41 +8,11 @@
 extern std::atomic<bool> thinking_in_progress;
 
 Assets::Assets() {
-    if (!array[BLACK_PAWN].loadFromFile("./assets/images/Chess_pdt45.png")) {
-        return;
-    }
-    if (!array[WHITE_PAWN].loadFromFile("./assets/images/Chess_plt45.png")) {
-        return;
-    }
-    if (!array[BLACK_KNIGHT].loadFromFile("./assets/images/Chess_ndt45.png")) {
-        return;
-    }
-    if (!array[WHITE_KNIGHT].loadFromFile("./assets/images/Chess_nlt45.png")) {
-        return;
-    }
-    if (!array[BLACK_BISHOP].loadFromFile("./assets/images/Chess_bdt45.png")) {
-        return;
-    }
-    if (!array[WHITE_BISHOP].loadFromFile("./assets/images/Chess_blt45.png")) {
-        return;
-    }
-    if (!array[BLACK_ROOK].loadFromFile("./assets/images/Chess_rdt45.png")) {
-        return;
-    }
-    if (!array[WHITE_ROOK].loadFromFile("./assets/images/Chess_rlt45.png")) {
-        return;
-    }
-    if (!array[BLACK_QUEEN].loadFromFile("./assets/images/Chess_qdt45.png")) {
-        return;
-    }
-    if (!array[WHITE_QUEEN].loadFromFile("./assets/images/Chess_qlt45.png")) {
-        return;
-    }
-    if (!array[BLACK_KING].loadFromFile("./assets/images/Chess_kdt45.png")) {
-        return;
-    }
-    if (!array[WHITE_KING].loadFromFile("./assets/images/Chess_klt45.png")) {
-        return;
+
+    for (const auto& [piece, file_path] : piece_images) {
+        if (!array[piece].loadFromFile(file_path)) {
+            return;
+        }
     }
     if (!font.openFromFile("./assets/fonts/Roboto-SemiBold.ttf")) {
         return;
@@ -50,14 +20,14 @@ Assets::Assets() {
     if (!font2.openFromFile("./assets/fonts/Roboto-Regular.ttf")) {
         return;
     }
-    if (!buffer.loadFromFile("./assets/sounds/piece-placement.wav")) {
+    if (!move_sound_buffer.loadFromFile("./assets/sounds/piece-placement.wav")) {
         return;
     }
-    if (!buffer2.loadFromFile("./assets/sounds/capture2.wav")) {
+    if (!capture_sound_buffer.loadFromFile("./assets/sounds/capture2.wav")) {
         return;
     }
-    sound.emplace(buffer);
-    sound2.emplace(buffer2);
+    move_sound.emplace(move_sound_buffer);
+    capture_sound.emplace(capture_sound_buffer);
 }
 
 void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
@@ -274,10 +244,10 @@ void play_sound(Assets& assets, Game& game) {
     }
     Move& prev_move = game.position.move_record.back();
     if (prev_move.get_captured_piece() == EMPTY_SQUARE) {
-        assets.sound->play(); 
+        assets.move_sound->play(); 
     } else {
-        assets.sound2->setVolume(50);
-        assets.sound2->play();
+        assets.capture_sound->setVolume(50);
+        assets.capture_sound->play();
     }
 }
 
@@ -319,10 +289,6 @@ void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& ass
 void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets) {
     sf::Text move_record_title = configure_text(assets.font, "Move Record", {935, 20}, 20, sf::Color::White);
     window.draw(move_record_title);
-    //sf::Vector2f panel_pos = {900.f, 58.f};
-    //sf::Vector2f panel_size = {180.f, 660.f};
-    //int line_height = 25;
-    //int max_lines_visible = log.panel_size.y / log.line_height;
 
     sf::RectangleShape background = make_rectangle(log.panel_pos, log.panel_size, sf::Color::White);
     background.setOutlineThickness(2);
@@ -392,7 +358,7 @@ void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, s
     if (assets.play_button.is_clicked({x, y})) {
         game.initialise();
         int result = game.handle_fen_string();
-        if (result == 0) {
+        if (result == VALID) {
             game.ui.invalid_fen_position = false;
             game.state = Gamestate::Playing;
             //run_perft_suite(game, 5);

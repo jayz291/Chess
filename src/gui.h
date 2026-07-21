@@ -14,6 +14,21 @@ constexpr sf::Vector2f MODE_BUTTON_SIZE = {250, 110};
 constexpr int NO_SQUARE_SELECTED = -1;
 constexpr int OUT_OF_BOUNDS = -2;
 
+const std::map<int, std::string> piece_images =  {
+    {BLACK_PAWN, "./assets/images/Chess_pdt45.png"}, 
+    {WHITE_PAWN, "./assets/images/Chess_plt45.png"},
+    {BLACK_KNIGHT, "./assets/images/Chess_ndt45.png"}, 
+    {WHITE_KNIGHT, "./assets/images/Chess_nlt45.png"}, 
+    {BLACK_BISHOP, "./assets/images/Chess_bdt45.png"},
+    {WHITE_BISHOP, "./assets/images/Chess_blt45.png"},
+    {BLACK_ROOK, "./assets/images/Chess_rdt45.png"},
+    {WHITE_ROOK, "./assets/images/Chess_rlt45.png"},
+    {BLACK_QUEEN, "./assets/images/Chess_qdt45.png"},
+    {WHITE_QUEEN, "./assets/images/Chess_qlt45.png"},
+    {BLACK_KING, "./assets/images/Chess_kdt45.png"},
+    {WHITE_KING, "./assets/images/Chess_klt45.png"}
+};
+
 /**
  * @class Assets 
  * @brief contains all fonts, sounds, buttons and images used within the game. 
@@ -21,10 +36,10 @@ constexpr int OUT_OF_BOUNDS = -2;
 struct Assets {
     sf::Font font;
     sf::Font font2;
-    sf::SoundBuffer buffer;
-    sf::SoundBuffer buffer2;
-    std::optional<sf::Sound> sound;
-    std::optional<sf::Sound> sound2;
+    sf::SoundBuffer move_sound_buffer;
+    sf::SoundBuffer capture_sound_buffer;
+    std::optional<sf::Sound> move_sound;
+    std::optional<sf::Sound> capture_sound;
     sf::Texture array[16];
     sf::Vector2f current_mouse_pos;
     bool allow_takebacks { true };

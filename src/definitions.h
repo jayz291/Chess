@@ -8,6 +8,7 @@
 #include <bitset>
 #include <algorithm>
 #include <assert.h>
+#include <map>
 
 constexpr int SQUARE_SIZE = 95;
 constexpr int INVALID = -1;
