@@ -67,7 +67,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
    
         if (const auto* mouse_press = event->getIf<sf::Event::MouseButtonPressed>()) {
             sf::Vector2f world_pos = window.mapPixelToCoords(mouse_press->position);
-            delegate_click_event(game, window, assets, world_pos);
+            delegate_click_event(game, assets, world_pos);
         }
             
         if (const auto* resized = event->getIf<sf::Event::Resized>()) {
@@ -81,9 +81,9 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
                 sf::Vector2f world_pos = window.mapPixelToCoords(mouse_release->position);
                 sf::Vector2i game_pos = { (int)world_pos.x, (int)world_pos.y};
                 if (!game.premove) {
-                    handle_drag_release(game, window, game_pos, assets);
+                    handle_move_square_selection(game, game_pos, assets);
                 } else {
-                    handle_clicks_premoving(game, window, game_pos, assets);
+                    handle_premove_square_selection(game, game_pos, assets);
                 }  
             }
 
@@ -92,7 +92,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
     }
 }
 
-void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos) {
+void delegate_click_event(Game& game, Assets& assets, sf::Vector2f& world_pos) {
     sf::Vector2i game_pos = {(int)world_pos.x, (int)world_pos.y};
     auto& position = game.position;
     auto& log = game.log;
@@ -109,18 +109,16 @@ void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, 
     }
 
     if (game.state == Gamestate::Intro) {
-        handle_clicks_intro(game, window, assets, game_pos);
+        handle_clicks_intro(game, assets, game_pos);
     } else if (game.state == Gamestate::Playing) {
-        if (game.mode == Gamemode::Twoplayer || (game.mode == Gamemode::CPUwhite && position.turn == BLACK) ||
-            game.mode == Gamemode::CPUblack && position.turn == WHITE) {
+        if (game.mode == Gamemode::Twoplayer || !is_computer_turn(game)) {
             game.premove = false;
-            handle_clicks_playing(game, window, game_pos, assets);
+            handle_move_square_selection(game, game_pos, assets);
             set_piece_dragging(game, assets, world_pos);
             handle_clicks_undoing(game, assets, game_pos);
-        } else if ((game.mode == Gamemode::CPUwhite && position.turn == WHITE) || 
-                   (game.mode == Gamemode::CPUblack && position.turn == BLACK)) {
+        } else if (is_computer_turn(game)) {
             game.premove = true;
-            handle_clicks_premoving(game, window, game_pos, assets);
+            handle_premove_square_selection(game, game_pos, assets);
             set_piece_dragging(game, assets, world_pos);
         }
     } else if (game.state == Gamestate::Promoting_pawn) {
@@ -238,12 +236,11 @@ std::string convert_time_to_display(double time) {
     (int)((time - (int)time) * 100));
 }
 
-void play_sound(Assets& assets, Game& game) {
+void play_sound(Assets& assets, Move& move) {
     if (!assets.sound_on) {
         return;
     }
-    Move& prev_move = game.position.move_record.back();
-    if (prev_move.get_captured_piece() == EMPTY_SQUARE) {
+    if (move.get_captured_piece() == EMPTY_SQUARE && move.get_move_type() != EN_PASSANT) {
         assets.move_sound->play(); 
     } else {
         assets.capture_sound->setVolume(50);
@@ -352,7 +349,7 @@ inline void draw_scroll_bar(Log& log, sf::RenderWindow& window, int& total_pairs
     window.draw(scroll_bar);
 }
 
-void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos) {
+void handle_clicks_intro(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
     int x = mouse_pos.x;
     int y = mouse_pos.y;
     if (assets.play_button.is_clicked({x, y})) {
@@ -402,24 +399,12 @@ void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mou
     }
 }
 
-void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
+void handle_move_square_selection(Game& game, sf::Vector2i mouse_pos, Assets& assets) {
     int result = select_square(mouse_pos, game.position, game.ui);
-    if (result >= 0) {
-        game.make_game_move(result, game.position.current_move);  
-    }
-    if (game.ui.promoting_pawn) {
-        game.state = Gamestate::Promoting_pawn;
-        return;
-    }
-    if (result >= 0) {
-        verify_board_sync(game.position);
-        verify_zobrist_sync(game.position);
-        play_sound(assets, game);
-        game.is_game_over();
-    }
+    process_move(game, assets, result);
 }
 
-void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
+void handle_premove_square_selection(Game& game, sf::Vector2i mouse_pos, Assets& assets) {
 
     int square = find_square_selected(game.ui, mouse_pos);
     if (square == OUT_OF_BOUNDS) {
@@ -430,10 +415,7 @@ void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i 
 
     if (game.ui.selected_square != NO_SQUARE_SELECTED && game.ui.selected_square != square) {
         
-        Move move;
-        move.set_from_square(game.ui.selected_square);
-        move.set_to_square(square);
-        move.set_piece(game.position.board[game.ui.selected_square]);
+        Move move = output_candidate_move(game.position, game.ui.selected_square, square, true);
         game.ui.selected_square = NO_SQUARE_SELECTED; 
         game.position.premoves.push_back(move);
         //std::cout << game.position.turn << ' ' << move.get_piece() << ' ' << move.get_to_square() / 8 << '\n';
@@ -451,39 +433,6 @@ void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos) {
         game.ui.is_dragging = true;
         assets.current_mouse_pos = world_pos;
         game.ui.dragged_piece = game.position.board[game.ui.selected_square];
-    }
-}
-
-void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets) {
-             
-    int square = find_square_selected(game.ui, mouse_pos);
-    if (square != game.ui.selected_square && square != OUT_OF_BOUNDS) {
-
-        Move move;
-        move.set_from_square(game.ui.selected_square);
-        move.set_to_square(square);
-        move.set_piece(game.position.board[game.ui.selected_square]);
-        if (game.position.board[square] != EMPTY_SQUARE) {
-            move.set_captured(game.position.board[square]);
-        }
-
-        int result = game.position.validate_move(move);
-        if (result >= 0) {
-            game.position.current_move = move;
-            game.ui.selected_square = NO_SQUARE_SELECTED;
-            game.make_game_move(result, game.position.current_move);  
-        }
-        if (game.ui.promoting_pawn) {
-            game.state = Gamestate::Promoting_pawn;
-            return;
-        }
-
-        if (result >= 0) {
-            game.is_game_over();
-            play_sound(assets, game);
-        }
-    } else if (square == OUT_OF_BOUNDS) {
-        game.ui.selected_square = NO_SQUARE_SELECTED;
     }
 }
 
@@ -509,7 +458,7 @@ void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos,
         }
         game.state = Gamestate::Playing;
         if (!premove) {
-            play_sound(assets, game);
+            play_sound(assets, game.position.move_record.back());
             game.is_game_over();
         }
         //std::cout << std::bitset<64>(game.zobrist_hash) << '\n';
@@ -761,31 +710,63 @@ int select_square(sf::Vector2i& mouse_pos, Position& position, UI& ui) {
     if (square == OUT_OF_BOUNDS) {
         return OUT_OF_BOUNDS;
     }
-    //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
+
     uint64_t mask = 1ULL << square;
-    if (ui.selected_square != NO_SQUARE_SELECTED) {
-        Move move;
-        move.set_from_square(ui.selected_square);
-        move.set_to_square(square);
-        move.set_piece(position.board[ui.selected_square]);
-        if (position.board[square] != EMPTY_SQUARE) {
-            move.set_captured(position.board[square]);
-        }
+    if (ui.selected_square != NO_SQUARE_SELECTED && ui.selected_square != square) {
+
+        Move move = output_candidate_move(position, ui.selected_square, square);
         int result = position.validate_move(move);
         ui.selected_square = NO_SQUARE_SELECTED; 
   
         if (result >= 0) {
             position.current_move = move;
-            return result;
         } 
-        return -1;
+        return result;
     } else if (((mask & position.bitboards.occupied_tables[WHITE]) && position.turn == WHITE) || 
         ((mask & position.bitboards.occupied_tables[BLACK]) && position.turn == BLACK)) {
         ui.selected_square = square;
-        return -1;
+        return INVALID;
   
     } 
     return -3;
+}
+
+Move output_candidate_move(Position& position, int& from_square, int& to_square, bool premove) {
+    Move move;
+    if (position.board[to_square] != EMPTY_SQUARE && !premove) {
+        move.set_move(from_square, to_square, position.board[from_square], position.board[to_square]);
+    } else {
+        move.set_from_square(from_square);
+        move.set_to_square(to_square);
+        move.set_piece(position.board[from_square]);
+    }
+    return move;
+}
+
+void process_move(Game& game, Assets& assets, int result) {
+    bool move_made = false;
+    if (result >= 0 && !is_computer_turn(game)) {     
+        game.make_game_move(result, game.position.current_move);  
+        move_made = true;
+    }
+    if (game.ui.promoting_pawn) {
+        game.state = Gamestate::Promoting_pawn;
+        return;
+    }
+    if (move_made) {
+        play_sound(assets, game.position.current_move); 
+        verify_board_sync(game.position);
+        verify_zobrist_sync(game.position);
+        game.is_game_over();
+    }
+}
+
+inline bool is_computer_turn(Game& game) {
+    if ((game.position.turn == WHITE && game.mode == Gamemode::CPUwhite) || (game.position.turn == BLACK &&
+        game.mode == Gamemode::CPUblack)) {
+        return true;
+    }
+    return false;
 }
 
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove) {

@@ -199,7 +199,7 @@ void make_computer_move(Game& game, Assets& assets) {
         }
         verify_board_sync(game.position);
         verify_zobrist_sync(game.position);
-        play_sound(assets, game);
+        play_sound(assets, chosen_move);
         game.is_game_over();
     }
     if (game.state == Gamestate::Promoting_pawn_premove) {

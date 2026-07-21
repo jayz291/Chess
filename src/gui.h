@@ -198,42 +198,30 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
 /**
  * @brief calls the appropriate input handler function based on the click event
  * @param game class containing all game variables/classes
- * @param window serves as target for 2D drawing
  * @param assets class containing everything drawn in the game
  * @param world_pos position of the click
  */
-void delegate_click_event(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2f& world_pos);
+void delegate_click_event(Game& game, Assets& assets, sf::Vector2f& world_pos);
 
 /**
  * @brief handles click events that occur on the intro screen
  * @param game class containing all game variables/classes
- * @param window serves as target for 2D drawing
  * @param assets class containing everything drawn in the game
  * @param mouse_pos position of the cursor on the screen
  */
-void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos);
+void handle_clicks_intro(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 
 void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mouse_pos);
 
 /**
  * @brief handles cursor movement and clicks during the game
  * @param game class containing all game variables/classes
- * @param window serves as target for 2D drawing
  * @param mouse_pos position of the cursor on the screen
  * @param assets class containing everything drawn in the game
  */
-void handle_clicks_playing(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
+void handle_move_square_selection(Game& game, sf::Vector2i mouse_pos, Assets& assets);
 
-void handle_clicks_premoving(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
-
-/**
- * @brief handles what occurs when the player drops a piece (stops dragging it)
- * @param game class containing all game variables/classes
- * @param window serves as target for 2D drawing
- * @param mouse_pos position of the cursor on the screen
- * @param assets class containing everything drawn in the game
- */
-void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mouse_pos, Assets& assets);
+void handle_premove_square_selection(Game& game, sf::Vector2i mouse_pos, Assets& assets);
 
 void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos);
 
@@ -297,12 +285,18 @@ int select_square(sf::Vector2i& mouse_pos, Position& position, UI& ui);
  */
 bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove);
 
+Move output_candidate_move(Position& position, int& from_square, int& to_square, bool premove = false);
+
+void process_move(Game& game, Assets& assets, int result);
+
+inline bool is_computer_turn(Game& game);
+
 /**
  * @brief plays a sound within the game
  * @param game class containing all game variables/classes
  * @param assets class containing everything drawn in the game
  */
-void play_sound(Assets& assets, Game& game);
+void play_sound(Assets& assets, Move& move);
 
 
 
