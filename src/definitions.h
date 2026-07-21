@@ -198,6 +198,10 @@ class Move {
         data |= (piece & MASK) << PIECE_SHIFT;
     }
 
+    void clear_piece() {
+        data &= ~((MASK) << PIECE_SHIFT); 
+    }
+
     /**
      * @brief sets the piece that was captured
      * @param captured the encoding of the captured piece

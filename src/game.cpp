@@ -52,6 +52,10 @@ void Log::initialise() {
     current_ply_num = 0;
     history_scroll_offset = 0;
     move_num = 1;
+    panel_pos = {900.f, 58.f};
+    panel_size = {180.f, 660.f};
+    line_height = 25;
+    max_lines_visible = panel_size.y / line_height;
 }
 
 void UI::initialise() {

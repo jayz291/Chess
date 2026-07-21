@@ -224,6 +224,10 @@ struct Log {
     int history_scroll_offset;
     int current_ply_num;
     int move_num;
+    sf::Vector2f panel_pos;
+    sf::Vector2f panel_size;
+    int line_height;
+    int max_lines_visible;
     std::vector<std::string> notation_history {};
     void initialise();
 };
@@ -342,6 +346,8 @@ class Game {
 
     /**
      * @brief ends the game and updates the game status encoding accordingly
+     * @param on_time boolean flag which is true if the game ended because a player ran out of time,
+     * and false otherwise
      */
     void end_game(bool on_time = false);
 
@@ -365,10 +371,20 @@ class Game {
      */
     void create_pgn();
 
+    /**
+     * @brief updates the game clock
+     */
     void update_time();
 
+    /**
+     * @brief adds the time incremenet after each player has made their move
+     */
     void add_time_increment();
 
+    /**
+     * @brief checks the first move of the queue of premoves (if any) and determines whether it is 
+     * legal or not
+     */
     void assess_and_make_premove_moves();
 };
 

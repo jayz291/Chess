@@ -282,6 +282,7 @@ void Game::assess_and_make_premove_moves() {
     }*/
     Move move_to_consider = position.premoves.front();
     position.premoves.pop_front();
+    move_to_consider.clear_piece();
     move_to_consider.set_piece(position.board[move_to_consider.get_from_square()]);
     if (move_to_consider.get_piece() == EMPTY_SQUARE)  {
         position.premoves.clear();
@@ -498,7 +499,8 @@ int Position::validate_move(Move& move) {
 
     if ((move.get_from_square() != move.get_to_square()) && 
         (board[move.get_to_square()] == EMPTY_SQUARE || 
-        get_piece_colour(board[move.get_to_square()]) != move.get_turn())) {
+        get_piece_colour(board[move.get_to_square()]) != move.get_turn()) &&
+        get_piece_colour(move.get_piece()) == turn) {
         
         if (piece == WHITE_PAWN || piece == BLACK_PAWN) {
             result = validate_pawn_move(move);

@@ -9,6 +9,8 @@ constexpr int TEXT_OFFSET = 3;
 constexpr int TIME_TEXT_Y_POS = TIME_Y_POS + TEXT_OFFSET;
 constexpr sf::Vector2f TIME_BUTTON_SIZE = {64, 35};
 
+constexpr sf::Vector2f MODE_BUTTON_SIZE = {250, 110};
+
 constexpr int NO_SQUARE_SELECTED = -1;
 constexpr int OUT_OF_BOUNDS = -2;
 
@@ -34,11 +36,11 @@ struct Assets {
     Assets();
 
     Button play_black_cpu {font, "Play CPU as\n WHITE", {155, 525}, 30, sf::Color::Black, 
-        {135, 515}, {250, 110}, sf::Color::White};
+        {135, 515}, MODE_BUTTON_SIZE, sf::Color::White};
     Button play_white_cpu {font, "Play CPU as\n BLACK", {445, 525}, 30, sf::Color::Black, 
-        {425, 515}, {250, 110}, sf::Color::White};
+        {425, 515}, MODE_BUTTON_SIZE, sf::Color::White};
     Button play_two_player {font, "Two player", {735, 525}, 30, sf::Color::Black, 
-        {715, 515}, {250, 110}, sf::Color::White};
+        {715, 515}, MODE_BUTTON_SIZE, sf::Color::White};
     Button play_button {font, "Play", {500, 380}, 60, sf::Color::Black, 
         {380, 330}, {350, 160}, sf::Color::White};
 
@@ -150,6 +152,8 @@ void draw_end_screen(Position& position, Result& result, sf::RenderWindow& windo
  * @param ui class containing variables regarding user interaction with the chess pieces
  * @param window serves as target for 2D drawing
  * @param assets class containing everything drawn in the game
+ * @param premove boolean flag which is true if the screen is being drawn for a premove promotion move and
+ * false otherwise 
  */
 void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
     bool premove = false);
@@ -161,6 +165,8 @@ void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& wi
  * @param assets class containing everything drawn in the game
  */
 void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets);
+
+inline void draw_scroll_bar(Log& log, sf::RenderWindow& window, int& total_pairs);
 
 std::string convert_time_to_display(double time);
 

@@ -319,12 +319,12 @@ void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& ass
 void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets) {
     sf::Text move_record_title = configure_text(assets.font, "Move Record", {935, 20}, 20, sf::Color::White);
     window.draw(move_record_title);
-    sf::Vector2f panel_pos = {900.f, 58.f};
-    sf::Vector2f panel_size = {180.f, 660.f};
-    int line_height = 25;
-    int max_lines_visible = panel_size.y / line_height;
+    //sf::Vector2f panel_pos = {900.f, 58.f};
+    //sf::Vector2f panel_size = {180.f, 660.f};
+    //int line_height = 25;
+    //int max_lines_visible = log.panel_size.y / log.line_height;
 
-    sf::RectangleShape background = make_rectangle(panel_pos, panel_size, sf::Color::White);
+    sf::RectangleShape background = make_rectangle(log.panel_pos, log.panel_size, sf::Color::White);
     background.setOutlineThickness(2);
     window.draw(background);
 
@@ -333,11 +333,11 @@ void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets)
     sf::Text text_black(assets.font2, "", 18);
     sf::Text number(assets.font2, "", 18);
     int start_index = log.history_scroll_offset;
-    int end_index = std::min(total_pairs, start_index + max_lines_visible);
+    int end_index = std::min(total_pairs, start_index + log.max_lines_visible);
 
     for (int i = start_index; i < end_index; ++i) {
-        float x_pos = std::floor(panel_pos.x + 15);
-        float y_pos = std::floor(panel_pos.y + 5 + (i - start_index) * line_height);
+        float x_pos = std::floor(log.panel_pos.x + 15);
+        float y_pos = std::floor(log.panel_pos.y + 5 + (i - start_index) * log.line_height);
         std::string line_str = std::to_string(i + log.move_num) + ".";
         std::string white_turn_txt;
         std::string black_turn_txt;
@@ -372,14 +372,18 @@ void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets)
             window.draw(text_black);
         }
     }
-    if (total_pairs > max_lines_visible) {
-        float scroll_ratio = static_cast<float> (log.history_scroll_offset) / (total_pairs - max_lines_visible);
-        float bar_height = 40.f;
-        float bar_y_range = panel_size.y - bar_height;
-        sf::RectangleShape scroll_bar = make_rectangle({panel_pos.x + panel_size.x - 5, 
-            panel_pos.y + (bar_y_range * scroll_ratio)}, {5.f, bar_height}, sf::Color(100, 100, 100));
-        window.draw(scroll_bar);
+    if (total_pairs > log.max_lines_visible) {
+        draw_scroll_bar(log, window, total_pairs);
     }
+}
+
+inline void draw_scroll_bar(Log& log, sf::RenderWindow& window, int& total_pairs) {
+    float scroll_ratio = static_cast<float> (log.history_scroll_offset) / (total_pairs - log.max_lines_visible);
+    float bar_height = 40.f;
+    float bar_y_range = log.panel_size.y - bar_height;
+    sf::RectangleShape scroll_bar = make_rectangle({log.panel_pos.x + log.panel_size.x - 5, 
+        log.panel_pos.y + (bar_y_range * scroll_ratio)}, {5.f, bar_height}, sf::Color(100, 100, 100));
+    window.draw(scroll_bar);
 }
 
 void handle_clicks_intro(Game& game, sf::RenderWindow& window, Assets& assets, sf::Vector2i mouse_pos) {
@@ -488,10 +492,11 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
              
     int square = find_square_selected(game.ui, mouse_pos);
     if (square != game.ui.selected_square && square != OUT_OF_BOUNDS) {
+
         Move move;
         move.set_from_square(game.ui.selected_square);
         move.set_to_square(square);
-        move.set_piece(game.ui.dragged_piece);
+        move.set_piece(game.position.board[game.ui.selected_square]);
         if (game.position.board[square] != EMPTY_SQUARE) {
             move.set_captured(game.position.board[square]);
         }
@@ -506,7 +511,7 @@ void handle_drag_release(Game& game, sf::RenderWindow& window, sf::Vector2i mous
             game.state = Gamestate::Promoting_pawn;
             return;
         }
-        //print_all_bitboards(game.bitboards);
+
         if (result >= 0) {
             game.is_game_over();
             play_sound(assets, game);
@@ -600,7 +605,8 @@ void set_clock_positions(Assets& assets, int& view) {
 void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
     float x_offset {}, y_offset {};
 
-    bool prev_move_available { false };
+    uint64_t prev_move_squares = 0ULL;
+    uint64_t premove_squares = 0ULL;
     Move prev_move;
     int to_square, from_square;
     if (game.position.move_record.size() > 0 && game.log.current_ply_num != 0) {
@@ -608,13 +614,25 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
         //std::cout << game.move_record[game.current_ply_num - 2] << '\n';
         to_square = prev_move.get_to_square();
         from_square = prev_move.get_from_square();
-        if (to_square != from_square) {
-            prev_move_available = true;
-        }
         if (game.ui.view == BLACK) {
             to_square ^= 63;
             from_square ^= 63;
         } 
+        if (to_square != from_square) {
+            prev_move_squares |= (1ULL << to_square);
+            prev_move_squares |= (1ULL << from_square);
+        }
+    }
+
+    for (Move& move : game.position.premoves) {
+        int from_square = move.get_from_square();
+        int to_square = move.get_to_square();
+        if (game.ui.view == BLACK) {
+            from_square ^= 63;
+            to_square ^= 63;
+        }
+        premove_squares |= (1ULL << from_square);
+        premove_squares |= (1ULL << to_square);
     }
     
     for (int i { 0 }; i < 8; i++) {
@@ -624,18 +642,24 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
             y_offset = 20 + i * (SQUARE_SIZE);
             int square = 56 - 8 * i + j;
             if (((i + j) & 1) != 0) {
-                if (prev_move_available && (square == from_square ||
-                    square == to_square)) {
-                        cell.setFillColor(sf::Color(1, 140, 32));
-                    } else {
-                        cell.setFillColor(sf::Color(165, 42, 42));
-                    }
+                if (((1ULL << square) & prev_move_squares) && ((1ULL << square) & premove_squares)) {
+                    cell.setFillColor(sf::Color(128, 0, 128));
+                } else if ((1ULL << square) & prev_move_squares) {
+                    cell.setFillColor(sf::Color(1, 140, 32));
+                } else if ((1ULL << square) & premove_squares) {
+                    cell.setFillColor(sf::Color::Red);
                 } else {
-                    if (prev_move_available && (square == from_square ||
-                        square == to_square)) {
-                        cell.setFillColor(sf::Color(144, 238, 144));
-                    } else {
-                        cell.setFillColor(sf::Color::Yellow);
+                    cell.setFillColor(sf::Color(165, 42, 42));
+                }
+            } else {
+                if (((1ULL << square) & prev_move_squares) && ((1ULL << square) & premove_squares)) {
+                    cell.setFillColor(sf::Color(177, 156, 217));
+                } else if ((1ULL << square) & prev_move_squares) {
+                    cell.setFillColor(sf::Color(144, 238, 144));
+                } else if ((1ULL << square) & premove_squares) {
+                    cell.setFillColor(sf::Color(255, 176, 156));
+                } else {
+                    cell.setFillColor(sf::Color::Yellow);
                 }
             } 
             if ((square == game.ui.selected_square && game.ui.view == WHITE) ||
@@ -645,21 +669,6 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
                 cell.setOutlineThickness(-3.0f);
                 cell.setOutlineColor(sf::Color::Black);
             } 
-            for (Move& move : game.position.premoves) {
-                int from_square = move.get_from_square();
-                int to_square = move.get_to_square();
-                if (game.ui.view == BLACK) {
-                    from_square ^= 63;
-                    to_square ^= 63;
-                }
-                if (square == from_square || square == to_square) {
-                    if (((i + j) & 1) != 0) {
-                        cell.setFillColor(sf::Color::Red);
-                    } else {
-                        cell.setFillColor(sf::Color(255, 176, 156));
-                    }
-                }
-            }
             cell.setPosition({x_offset, y_offset});
             window.draw(cell);
         }
@@ -789,7 +798,6 @@ int select_square(sf::Vector2i& mouse_pos, Position& position, UI& ui) {
     //std::cout << "Coords - row: " << row << " " << "col: "<< col << '\n';
     uint64_t mask = 1ULL << square;
     if (ui.selected_square != NO_SQUARE_SELECTED) {
-        
         Move move;
         move.set_from_square(ui.selected_square);
         move.set_to_square(square);
