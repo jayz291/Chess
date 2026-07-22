@@ -39,11 +39,12 @@ void run_game_loop() {
             && game.position.turn == BLACK)) {
             
             if (!finished) {
-                generate_computer_move(game.position);
+                int time = set_thinking_time(game);
+                generate_computer_move(game.position, time);
             } else {
                 std::cout << "Searched: " << positions_searched << '\n';
                 make_computer_move(game, assets);
-                game.assess_and_make_premove_moves();
+                game.assess_and_make_premoves();
                 game.premove = false;
             }
         } 

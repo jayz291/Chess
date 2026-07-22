@@ -272,7 +272,7 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
 }
 
-void Game::assess_and_make_premove_moves() {
+void Game::assess_and_make_premoves() {
     if (position.premoves.empty()) {
         return;
     }

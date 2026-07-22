@@ -291,12 +291,12 @@ void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets)
     background.setOutlineThickness(2);
     window.draw(background);
 
-    int total_pairs = (log.notation_history.size() + 1) / 2;
+    log.total_pairs = (log.notation_history.size() + 1) / 2;
     sf::Text text_white(assets.font2, "", 18);
     sf::Text text_black(assets.font2, "", 18);
     sf::Text number(assets.font2, "", 18);
     int start_index = log.history_scroll_offset;
-    int end_index = std::min(total_pairs, start_index + log.max_lines_visible);
+    int end_index = std::min(log.total_pairs, start_index + log.max_lines_visible);
 
     for (int i = start_index; i < end_index; ++i) {
         float x_pos = std::floor(log.panel_pos.x + 15);
@@ -335,13 +335,13 @@ void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets)
             window.draw(text_black);
         }
     }
-    if (total_pairs > log.max_lines_visible) {
-        draw_scroll_bar(log, window, total_pairs);
+    if (log.total_pairs > log.max_lines_visible) {
+        draw_scroll_bar(log, window);
     }
 }
 
-inline void draw_scroll_bar(Log& log, sf::RenderWindow& window, int& total_pairs) {
-    float scroll_ratio = static_cast<float> (log.history_scroll_offset) / (total_pairs - log.max_lines_visible);
+inline void draw_scroll_bar(Log& log, sf::RenderWindow& window) {
+    float scroll_ratio = static_cast<float> (log.history_scroll_offset) / (log.total_pairs - log.max_lines_visible);
     float bar_height = 40.f;
     float bar_y_range = log.panel_size.y - bar_height;
     sf::RectangleShape scroll_bar = make_rectangle({log.panel_pos.x + log.panel_size.x - 5, 

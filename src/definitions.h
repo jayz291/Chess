@@ -199,6 +199,9 @@ class Move {
         data |= (piece & MASK) << PIECE_SHIFT;
     }
 
+    /**
+     * @brief clears data for the piece that moved
+     */
     void clear_piece() {
         data &= ~((MASK) << PIECE_SHIFT); 
     }

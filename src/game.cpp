@@ -56,6 +56,7 @@ void Log::initialise() {
     panel_size = {180.f, 660.f};
     line_height = 25;
     max_lines_visible = panel_size.y / line_height;
+    total_pairs = 0;
 }
 
 void UI::initialise() {

@@ -9,20 +9,28 @@ constexpr int NO_ENTRY_FOUND = -999999;
 /**
  * @brief makes the move selected by the negamax function
  * @param game class containing all game variables/classes
- * @param assets class containing everything drawn in the game
+ * @param assets class containing all buttons/images/fonts/sounds
  */
 void make_computer_move(Game& game, Assets& assets);
 
 /**
  * @brief initiates the algorithms used to generate the computer's move
  * @param position class containing info on the current position
+ * @param time the amount of time the computer is allowed to evaluate for
  */
-void generate_computer_move(Position& position);
+void generate_computer_move(Position& position, const double& time);
 
 /**
  * @brief clears all the data in the transposition table 
  */
 void clear_transposition_table();
+
+/**
+ * @brief sets the thinking time of the computer
+ * @param game class containg all game variables/classes
+ * @return the set time in milliseconds 
+ */
+int set_thinking_time(Game& game);
 
 struct Engine {
     Position& position;
@@ -91,7 +99,7 @@ struct Engine {
      * @param alpha the highest score that the maximising player can guarantee
      * @param ply how deep the search is from the root position 
      * @param seldepth how deep the chess engine searched for certain lines (passed as reference, to be updated)
-     * @return 
+     * @return the evaluation for the move
      */
     inline int find_eval(int move_num, int depth, int beta, int alpha, int ply, int& seldepth);
 
@@ -128,7 +136,7 @@ struct Engine {
      * @param beta the lowest score that the minimising player can guarantee
      * @param ply how deep the search is from the root position 
      * @param seldepth how deep the chess engine searched for certain lines (passed as reference, to be updated)
-     * @return 
+     * @return the alpha score generated
      */
     int quiescence_search(int alpha, int beta, int ply, int& seldepth);
 

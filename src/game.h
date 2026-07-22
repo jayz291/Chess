@@ -228,6 +228,7 @@ struct Log {
     sf::Vector2f panel_size;
     int line_height;
     int max_lines_visible;
+    int total_pairs;
     std::vector<std::string> notation_history {};
     void initialise();
 };
@@ -385,7 +386,7 @@ class Game {
      * @brief checks the first move of the queue of premoves (if any) and determines whether it is 
      * legal or not
      */
-    void assess_and_make_premove_moves();
+    void assess_and_make_premoves();
 };
 
 // DEBUGGING FUNCTIONS

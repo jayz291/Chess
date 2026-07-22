@@ -15,6 +15,18 @@ void clear_transposition_table() {
     }
 }
 
+int set_thinking_time(Game& game) {
+    if (game.time_control != Timesetting::Untimed) {
+        if (game.mode == Gamemode::CPUwhite) {
+            return std::min((game.white_time / 40.0 + game.time_increment) * 1000, 20000.00);
+        } else {
+            return std::min((game.black_time / 40.0 + game.time_increment) * 1000, 20000.00);
+        }
+    } else {
+        return 2000;
+    }
+}
+
 void Engine::record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     int stored_score = eval;
@@ -161,7 +173,7 @@ void Position::undo_null_move(int stored_ep_square, uint64_t stored_hash) {
     turn = (turn == WHITE) ? BLACK : WHITE;
 }
 
-void generate_computer_move(Position& position) {
+void generate_computer_move(Position& position, const double& time) {
     if (thinking_in_progress) {
         return;
     }
@@ -169,8 +181,8 @@ void generate_computer_move(Position& position) {
     positions_searched = 0;
     Position position_copy = position;
     auto start = std::chrono::steady_clock::now();
-    std::thread computer_thread([position_copy, start]() mutable {
-        Engine engine(position_copy, 2000);
+    std::thread computer_thread([position_copy, start, time]() mutable {
+        Engine engine(position_copy, time);
         Move chosen_move = engine.get_best_move();
         computer_turn = thinking_in_progress = false;
         finished = true;
