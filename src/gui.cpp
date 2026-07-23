@@ -173,13 +173,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
     if (game.state != Gamestate::Intro) {
         draw_board(game, window, assets);
         draw_move_history_panel(game.log, window, assets);
-        assets.home_button.set_rec_colour(rectangle_colour);
-        assets.home_button.set_text_colour(text_colour);
-        if (thinking_in_progress) {
-            assets.home_button.draw(window);
-        } else {
-            assets.home_button.update(window, mouse_pos);
-        }
+        assets.home_button.update(window, mouse_pos);
         if (game.time_control != Timesetting::Untimed) {
             if (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn ||
                 game.state == Gamestate::Promoting_pawn_premove) {
@@ -492,10 +486,10 @@ void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
 }
 
 void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
-    if (thinking_in_progress) {
-        return; 
-    }
     if (assets.home_button.is_clicked(mouse_pos)) {
+        terminate_search = true;
+        thinking_in_progress = false;
+        finished = false;
         game.state = Gamestate::Intro;
     }
 }
@@ -637,43 +631,33 @@ void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& wi
     bool premove) {
 
     sf::Color colour;
+    int piece_colour;
     if (!premove) {
         colour = (position.turn == WHITE) ? sf::Color::White : sf::Color::Black;
+        piece_colour = position.turn;
     } else {
         colour = (position.turn == BLACK) ? sf::Color::White : sf::Color::Black;
-    }
-    int piece_colour;
-    if (premove) {
         piece_colour = !position.turn;
-    } else {
-        piece_colour = position.turn;
     }
+    
     assets.pawn_promotion_screen.set_text_colour(colour);
     assets.pawn_promotion_screen.draw(window);
-    int rank = ((ui.view == WHITE) ? 4 : 3);
-    if (ui.view == WHITE) {
-        draw_piece(position, ui, window, assets, 4, 2, piece_array[piece_colour][ROOK]);
-        draw_piece(position, ui, window, assets, 4, 3, piece_array[piece_colour][KNIGHT]);
-        draw_piece(position, ui, window, assets, 4, 4, piece_array[piece_colour][BISHOP]);
-        draw_piece(position, ui, window, assets, 4, 5, piece_array[piece_colour][QUEEN]); 
-    } else {
-        draw_piece(position, ui, window, assets, 3, 5, piece_array[piece_colour][ROOK]);
-        draw_piece(position, ui, window, assets, 3, 4, piece_array[piece_colour][KNIGHT]);
-        draw_piece(position, ui, window, assets, 3, 3, piece_array[piece_colour][BISHOP]);
-        draw_piece(position, ui, window, assets, 3, 2, piece_array[piece_colour][QUEEN]);
+
+    for (int piece_idx = 2; piece_idx <= 5; piece_idx++) {
+        draw_piece(position, ui, window, assets, 4, piece_idx, piece_array[piece_colour][piece_idx], false, true);
     }
 }
 
 void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
-    int x, int y, uint8_t piece, bool dragging) {
-    //assert(piece >= 0 && piece <= 5);
+    int x, int y, uint8_t piece, bool dragging, bool for_pawn_promotion_options) {
+
     sf::Sprite sprite(assets.array[piece]);
     sprite.setScale({0.1f, 0.1f});
 
     if (!dragging) {
         float y_offset;
         float x_offset { static_cast<float>(135 + y * (SQUARE_SIZE)) };
-        if (ui.view == WHITE) {
+        if (ui.view == WHITE || for_pawn_promotion_options) {
             y_offset = (30 + x * (SQUARE_SIZE));
             x_offset = 135 + y * (SQUARE_SIZE);
         } else {
@@ -775,11 +759,11 @@ bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove) {
     int row = floor(((mouse_pos.y - 30.f) / (SQUARE_SIZE)) + 0.0842105);
 
     if (row == 4 && col == 2) {
-        game.ui.piece_selected = P_ROOK;
-    } else if (row == 4 && col == 3) {
         game.ui.piece_selected = P_KNIGHT;
-    } else if (row == 4 && col == 4) {
+    } else if (row == 4 && col == 3) {
         game.ui.piece_selected = P_BISHOP;
+    } else if (row == 4 && col == 4) {
+        game.ui.piece_selected = P_ROOK;
     } else if (row == 4 && col == 5) {
         game.ui.piece_selected = P_QUEEN;
     }

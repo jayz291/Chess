@@ -162,9 +162,11 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
  * @param y the file of the piece
  * @param piece the piece being drawn
  * @param dragging boolean flag which is true if the piece is being dragged and false otherwise
+ * @param for_pawn_promotion_options boolean flag which is true if the pieces are being drawn for the pawn
+ * promotion screen and false otherwise
  */
 void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
-    int x, int y, uint8_t piece, bool dragging = false);
+    int x, int y, uint8_t piece, bool dragging = false, bool for_pawn_promotion_options = false);
 
 /**
  * @brief draws the pop-up 'game is over' message

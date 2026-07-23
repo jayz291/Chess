@@ -477,6 +477,9 @@ void Game::update_time() {
             thinking_in_progress = false;
             end_game(true);
             state = Gamestate::Gameover;
+            ui.is_dragging = false;
+            ui.selected_square = NO_SQUARE_SELECTED;
+            position.premoves.clear();
         }
     } else {
         black_time -= delta_time;
@@ -486,6 +489,9 @@ void Game::update_time() {
             thinking_in_progress = false;
             end_game(true);
             state = Gamestate::Gameover;
+            ui.is_dragging = false;
+            ui.selected_square = NO_SQUARE_SELECTED;
+            position.premoves.clear();
         }
     }
     //std::cout << "White time: " << white_time << " Black time: " << black_time << '\n';
