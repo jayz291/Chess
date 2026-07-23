@@ -94,9 +94,7 @@ void handle_input(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void delegate_click_event(Game& game, Assets& assets, sf::Vector2f& world_pos) {
     sf::Vector2i game_pos = {(int)world_pos.x, (int)world_pos.y};
-    auto& position = game.position;
-    auto& log = game.log;
-    auto& ui = game.ui;
+ 
     if (assets.toggle_audio.is_clicked(game_pos)) {
         assets.sound_on = (assets.sound_on == false) ? true : false;
         if (assets.sound_on) {
@@ -121,6 +119,7 @@ void delegate_click_event(Game& game, Assets& assets, sf::Vector2f& world_pos) {
             handle_premove_square_selection(game, game_pos, assets);
             set_piece_dragging(game, assets, world_pos);
         }
+        handle_clicks_resigning(game, assets, game_pos);
     } else if (game.state == Gamestate::Promoting_pawn) {
         handle_clicks_promoting(game, assets, game_pos);
     } else if (game.state == Gamestate::Promoting_pawn_premove) {
@@ -129,25 +128,11 @@ void delegate_click_event(Game& game, Assets& assets, sf::Vector2f& world_pos) {
         game.state = Gamestate::Resetting;
     } else if (game.state == Gamestate::Resetting) {
         handle_clicks_resetting(game, assets, game_pos);
-        if (assets.go_back_button.is_clicked({game_pos})) {
-            if (log.current_ply_num > 0) {
-                game.undo_game_move(true);
-            }
-        }
         if (assets.make_pgn_file.is_clicked({game_pos})) {
             game.create_pgn();
         }
-        if (assets.go_forward_button.is_clicked({game_pos})) {
-            if (log.current_ply_num < position.move_record.size()) {
-                Move chosen_move = position.move_record[log.current_ply_num];
-                int result = position.validate_move(chosen_move);
-                game.make_game_move(result, chosen_move, true);
-                if (ui.promoting_pawn) {
-                    game.handle_pawn_promotion(chosen_move, true, true);
-                }
-                game.position.evaluate_king_checks();
-            }
-        }
+        handle_clicks_navigate_forward(game, assets, game_pos);
+        handle_clicks_navigate_backward(game, assets, game_pos);
     }
     if (game.state != Gamestate::Intro) {
         handle_clicks_returning(game, assets, game_pos);
@@ -205,6 +190,7 @@ void render(Game& game, sf::RenderWindow& window, Assets& assets) {
         } else {
             assets.undo_button.update(window, mouse_pos);
         }
+        assets.resign_button.update(window, mouse_pos);
     }
     if (game.state == Gamestate::Gameover) {
         draw_end_screen(game.position, game.result, window, assets);
@@ -501,6 +487,38 @@ void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos)
     set_clock_positions(assets, game.ui.view);
 }
 
+void handle_clicks_resigning(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
+    if (assets.resign_button.is_clicked({mouse_pos})) {
+        terminate_search = true;
+        thinking_in_progress = false;
+        finished = false;
+        game.end_game(false, true);
+        game.state = Gamestate::Gameover;
+    }
+}
+
+void handle_clicks_navigate_forward(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
+    if (assets.go_forward_button.is_clicked({mouse_pos})) {
+        if (game.log.current_ply_num < game.position.move_record.size()) {
+            Move chosen_move = game.position.move_record[game.log.current_ply_num];
+            int result = game.position.validate_move(chosen_move);
+            game.make_game_move(result, chosen_move, true);
+            if (game.ui.promoting_pawn) {
+                game.handle_pawn_promotion(chosen_move, true, true);
+            }
+            game.position.evaluate_king_checks();
+        }
+    }
+}
+
+void handle_clicks_navigate_backward(Game& game, Assets& assets, sf::Vector2i mouse_pos) {
+    if (assets.go_back_button.is_clicked({mouse_pos})) {
+        if (game.log.current_ply_num > 0) {
+            game.undo_game_move(true);
+        }
+    }
+}
+
 void set_clock_positions(Assets& assets, int& view) {
     if (view == WHITE) {
         assets.white_clock.set_new_position({16, 425}, {10, 408});
@@ -603,7 +621,13 @@ void draw_board(Game& game, sf::RenderWindow& window, Assets& assets) {
 
 void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets) {
 
-    if (result.status & (1UL << 4)) {
+    if (result.status & (1UL << 5)) {
+        if (result.winner == WHITE) {
+            assets.end_screen.set_text("WHITE WON\nBY RESIGNATION\n-----------------------------\nClick anywhere to \ncontinue");
+        } else {
+            assets.end_screen.set_text("BLACK WON\nBY RESIGNATION\n-----------------------------\nClick anywhere to \ncontinue");
+        }
+    } else if (result.status & (1UL << 4)) {
         if (result.winner == WHITE) {
             assets.end_screen.set_text("WHITE WON\nON TIME\n-----------------------------\nClick anywhere to \ncontinue");
         } else {

@@ -86,6 +86,8 @@ struct Assets {
     &bullet2_button, &blitz0_button, &blitz1_button, &blitz2_button, &rapid0_button, &rapid1_button, 
     &rapid2_button};
 
+    Button toggle_takebacks {font, "Allow Takebacks: Yes", {853, 753}, 15, sf::Color::Black, 
+        {850, 750}, {157, 35}, sf::Color::Green};
 
     Button flip_view_button {font, "Flip view", {13, 148}, 15, sf::Color::Red, 
         {10, 145}, {74, 35}, sf::Color::White};
@@ -95,8 +97,8 @@ struct Assets {
         {10, 100}, {44, 35}, sf::Color::White};
     Button reset_button {font, "Reset", {13, 103}, 15, sf::Color::Red, 
         {10, 100}, {44, 35}, sf::Color::White};
-    Button toggle_takebacks {font, "Allow Takebacks: Yes", {853, 753}, 15, sf::Color::Black, 
-        {850, 750}, {157, 35}, sf::Color::Green};
+    Button resign_button {font, "Resign", {13, 728}, 15, sf::Color::Red, 
+        {10, 725}, {64, 35}, sf::Color::White};
     Button make_pgn_file {font, "Make PGN file", {13, 728}, 15, sf::Color::Red, {10, 725}, {104, 35}, sf::Color::White};
     Button toggle_audio {font, "Sound: Off", {13, 13}, 15, sf::Color::Black, {10, 10}, {104, 35}, sf::Color::Red};
     Button go_back_button {font, "<-", {920, 730}, 40, sf::Color::Black, {900, 730}, {85, 50}, sf::Color::White};
@@ -321,6 +323,12 @@ void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos)
  * @param mouse_pos position of the cursor on the screen
  */
 void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+void handle_clicks_resigning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+void handle_clicks_navigate_forward(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+
+void handle_clicks_navigate_backward(Game& game, Assets& assets, sf::Vector2i mouse_pos);
 
 /**
  * @brief handles clicks on the chessboard during gameplay

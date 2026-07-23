@@ -446,9 +446,20 @@ void Position::evaluate_king_checks() {
     }
 }
 
-void Game::end_game(bool on_time) {
+void Game::end_game(bool on_time, bool resignation) {
     result.status |= (1UL << 7);
     //game.state = Gamestate::Gameover;
+    if (resignation) {
+        result.status |= (1UL << 5);
+        if (mode == Gamemode::Twoplayer) {
+            result.winner = !position.turn;
+        } else if (mode == Gamemode::CPUblack) {
+            result.winner = BLACK;
+        } else {
+            result.winner = WHITE;
+        }
+        return;
+    }
     if (on_time) {
         result.status |= (1UL << 4);
         if (white_time <= 0) {

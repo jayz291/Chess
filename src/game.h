@@ -350,7 +350,7 @@ class Game {
      * @param on_time boolean flag which is true if the game ended because a player ran out of time,
      * and false otherwise
      */
-    void end_game(bool on_time = false);
+    void end_game(bool on_time = false, bool resignation = false);
 
     /**
      * @brief determines if there are enough pieces on the board for a checkmate
