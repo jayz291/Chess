@@ -111,275 +111,229 @@ struct Assets {
     Screen white_clock {font, "10:00", {16, 425}, 20, sf::Color::Black, {10, 408}, {90, 65}, sf::Color::White};
 };
 
-/**
- * @brief renders the screen and all its components (board, buttons, move log)
- * @param game class containing all game variables/classes
- * @param window serves as target for 2D drawing
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void render(Game& game, sf::RenderWindow& window, Assets& assets);
 
-/**
- * @brief renders the initial screen
- * @param window serves as target for 2D drawing
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos the current cursor position on the screen
- */
-void draw_intro_screen(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+struct Application {
+    Game game {}; ///< class containing all game variables/classes
+    Assets assets {}; ///< class containing all buttons/images/fonts/sounds
+    sf::RenderWindow window; ///< serves as target for 2D drawing
+    sf::Vector2f world_pos; ///< the current cursor position on the screen (float)
+    sf::Vector2i mouse_pos; ///< the current cursor position on the screen (int)
 
-/**
- * @brief renders and updates the buttons for selecting the game mode (white/black computer, or two player)
- * @param window serves as target for 2D drawing
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos the current cursor position on the screen
- */
-void draw_game_mode_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+    Position& position; ///< reference to class containing variables concerning the chess game
+    Log& log; ///< reference to class containing variables concerning the move log
+    UI& ui; ///< reference to class containing variables regarding user interaction with the chess pieces
 
-/**
- * @brief renders and updates the buttons for selecting the game mode (white/black computer, or two player)
- * @param window serves as target for 2D drawing
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos the current cursor position on the screen
- */
-void draw_time_control_buttons(sf::RenderWindow& window, Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+    Application() : 
+        window(sf::VideoMode({1100, 800}), "Chess", sf::Style::Default), 
+        position(game.position), log(game.log), ui(game.ui) {
+        window.setFramerateLimit(60);
+        game.state = Gamestate::Intro;
+    }
 
-/**
- * @brief draws the chessboard
- * @param window serves as target for 2D drawing
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void draw_board(Game& game, sf::RenderWindow& window, Assets& assets);
+    /**
+     * @brief starts the chess game with the user interface
+     */
+    void run_game_loop();
 
-/**
- * @brief draws the piece at the appropriate location
- * @param position class containing variables concerning the chess game
- * @param ui class containing variables regarding user interaction with the chess pieces
- * @param window serves as target for 2D drawing
- * @param assets class containing all buttons/images/fonts/sounds
- * @param x the rank of the piece
- * @param y the file of the piece
- * @param piece the piece being drawn
- * @param dragging boolean flag which is true if the piece is being dragged and false otherwise
- * @param for_pawn_promotion_options boolean flag which is true if the pieces are being drawn for the pawn
- * promotion screen and false otherwise
- */
-void draw_piece(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
-    int x, int y, uint8_t piece, bool dragging = false, bool for_pawn_promotion_options = false);
+    /**
+     * @brief renders the screen and all its components (board, buttons, move log)
+     */
+    void render();
 
-/**
- * @brief draws the pop-up 'game is over' message
- * @param position class containing variables concerning the chess game
- * @param result the outcome of the game 
- * @param window serves as target for 2D drawing
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void draw_end_screen(Position& position, Result& result, sf::RenderWindow& window, Assets& assets);
+    /**
+     * @brief renders the initial screen
+     */
+    void draw_intro_screen();
 
-/**
- * @brief draws the pop-up to allow the player to select a promotion piece 
- * @param position class containing variables concerning the chess game
- * @param ui class containing variables regarding user interaction with the chess pieces
- * @param window serves as target for 2D drawing
- * @param assets class containing all buttons/images/fonts/sounds
- * @param premove boolean flag which is true if the screen is being drawn for a premove promotion move and
- * false otherwise 
- */
-void draw_pawn_promotion_screen(Position& position, UI& ui, sf::RenderWindow& window, Assets& assets, 
-    bool premove = false);
+    /**
+     * @brief renders and updates the buttons for selecting the game mode (white/black computer, or two player)
+     */
+    void draw_game_mode_buttons();
 
-/**
- * @brief draws the panel showing the move history is algebraic chess notation
- * @param log class containing variables concerning the move log
- * @param window serves as target for 2D drawing
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void draw_move_history_panel(Log& log, sf::RenderWindow& window, Assets& assets);
+    /**
+     * @brief renders and updates the buttons for selecting the time control
+     */
+    void draw_time_control_buttons();
 
-/**
- * @brief draws the scrollbar for the move history log
- * @param log class containing variables concerning the move log
- * @param window serves as target for 2D drawing
- */
-inline void draw_scroll_bar(Log& log, sf::RenderWindow& window);
+    /**
+     * @brief draws the chessboard
+     */
+    void draw_board();
 
-/**
- * @brief converts the time remaining for a player (a double) into a string to display
- * @param time amount of time remaining for the player
- * @return a formatted string for the time remaining
- */
-std::string convert_time_to_display(double time);
+    /**
+     * @brief draws the piece at the appropriate location
+     * @param x the rank of the piece
+     * @param y the file of the piece
+     * @param piece the piece being drawn
+     * @param dragging boolean flag which is true if the piece is being dragged and false otherwise
+     * @param for_pawn_promotion_options boolean flag which is true if the pieces are being drawn for the pawn
+     * promotion screen and false otherwise
+     */
+    void draw_piece(int x, int y, uint8_t piece, bool dragging = false, bool for_pawn_promotion_options = false);
 
-/**
- * @brief sets the position of the clock so that it is on the right side of the board
- * @param assets class containing all buttons/images/fonts/sounds
- * @param view whether the board is from white's view or black's view
- */
-void set_clock_positions(Assets& assets, int& view);
+    /**
+     * @brief draws the pop-up 'game is over' message
+     */
+    void draw_end_screen();
 
-/**
- * @brief handles user input
- * @param game class containing all game variables/classes
- * @param window serves as target for 2D drawing
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void handle_input(Game& game, sf::RenderWindow& window, Assets& assets);
+    /**
+     * @brief draws the pop-up to allow the player to select a promotion piece 
+     * @param premove boolean flag which is true if the screen is being drawn for a premove promotion move and
+     * false otherwise 
+     */
+    void draw_pawn_promotion_screen(bool premove = false);
 
-/**
- * @brief calls the appropriate input handler function based on the click event
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param world_pos position of the click
- */
-void delegate_click_event(Game& game, Assets& assets, sf::Vector2f& world_pos);
+    /**
+     * @brief draws the panel showing the move history is algebraic chess notation
+     */
+    void draw_move_history_panel();
 
-/**
- * @brief handles click events that occur on the intro screen
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_clicks_intro(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief draws the scrollbar for the move history log
+     */
+    inline void draw_scroll_bar();
 
-/**
- * @brief handles click events that occur when the player clicks on a time control option
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_time_control_selection(Game& game, Assets& assets, sf::Vector2i& mouse_pos);
+    /**
+     * @brief converts the time remaining for a player (a double) into a string to display
+     * @param time amount of time remaining for the player
+     * @return a formatted string for the time remaining
+     */
+    std::string convert_time_to_display(double time);
 
-/**
- * @brief handles cursor movement and clicks during the game (for moves)
- * @param game class containing all game variables/classes
- * @param mouse_pos position of the cursor on the screen
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void handle_move_square_selection(Game& game, sf::Vector2i mouse_pos, Assets& assets);
+    /**
+     * @brief sets the position of the clock so that it is on the right side of the board
+     * @param view whether the board is from white's view or black's view
+     */
+    void set_clock_positions(int& view);
 
-/**
- * @brief handles cursor movement and clicks during the game (for premoves)
- * @param game class containing all game variables/classes
- * @param mouse_pos position of the cursor on the screen
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void handle_premove_square_selection(Game& game, sf::Vector2i mouse_pos, Assets& assets);
+    /**
+     * @brief handles user input
+     */
+    void handle_input();
 
-/**
- * @brief initiates piece dragging
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param world_pos position of the click
- */
-void set_piece_dragging(Game& game, Assets& assets, sf::Vector2f& world_pos);
+    /**
+     * @brief calls the appropriate input handler function based on the click event
+     */
+    void delegate_click_event();
 
-/**
- * @brief finds the square selected on the board
- * @param ui class containing variables regarding user interaction with the chess pieces
- * @param mouse_pos position of the cursor on the screen
- * @return the selected square index (0-63), or a negative number if the square is invalid
- */
-inline int find_square_selected(UI& ui, sf::Vector2i& mouse_pos);
+    /**
+     * @brief handles click events that occur on the intro screen
+     */
+    void handle_clicks_intro();
 
-/**
- * @brief controls the game state on the pawn promotion screen
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_clicks_promoting(Game& game, Assets& assets, sf::Vector2i mouse_pos, bool premove = false);
+    /**
+     * @brief handles click events that occur when the player clicks on a time control option
+     */
+    void handle_time_control_selection();
 
-/**
- * @brief handles clicks for when the player resets the game (clicking the reset button)
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_clicks_resetting(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief handles cursor movement and clicks during the game (for moves)
+     */
+    void handle_move_square_selection();
 
-/** 
- * @brief handles clicks to undo a move (clicking the undo button)
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_clicks_undoing(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief handles cursor movement and clicks during the game (for premoves)
+     */
+    void handle_premove_square_selection();
 
-/**
- * @brief handles clicks for returning to the intro screen
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_clicks_returning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief initiates piece dragging
+     */
+    void set_piece_dragging();
 
-/**
- * @brief handles clicks to flip the chessboard
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param mouse_pos position of the cursor on the screen
- */
-void handle_clicks_flip_view(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief finds the square selected on the board
+     * @return the selected square index (0-63), or a negative number if the square is invalid
+     */
+    inline int find_square_selected();
 
-void handle_clicks_resigning(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief controls the game state on the pawn promotion screen
+     * @param premove boolean flag which is true if the promotion is for a premove and false otherwise 
+     */
+    void handle_clicks_promoting(bool premove = false);
 
-void handle_clicks_navigate_forward(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief handles clicks for when the player resets the game (clicking the reset button)
+     */
+    void handle_clicks_resetting();
 
-void handle_clicks_navigate_backward(Game& game, Assets& assets, sf::Vector2i mouse_pos);
+    /**
+     * @brief handles clicks to undo a move (clicking the undo button)
+     */
+    void handle_clicks_undoing();
 
-/**
- * @brief handles clicks on the chessboard during gameplay
- * @param mouse_pos position of the cursor on the screen
- * @param position class containing variables concerning the chess game
- * @param ui class containing variables regarding user interaction with the chess pieces
- * @return number greater than 0 for a valid move/click, and a number less than 0 for an invalid move/click
- */
-int select_square(sf::Vector2i& mouse_pos, Position& position, UI& ui); 
+    /**
+     * @brief handles clicks for returning to the intro screen
+     */
+    void handle_clicks_returning();
 
-/**
- * @brief allows the player to select a promotion piece on the pawn promotion screen
- * @param game class containing all game variables/classes
- * @param mouse_pos position of the cursor on the screen
- * @param premove boolean flag which is true if the a piece is being selected for a premove and false otherwise
- * @returns true if a valid selection was made, and false otherwise
- */
-bool select_promotion_piece(Game& game, sf::Vector2i mouse_pos, bool premove);
+    /**
+     * @brief handles clicks to flip the chessboard
+     */
+    void handle_clicks_flip_view();
 
-/**
- * @brief sets and outputs the encoding of a move
- * @param position class containing info on the current position
- * @param from_square index of the previous square
- * @param to_square index of the new square
- * @param premove boolean flag which is true if the move is a premove false otherwise
- * @return the move encoding
- */
-Move output_candidate_move(Position& position, int& from_square, int& to_square, bool premove = false);
+    /**
+     * @brief handles clicks to resign
+     */
+    void handle_clicks_resigning();
 
-/**
- * @brief calls functions to make the move and to change the game state to allow the player to choose a piece
- * for pawn promotion
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- * @param result the type of move
- */
-void process_move(Game& game, Assets& assets, int result);
+    /**
+     * @brief handles clicks to navigate forward in the move log after the game is over
+     */
+    void handle_clicks_navigate_forward();
 
-/**
- * @brief returns true if it is the computer's turn and false otherwise
- * @param game class containing all game variables/classes
- * @return true if it is the computer's move and false otherwise 
- */
-inline bool is_computer_turn(Game& game);
+    /**
+     * @brief handles clicks to navigate backward in the move log after the game is over
+     */
+    void handle_clicks_navigate_backward();
 
-/**
- * @brief plays a sound within the game
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void play_sound(Assets& assets, Move& move);
+    /**
+     * @brief handles clicks on the chessboard during gameplay
+     * @return number greater than 0 for a valid move/click, and a number less than 0 for an invalid move/click
+     */
+    int select_square(); 
+
+    /**
+     * @brief allows the player to select a promotion piece on the pawn promotion screen
+     * @param premove boolean flag which is true if the a piece is being selected for a premove and false otherwise
+     * @returns true if a valid selection was made, and false otherwise
+     */
+    bool select_promotion_piece(bool premove);
+
+    /**
+     * @brief sets and outputs the encoding of a move
+     * @param from_square index of the previous square
+     * @param to_square index of the new square
+     * @param premove boolean flag which is true if the move is a premove false otherwise
+     * @return the move encoding
+     */
+    Move output_candidate_move(int& from_square, int& to_square, bool premove = false);
+
+    /**
+     * @brief calls functions to make the move and to change the game state to allow the player to choose a piece
+     * for pawn promotion
+     * @param result the type of move
+     */
+    void process_move(int result);
+
+    /**
+     * @brief returns true if it is the computer's turn and false otherwise
+     * @return true if it is the computer's move and false otherwise 
+     */
+    inline bool is_computer_turn();
+
+    /**
+     * @brief plays a sound within the game
+     * @param move the move encoding 
+     */
+    void play_sound(Move& move);
+
+    /**
+     * @brief makes the move selected by the negamax function
+     */
+    void make_computer_move();
+};
 
 
 

@@ -7,13 +7,6 @@ constexpr int CHECKMATE_THRESHOLD = 300000;
 constexpr int NO_ENTRY_FOUND = -999999;
 
 /**
- * @brief makes the move selected by the negamax function
- * @param game class containing all game variables/classes
- * @param assets class containing all buttons/images/fonts/sounds
- */
-void make_computer_move(Game& game, Assets& assets);
-
-/**
  * @brief initiates the algorithms used to generate the computer's move
  * @param position class containing info on the current position
  * @param time the amount of time the computer is allowed to evaluate for

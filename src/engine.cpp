@@ -195,29 +195,29 @@ void generate_computer_move(Position& position, const double& time) {
     computer_thread.detach();
 }
 
-void make_computer_move(Game& game, Assets& assets) {
+void Application::make_computer_move() {
     if (finished) {
         Move chosen_move = calculated_move;
         std::cout << "best move calculated: ";
         std::cout << chosen_move.get_from_square() << " -> " << chosen_move.get_to_square() << '\n';
-        if (game.position.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
-            chosen_move.set_captured(game.position.board[chosen_move.get_to_square()]);
+        if (position.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
+            chosen_move.set_captured(position.board[chosen_move.get_to_square()]);
         }
-        int result = game.position.validate_move(chosen_move);
+        int result = position.validate_move(chosen_move);
         game.make_game_move(result, chosen_move);
-        if (game.ui.promoting_pawn) {
-            chosen_move.set_promotion_piece(game.ui.piece_selected);
+        if (ui.promoting_pawn) {
+            chosen_move.set_promotion_piece(ui.piece_selected);
             game.handle_pawn_promotion(chosen_move);
         }
-        verify_board_sync(game.position);
-        verify_zobrist_sync(game.position);
-        play_sound(assets, chosen_move);
+        verify_board_sync(position);
+        verify_zobrist_sync(position);
+        play_sound(chosen_move);
         game.is_game_over();
     }
     if (game.state == Gamestate::Promoting_pawn_premove) {
         game.state = Gamestate::Playing;
-        if (!game.position.premoves.empty()) {
-            game.position.premoves.pop_back();
+        if (!position.premoves.empty()) {
+            position.premoves.pop_back();
         }
     }
     finished = false;
