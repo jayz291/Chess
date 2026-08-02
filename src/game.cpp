@@ -26,6 +26,7 @@ void Game::initialise() {
     time_increment = time_settings[(int)time_control][1];
     finished = false;  // prevent move spillover from possibly incomplete computer search
     clear_transposition_table();
+    init_history_heuristic_table();
     premove = false;
 }
 
@@ -515,7 +516,7 @@ std::ostream& operator<<(std::ostream& os, const Move& move) {
     return os;
 }
 
-bool operator==(Move& move1, Move& move2) {
+bool operator==(const Move& move1, const Move& move2) {
     if (move1.get_from_square() == move2.get_from_square() &&
         move1.get_to_square() == move2.get_to_square() &&
         move1.get_piece() == move2.get_piece()) {

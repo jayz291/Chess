@@ -15,6 +15,22 @@ void clear_transposition_table() {
     }
 }
 
+void init_history_heuristic_table() {
+    for (int i = 0; i < 64; i++) {
+        for (int j = 0; j < 64; j++) {
+            history_heuristic_table[i][j] = 0;
+        }
+    }
+}
+
+void scale_down_history_table() {
+    for (int i = 0; i < 64; i++) {
+        for (int j = 0; j < 64; j++) {
+            history_heuristic_table[i][j] >>= 2;
+        }
+    }
+}
+
 int set_thinking_time(Game& game) {
     if (game.time_control != Timesetting::Untimed) {
         if (game.mode == Gamemode::CPUwhite) {
@@ -224,6 +240,7 @@ void Application::make_computer_move() {
 }
 
 Move Engine::get_best_move(int search_depth) {
+    scale_down_history_table();
     Move current_best_move {};
     Move overall_best_move {};
     search_start_time = std::chrono::steady_clock::now();
@@ -247,13 +264,8 @@ Move Engine::get_best_move(int search_depth) {
         // order the moves so that more promising moves are prioritised 
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
-            return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+            return sort_moves_by_priority(move1, current_best_move) > sort_moves_by_priority(move2, current_best_move);
         });
-        for (int i { 1 }; i < possible_moves.num_moves; i++) {
-            if (possible_moves.list[i] == current_best_move) {
-                std::swap(possible_moves.list[i], possible_moves.list[0]);
-            }
-        }
         current_best_move = possible_moves.list[0];
 
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
@@ -363,13 +375,7 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     // the move stored from a previous depth is used first
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        if (move1 == stored_move) {
-            return true;
-        }
-        if (move2 == stored_move) {
-            return false;
-        }
-        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+        return sort_moves_by_priority(move1, stored_move) > sort_moves_by_priority(move2, stored_move);
     });
  
     int max_eval = -600000;
@@ -391,6 +397,12 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
         if (move_eval > max_eval) {
             max_eval = move_eval;
             best_move_this_node = possible_move;
+        }
+
+        // history heuristic 
+        if (move_eval >= beta && possible_move.get_move_type() == QUIET) {
+            history_heuristic_table[possible_move.get_from_square()][possible_move.get_to_square()] +=
+            depth * depth;
         }
 
         // update the alpha to the higher maximum guaranteed score (for the maximising player)
@@ -674,9 +686,26 @@ inline bool Engine::is_time_over() {
     return false;
 }
 
-int Engine::sort_moves_by_priority(const Move& move) {
-    int move_score_guess = 0;
-    int square = (move.get_turn() == WHITE) ? move.get_to_square() : move.get_to_square() ^ 56;
+int Engine::sort_moves_by_priority(const Move& move, const Move& stored_move) {
+    if (move == stored_move) {
+        return 3000000;
+    }
+    if (move.get_move_type() == PROMOTION && move.get_promotion_piece() == P_QUEEN) {
+        return 2000000;
+    }
+    if (move.get_captured_piece() != EMPTY_SQUARE) {
+        return 1000000 + mvv_lva(move);
+    }
+    if (move.get_move_type() == CASTLING) {
+        return 900000;
+    }
+    if (move.get_move_type() == QUIET) {
+        return history_heuristic_table[move.get_from_square()][move.get_to_square()];
+    }
+    return 0;
+}
+
+int Engine::mvv_lva(const Move& move) {
     uint8_t piece = move.get_piece();
     uint8_t captured = move.get_captured_piece();
     if ((piece >> 3) == BLACK) {
@@ -685,18 +714,9 @@ int Engine::sort_moves_by_priority(const Move& move) {
     if ((captured >> 3) == BLACK) {
         captured -= 8;
     }
-    move_score_guess += 30 * (start_value_tables[piece - 1][square] + 
-        (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0 *
-        (start_value_tables[piece - 1][square] - endgame_value_tables[piece - 1][square]));
-    if (captured != EMPTY_SQUARE) {
-        move_score_guess += (1000 * piece_values[captured] - piece_values[piece]) + 1000000;
-    }
-    if (move.get_move_type() == PROMOTION) {
-        move_score_guess += 70 * piece_values[move.get_promotion_piece() + 2];
-    } else if (move.get_move_type() == CASTLING) {
-        move_score_guess += 100;
-    }
-    return move_score_guess;
+    
+    return (1000 * piece_values[captured] - piece_values[piece]);
+     
 }
 
 int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
@@ -723,7 +743,7 @@ int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
     Move_list possible_moves = move_generator.generate_captures_only();
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+        return mvv_lva(move1) > mvv_lva(move2);
     });
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         if (!position.make_test_move<true>(possible_moves.list[i])) {

@@ -7,8 +7,6 @@ uint64_t zobrist_castling[16];
 uint64_t zobrist_en_passant[9];
 uint64_t zobrist_black_turn;
 
-const int RANK_SCORES[8] = { 0, 10, 15, 20, 40, 80, 160, 0 };
-
 void init_zobrist_table() {
     std::mt19937_64 rng(12345);
     for (int piece { 1 }; piece <= 6; piece++) {

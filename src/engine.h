@@ -7,6 +7,145 @@ constexpr int CHECKMATE_THRESHOLD = 300000;
 constexpr int NO_ENTRY_FOUND = -999999;
 
 /**
+ * @brief flags for different types of positions stored in the transposition table
+ */
+enum tt_flag {
+    tt_exact, ///< position that stayed within the window (good enough for both players) (eval score is exact)
+    tt_alpha, ///< position isn't good enough for the current player (eval score is an upper bound)
+    tt_beta, ///< position will be avoided by the opposing player (eval score is a lower bound)
+};
+
+struct table_entry {
+    uint64_t zobrist_key;
+    int eval;
+    int depth;
+    tt_flag flag;
+    Move best_move;
+};
+
+constexpr int TABLE_SIZE = 1048576;
+inline table_entry transposition_table[TABLE_SIZE];
+inline int history_heuristic_table[64][64];
+
+
+constexpr int piece_values[8] = { 0, 100, 320, 330, 500, 900, 20000, 0 };
+constexpr int RANK_SCORES[8] = { 0, 10, 15, 20, 40, 80, 160, 0 }; ///< score bonus for pawns 
+
+constexpr int start_value_tables[6][64] = {
+    // pawn 
+    { 0, 0, 0, 0, 0, 0, 0, 0,
+    5, 10, 10, -20, -20, 10, 10, 5,
+    5, -5, -10, 0, 0, -10, -5, 5, 
+    -10, 0, 0, 20, 20, 0, 0, -10,
+    -10, 5, 10, 25, 25, 10, 5, -10,
+    10, 10, 20, 30, 30, 20, 10, 10, 
+    50, 50, 50, 50, 50, 50, 50, 50,
+    0, 0, 0, 0, 0, 0, 0, 0  },
+    // knight
+    { -50, -40, -30, -30, -30, -30, -40, -50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50 },
+    // bishop
+    { -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20 }, 
+    // rook
+    { 0,  0,  0,  0,  0,  0,  0,  0,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  -5,  0,  0,  0,  0,  -5, -5,
+    -5,  -5,  0,  0,  0,  0,  -5, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    5, 10, 10, 10, 10, 10, 10,  5,
+    0,  0,  0,  5,  5,  0,  0,  0 },
+    // queen
+    {  -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+    -5,  0,  5,  5,  5,  5,  0, -5,
+    0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20 },
+    // king
+    { 20, 60, 40,  0,  0, 10, 60, 20,
+    20, 20,  0,  0,  0,  0, 20, 20,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -10,-20,-20,-20,-20,-20,-20,-10 }
+};
+
+constexpr int endgame_value_tables[6][64] = {
+    // pawn 
+    { 0, 0, 0, 0, 0, 0, 0, 0,
+    -5, 0, -5, -5, -5, 0, -5,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    10, 10, 10, 10, 10, 10, 10, 10,
+    20, 20, 10, 10, 10, 10, 20, 20,
+    30, 30, 20, 20, 20, 20, 30, 30,
+    40, 40, 30, 30, 30, 30, 40, 40,
+    50, 50, 40, 40, 40, 40, 50, 50 },
+    // knight
+    { -50, -40, -30, -30, -30, -30, -40, -50,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50 },
+    //bishop
+    { -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -10,  10,  10, 10, 10,  10,  10,-10,
+    -10,  10,  10, 10, 10,  10,  10,-10,
+    -10,  10, 10, 10, 10, 10,  10,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20 },
+    // rook
+    {  0, 0, 0, 0, 0, 0, 0, 0,
+    0, 10, 10, 10, 10, 10, 10, 0,
+    0, 20, 20, 30, 30, 20, 20, 0,
+    0, 20, 20, 30, 30, 30, 20, 0,
+    0, 20, 20, 30, 30, 20, 20, 0,
+    0, 20, 20, 30, 30, 20, 20, 0,
+    20, 40, 40, 40, 40, 40, 40, 20,
+    30, 30, 40, 40, 40, 40, 30, 30  },
+    // queen
+    {  0, -5, -10, -10, -10, -5, 0,
+    0, 0, 10, 10, 10, 10, 0, 0,
+    0, 20, 20, 30, 30, 20, 20, 0,
+    0, 20, 30, 30, 30, 30, 20, 0,
+    0, 30, 40, 40, 40, 40, 30, 0,
+    0, 30, 30, 30, 30, 30, 30, 0,
+    0, 10, 20, 20, 20, 10, 10, 0,
+    10, 10, 10, 10, 10, 10, 10, 10  },
+    // king
+    { -50,-40,-30,-20,-20,-30,-40,-50,
+    -30,-20,-10,  0,  0,-10,-20,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 30, 40, 40, 30,-10,-30,
+    -30,-10, 20, 30, 30, 20,-10,-30,
+    -30,-30,  0,  0,  0,  0,-30,-30,
+    -50,-30,-30,-30,-30,-30,-30,-50 },
+};
+
+/**
  * @brief initiates the algorithms used to generate the computer's move
  * @param position class containing info on the current position
  * @param time the amount of time the computer is allowed to evaluate for
@@ -17,6 +156,16 @@ void generate_computer_move(Position& position, const double& time);
  * @brief clears all the data in the transposition table 
  */
 void clear_transposition_table();
+
+/**
+ * @brief initialises the 2D table for the history heuristic 
+ */
+void init_history_heuristic_table();
+
+/**
+ * @brief scales down existing (stale) entries in the history table 
+ */
+void scale_down_history_table();
 
 /**
  * @brief sets the thinking time of the computer
@@ -105,11 +254,19 @@ struct Engine {
 
     /**
      * @brief helper function to order moves so that moves likelier to be better are first.
-     * Uses MVV-LVA heavily (Most valuable victim, least valuable attacker)
-     * @param move the move for the evaluation guess 
+     * @param move the move to be scored
      * @return a score for the move (higher scores are prioritised)
      */
-    int sort_moves_by_priority(const Move& move);
+    int sort_moves_by_priority(const Move& move, const Move& stored_move);
+
+    /**
+     * @brief returns a score for a capture move based on MVV-LVA (most valuable victim, least
+     * valuable attacker)
+     * @param move the move to be scored
+     * @return the score of the move, determined by subtracting the value of the captured piece
+     * from the value of the capturing piece
+     */
+    int mvv_lva(const Move& move);
 
     /**
      * @brief returns the evaluation for a certain type of piece based on the position
