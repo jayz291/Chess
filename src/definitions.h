@@ -8,6 +8,7 @@
 #include <bitset>
 #include <algorithm>
 #include <assert.h>
+#include <map>
 
 constexpr int SQUARE_SIZE = 95;
 constexpr int INVALID = -1;
@@ -19,15 +20,6 @@ constexpr int EN_PASSANT_MOVE = 3;
 enum {
     WHITE = 0,
     BLACK = 1
-};
-
-/**
- * @brief flags for different types of positions stored in the transposition table
- */
-enum tt_flag {
-    tt_exact, ///< position that stayed within the window (good enough for both players) (eval score is exact)
-    tt_alpha, ///< position isn't good enough for the current player (eval score is an upper bound)
-    tt_beta, ///< position will be avoided by the opposing player (eval score is a lower bound)
 };
 
 using Chessboard = std::array<uint8_t, 64>;
@@ -199,6 +191,13 @@ class Move {
     }
 
     /**
+     * @brief clears data for the piece that moved
+     */
+    void clear_piece() {
+        data &= ~((MASK) << PIECE_SHIFT); 
+    }
+
+    /**
      * @brief sets the piece that was captured
      * @param captured the encoding of the captured piece
      */
@@ -260,135 +259,6 @@ struct Move_list {
     std::array<Move, 300> list;
     int num_moves {};
 };
-
-struct table_entry {
-    uint64_t zobrist_key;
-    int eval;
-    int depth;
-    tt_flag flag;
-    Move best_move;
-};
-
-constexpr int TABLE_SIZE = 1048576;
-inline table_entry transposition_table[TABLE_SIZE];
-
-const int piece_values[8] = { 0, 100, 320, 330, 500, 900, 20000, 0 };
-
-const int start_value_tables[6][64] = {
-    // pawn 
-    { 0, 0, 0, 0, 0, 0, 0, 0,
-    5, 10, 10, -20, -20, 10, 10, 5,
-    5, -5, -10, 0, 0, -10, -5, 5, 
-    -10, 0, 0, 20, 20, 0, 0, -10,
-    -10, 5, 10, 25, 25, 10, 5, -10,
-    10, 10, 20, 30, 30, 20, 10, 10, 
-    50, 50, 50, 50, 50, 50, 50, 50,
-    0, 0, 0, 0, 0, 0, 0, 0  },
-    // knight
-    { -50, -40, -30, -30, -30, -30, -40, -50,
-    -40,-20,  0,  0,  0,  0,-20,-40,
-    -30,  0, 10, 15, 15, 10,  0,-30,
-    -30,  5, 15, 20, 20, 15,  5,-30,
-    -30,  0, 15, 20, 20, 15,  0,-30,
-    -30,  5, 10, 15, 15, 10,  5,-30,
-    -40,-20,  0,  5,  5,  0,-20,-40,
-    -50,-40,-30,-30,-30,-30,-40,-50 },
-    // bishop
-    { -20,-10,-10,-10,-10,-10,-10,-20,
-    -10,  0,  0,  0,  0,  0,  0,-10,
-    -10,  0,  5, 10, 10,  5,  0,-10,
-    -10,  5,  5, 10, 10,  5,  5,-10,
-    -10,  0, 10, 10, 10, 10,  0,-10,
-    -10, 10, 10, 10, 10, 10, 10,-10,
-    -10,  5,  0,  0,  0,  0,  5,-10,
-    -20,-10,-10,-10,-10,-10,-10,-20 }, 
-    // rook
-    { 0,  0,  0,  0,  0,  0,  0,  0,
-    -5,  0,  0,  0,  0,  0,  0, -5,
-    -5,  -5,  0,  0,  0,  0,  -5, -5,
-    -5,  -5,  0,  0,  0,  0,  -5, -5,
-    -5,  0,  0,  0,  0,  0,  0, -5,
-    -5,  0,  0,  0,  0,  0,  0, -5,
-    5, 10, 10, 10, 10, 10, 10,  5,
-    0,  0,  0,  5,  5,  0,  0,  0 },
-    // queen
-    {  -20,-10,-10, -5, -5,-10,-10,-20,
-    -10,  0,  0,  0,  0,  0,  0,-10,
-    -10,  0,  5,  5,  5,  5,  0,-10,
-    -5,  0,  5,  5,  5,  5,  0, -5,
-    0,  0,  5,  5,  5,  5,  0, -5,
-    -10,  5,  5,  5,  5,  5,  0,-10,
-    -10,  0,  5,  0,  0,  0,  0,-10,
-    -20,-10,-10, -5, -5,-10,-10,-20 },
-    // king
-    { 20, 60, 40,  0,  0, 10, 60, 20,
-    20, 20,  0,  0,  0,  0, 20, 20,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -30,-40,-40,-50,-50,-40,-40,-30,
-    -20,-30,-30,-40,-40,-30,-30,-20,
-    -10,-20,-20,-20,-20,-20,-20,-10 }
-};
-
-const int endgame_value_tables[6][64] = {
-    // pawn 
-    { 0, 0, 0, 0, 0, 0, 0, 0,
-    -5, 0, -5, -5, -5, 0, -5,
-    0, 0, 0, 0, 0, 0, 0, 0,
-    10, 10, 10, 10, 10, 10, 10, 10,
-    20, 20, 10, 10, 10, 10, 20, 20,
-    30, 30, 20, 20, 20, 20, 30, 30,
-    40, 40, 30, 30, 30, 30, 40, 40,
-    50, 50, 40, 40, 40, 40, 50, 50 },
-    // knight
-    { -50, -40, -30, -30, -30, -30, -40, -50,
-    -40,-20,  0,  0,  0,  0,-20,-40,
-    -30,  0, 10, 15, 15, 10,  0,-30,
-    -30,  5, 15, 20, 20, 15,  5,-30,
-    -30,  0, 15, 20, 20, 15,  0,-30,
-    -30,  5, 10, 15, 15, 10,  5,-30,
-    -40,-20,  0,  5,  5,  0,-20,-40,
-    -50,-40,-30,-30,-30,-30,-40,-50 },
-    //bishop
-    { -20,-10,-10,-10,-10,-10,-10,-20,
-    -10,  5,  0,  0,  0,  0,  5,-10,
-    -10,  10,  10, 10, 10,  10,  10,-10,
-    -10,  10,  10, 10, 10,  10,  10,-10,
-    -10,  10, 10, 10, 10, 10,  10,-10,
-    -10, 10, 10, 10, 10, 10, 10,-10,
-    -10,  5,  0,  0,  0,  0,  5,-10,
-    -20,-10,-10,-10,-10,-10,-10,-20 },
-    // rook
-    {  0, 0, 0, 0, 0, 0, 0, 0,
-    0, 10, 10, 10, 10, 10, 10, 0,
-    0, 20, 20, 30, 30, 20, 20, 0,
-    0, 20, 20, 30, 30, 30, 20, 0,
-    0, 20, 20, 30, 30, 20, 20, 0,
-    0, 20, 20, 30, 30, 20, 20, 0,
-    20, 40, 40, 40, 40, 40, 40, 20,
-    30, 30, 40, 40, 40, 40, 30, 30  },
-    // queen
-    {  0, -5, -10, -10, -10, -5, 0,
-    0, 0, 10, 10, 10, 10, 0, 0,
-    0, 20, 20, 30, 30, 20, 20, 0,
-    0, 20, 30, 30, 30, 30, 20, 0,
-    0, 30, 40, 40, 40, 40, 30, 0,
-    0, 30, 30, 30, 30, 30, 30, 0,
-    0, 10, 20, 20, 20, 10, 10, 0,
-    10, 10, 10, 10, 10, 10, 10, 10  },
-    // king
-    { -50,-40,-30,-20,-20,-30,-40,-50,
-    -30,-20,-10,  0,  0,-10,-20,-30,
-    -30,-10, 20, 30, 30, 20,-10,-30,
-    -30,-10, 30, 40, 40, 30,-10,-30,
-    -30,-10, 30, 40, 40, 30,-10,-30,
-    -30,-10, 20, 30, 30, 20,-10,-30,
-    -30,-30,  0,  0,  0,  0,-30,-30,
-    -50,-30,-30,-30,-30,-30,-30,-50 },
-};
-
-extern const int RANK_SCORES[8];
 
 inline const uint64_t FILE_MASKS[8] = {
     0x0101010101010101ULL, 0x0202020202020202ULL, 0x0404040404040404ULL, 0x0808080808080808ULL,
@@ -570,17 +440,34 @@ enum class Gamestate {
     Playing,
     Promoting_pawn,
     Gameover,
-    Resetting
+    Resetting,
+    Promoting_pawn_premove
 };
 
 enum class Gamemode {
-    CPUwhite,
-    CPUblack,
-    Twoplayer
+    CPUblack = 0,
+    CPUwhite = 1,
+    Twoplayer = 2
 };
 
+enum class Timesetting {
+    Untimed = -1,
+    Bullet0 = 0,
+    Bullet1 = 1,
+    Bullet2 = 2,
+    Blitz0 = 3, 
+    Blitz1 = 4,
+    Blitz2 = 5,
+    Rapid0 = 6,
+    Rapid1 = 7, 
+    Rapid2 = 8
+};
+
+const int time_settings[9][2] = { {60, 0}, {60, 1}, {120, 1}, {180, 0}, {180, 2}, {300, 0}, {600, 0}, 
+{900, 10}, {1800, 0} };
+
 std::ostream& operator<<(std::ostream& os, const Move& move);
-bool operator==(Move& move1, Move& move2);
+bool operator==(const Move& move1, const Move& move2);
 
 
 

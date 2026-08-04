@@ -4,11 +4,6 @@
 #include "uci.h"
 
 /**
- * @brief starts the chess game with the user interface
- */
-void run_game_loop();
-
-/**
  * @brief checks whether the game is compiled in build or release mode
  */
 void check_build_mode();
@@ -19,32 +14,32 @@ int main(int argc, char* argv[]) {
     if (argc > 1 && (std::strcmp("uci", argv[1]) == 0)) {
         run_uci_loop();
     } else {
-        run_game_loop();
+        Application application {};
+        application.run_game_loop();
     }
 }
 
-void run_game_loop() {
-    Game game {};
-    Assets assets {};
-    game.state = Gamestate::Intro;
-    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(sf::VideoMode({1100, 800}), "Chess", sf::Style::Default);
+void Application::run_game_loop() {
+ 
     init_zobrist_table();
-    window.setFramerateLimit(60);
-
     while (window.isOpen()) {
-        if ((game.mode == Gamemode::CPUwhite && game.state == Gamestate::Playing && game.position.turn == WHITE) ||
-            (game.mode == Gamemode::CPUblack && game.state == Gamestate::Playing && game.position.turn == BLACK)) {
-            
+        if ((game.mode == Gamemode::CPUwhite && (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn_premove)
+            && position.turn == WHITE) ||
+            (game.mode == Gamemode::CPUblack && (game.state == Gamestate::Playing || game.state == Gamestate::Promoting_pawn_premove)
+            && position.turn == BLACK)) {
+        
             if (!finished) {
-                generate_computer_move(game.position);
+                int time = set_thinking_time(game);
+                generate_computer_move(position, time);
             } else {
                 std::cout << "Searched: " << positions_searched << '\n';
-                make_computer_move(game, assets);
+                make_computer_move();
+                game.assess_and_make_premoves();
+                game.premove = false;
             }
         } 
-        handle_input(game, window, assets);
-        render(game, window, assets);
+        handle_input();
+        render();
     }
 }
 

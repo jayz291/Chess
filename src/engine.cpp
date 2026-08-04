@@ -15,6 +15,43 @@ void clear_transposition_table() {
     }
 }
 
+void init_history_heuristic_table() {
+    for (int i = 0; i < 64; i++) {
+        for (int j = 0; j < 64; j++) {
+            history_heuristic_table[i][j] = 0;
+        }
+    }
+}
+
+void init_pesto_tables() {
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 64; j++) {
+            mg_table[i][j] = start_value_tables[i][j] + mg_value[i];
+            eg_table[i][j] = endgame_value_tables[i][j] + eg_value[i];
+        }
+    }
+}
+
+void scale_down_history_table() {
+    for (int i = 0; i < 64; i++) {
+        for (int j = 0; j < 64; j++) {
+            history_heuristic_table[i][j] >>= 2;
+        }
+    }
+}
+
+int set_thinking_time(Game& game) {
+    if (game.time_control != Timesetting::Untimed) {
+        if (game.mode == Gamemode::CPUwhite) {
+            return std::min((game.white_time / 40.0 + game.time_increment) * 1000, 20000.00);
+        } else {
+            return std::min((game.black_time / 40.0 + game.time_increment) * 1000, 20000.00);
+        }
+    } else {
+        return 2000;
+    }
+}
+
 void Engine::record_entry(uint64_t key, int eval, int depth, tt_flag flag, Move best_move, int ply) {
     int index = key & (TABLE_SIZE - 1);
     int stored_score = eval;
@@ -161,7 +198,7 @@ void Position::undo_null_move(int stored_ep_square, uint64_t stored_hash) {
     turn = (turn == WHITE) ? BLACK : WHITE;
 }
 
-void generate_computer_move(Position& position) {
+void generate_computer_move(Position& position, const double& time) {
     if (thinking_in_progress) {
         return;
     }
@@ -169,8 +206,8 @@ void generate_computer_move(Position& position) {
     positions_searched = 0;
     Position position_copy = position;
     auto start = std::chrono::steady_clock::now();
-    std::thread computer_thread([position_copy, start]() mutable {
-        Engine engine(position_copy, 2000);
+    std::thread computer_thread([position_copy, start, time]() mutable {
+        Engine engine(position_copy, time);
         Move chosen_move = engine.get_best_move();
         computer_turn = thinking_in_progress = false;
         finished = true;
@@ -183,29 +220,36 @@ void generate_computer_move(Position& position) {
     computer_thread.detach();
 }
 
-void make_computer_move(Game& game, Assets& assets) {
+void Application::make_computer_move() {
     if (finished) {
         Move chosen_move = calculated_move;
         std::cout << "best move calculated: ";
         std::cout << chosen_move.get_from_square() << " -> " << chosen_move.get_to_square() << '\n';
-        if (game.position.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
-            chosen_move.set_captured(game.position.board[chosen_move.get_to_square()]);
+        if (position.board[chosen_move.get_to_square()] != EMPTY_SQUARE) {
+            chosen_move.set_captured(position.board[chosen_move.get_to_square()]);
         }
-        int result = game.position.validate_move(chosen_move);
+        int result = position.validate_move(chosen_move);
         game.make_game_move(result, chosen_move);
-        if (game.ui.promoting_pawn) {
-            chosen_move.set_promotion_piece(game.ui.piece_selected);
+        if (ui.promoting_pawn) {
+            chosen_move.set_promotion_piece(ui.piece_selected);
             game.handle_pawn_promotion(chosen_move);
         }
-        verify_board_sync(game.position);
-        verify_zobrist_sync(game.position);
-        play_sound(assets, game);
+        verify_board_sync(position);
+        verify_zobrist_sync(position);
+        play_sound(chosen_move);
         game.is_game_over();
+    }
+    if (game.state == Gamestate::Promoting_pawn_premove) {
+        game.state = Gamestate::Playing;
+        if (!position.premoves.empty()) {
+            position.premoves.pop_back();
+        }
     }
     finished = false;
 }
 
 Move Engine::get_best_move(int search_depth) {
+    scale_down_history_table();
     Move current_best_move {};
     Move overall_best_move {};
     search_start_time = std::chrono::steady_clock::now();
@@ -229,13 +273,8 @@ Move Engine::get_best_move(int search_depth) {
         // order the moves so that more promising moves are prioritised 
         std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
         [&](Move& move1, Move& move2) {
-            return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+            return sort_moves_by_priority(move1, current_best_move) > sort_moves_by_priority(move2, current_best_move);
         });
-        for (int i { 1 }; i < possible_moves.num_moves; i++) {
-            if (possible_moves.list[i] == current_best_move) {
-                std::swap(possible_moves.list[i], possible_moves.list[0]);
-            }
-        }
         current_best_move = possible_moves.list[0];
 
         for (int i { 0 }; i < possible_moves.num_moves; i++) {
@@ -345,13 +384,7 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
     // the move stored from a previous depth is used first
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        if (move1 == stored_move) {
-            return true;
-        }
-        if (move2 == stored_move) {
-            return false;
-        }
-        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+        return sort_moves_by_priority(move1, stored_move) > sort_moves_by_priority(move2, stored_move);
     });
  
     int max_eval = -600000;
@@ -373,6 +406,12 @@ int Engine::negamax(int depth, int alpha, int beta, int ply, int& seldepth) {
         if (move_eval > max_eval) {
             max_eval = move_eval;
             best_move_this_node = possible_move;
+        }
+
+        // history heuristic 
+        if (move_eval >= beta && possible_move.get_move_type() == QUIET) {
+            history_heuristic_table[possible_move.get_from_square()][possible_move.get_to_square()] +=
+            depth * depth;
         }
 
         // update the alpha to the higher maximum guaranteed score (for the maximising player)
@@ -425,46 +464,59 @@ inline int Engine::find_eval(int move_num, int depth, int beta, int alpha, int p
 
 int Engine::evaluate() {
     int eval { 0 };
-    position.value_white_pieces = position.value_black_pieces = 0;
-    for (int piece { 1 }; piece < 6; piece++) {
-        int current_material = __builtin_popcountll(position.bitboards.bitboards[piece]) * piece_values[piece];
-        position.value_white_pieces += current_material;
-        eval += current_material;
+    int game_phase = 0;
+    int mg[2] = {0, 0};
+    int eg[2] = {0, 0};
+    for (int piece = 1; piece <= 6; piece++) {
+        mg[WHITE] += positional_eval(position.bitboards.bitboards[piece], piece, false, true);
+        eg[WHITE] += positional_eval(position.bitboards.bitboards[piece], piece, false, false);
+        game_phase += game_phase_vals[piece] * __builtin_popcountll(position.bitboards.bitboards[piece]);
     }
-    for (int piece { 9 }; piece < 14; piece++) {
-        int current_material = __builtin_popcountll(position.bitboards.bitboards[piece]) * piece_values[piece - 8];
-        position.value_black_pieces += current_material;
-        eval -= current_material;
+    for (int piece = 9; piece <= 14; piece++) {
+        mg[BLACK] += positional_eval(position.bitboards.bitboards[piece], piece - 8, true, true);
+        eg[BLACK] += positional_eval(position.bitboards.bitboards[piece], piece - 8, true, false);
+        game_phase += game_phase_vals[piece - 8] * __builtin_popcountll(position.bitboards.bitboards[piece]);
     }
-    double material_phase = (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0;
-    for (int piece { 1 }; piece <= 6; piece++) {
-        eval += positional_eval(position.bitboards.bitboards[piece], piece, material_phase);
+
+    int mg_score = mg[WHITE] - mg[BLACK];
+    int eg_score = eg[WHITE] - eg[BLACK];
+
+    int mg_phase = game_phase;
+    if (mg_phase > 24) {
+        mg_phase = 24;
     }
-    for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= positional_eval(position.bitboards.bitboards[piece], piece - 8, material_phase, true);
-    }
+    int eg_phase = 24 - mg_phase;
+    eval += (mg_score * mg_phase + eg_score * eg_phase) / 24;
+
     eval += pawn_structure_eval();
-    eval += mobility_eval();
+    eval += mobility_eval(game_phase);
     return eval;
 }
 
-__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, 
-    const double& material_phase, bool black) {
+__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, bool black, 
+bool start_value_table) {
     int eval { 0 };
     int idx = piece - 1;
     while (bitboard) {
         int square = (!black) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
-        eval += (start_value_tables[idx][square] + material_phase *
-        (endgame_value_tables[idx][square] - start_value_tables[idx][square]));
+        if (start_value_table) {
+            eval += mg_table[idx][square];
+        } else {
+            eval += eg_table[idx][square];
+        }
         bitboard &= bitboard - 1;
     }
     return eval;
 }
 
-int Engine::mobility_eval() {
+
+int Engine::mobility_eval(const int& game_phase) {
     int eval { 0 };
     Bitboards& bitboards = position.bitboards;
+    int eg_phase = 24 - game_phase;
+    int mg_phase = game_phase;
 
+    int evals[2] = {0, 0};
     uint64_t white_pawns = bitboards.bitboards[WHITE_PAWN];
     uint64_t black_pawns = bitboards.bitboards[BLACK_PAWN];
     uint64_t white_pawn_attacks = 0ULL;
@@ -539,33 +591,25 @@ int Engine::mobility_eval() {
     white_rook_attacks | white_queen_attacks | white_king_attacks;
     uint64_t black_attacks = black_pawn_attacks | black_knight_attacks | black_bishop_attacks |
     black_rook_attacks | black_queen_attacks | black_king_attacks;
-    eval += 3 * __builtin_popcountll(white_knight_attacks & ~black_attacks);
-    eval -= 3 * __builtin_popcountll(black_knight_attacks & ~white_attacks);
-    eval += 3 * __builtin_popcountll(white_bishop_attacks & ~black_attacks);
-    eval -= 3 * __builtin_popcountll(black_bishop_attacks & ~white_attacks);
-    eval += 2 * __builtin_popcountll(white_rook_attacks & ~black_attacks);
-    eval -= 2 * __builtin_popcountll(black_rook_attacks & ~white_attacks);
-    eval += 2 * __builtin_popcountll(white_queen_attacks & ~black_attacks);
-    eval -= 2 * __builtin_popcountll(black_queen_attacks & ~white_attacks);
 
-    // king safety evaluation
-    uint64_t white_king_squares = white_king_attacks & bitboards.bitboards[WHITE_KING];
-    uint64_t black_king_squares = black_king_attacks & bitboards.bitboards[BLACK_KING];
-    eval -= 5 * __builtin_popcountll(white_king_attacks & black_pawn_attacks);
-    eval += 5 * __builtin_popcountll(black_king_squares & white_pawn_attacks);
-    eval -= 10 * __builtin_popcountll(white_king_squares & 
-        (black_knight_attacks | black_bishop_attacks));
-    eval += 10 * __builtin_popcountll(black_king_squares & 
-        (white_knight_attacks | white_bishop_attacks));
-    eval -= 20 * __builtin_popcountll(white_king_squares & black_rook_attacks);
-    eval += 20 * __builtin_popcountll(black_king_squares & white_rook_attacks);
-    eval -= 40 * __builtin_popcountll(white_king_squares & black_queen_attacks);
-    eval += 40 * __builtin_popcountll(black_king_squares & white_queen_attacks);
+    for (int i = 0; i < 2; i++) {
+        evals[i] += mobility_bonuses[i][0] * __builtin_popcountll(white_knight_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][0] * __builtin_popcountll(black_knight_attacks & ~white_attacks);
+        evals[i] += mobility_bonuses[i][1] * __builtin_popcountll(white_bishop_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][1] * __builtin_popcountll(black_bishop_attacks & ~white_attacks);
+        evals[i] += mobility_bonuses[i][2] * __builtin_popcountll(white_rook_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][2] * __builtin_popcountll(black_rook_attacks & ~white_attacks);
+        evals[i] += mobility_bonuses[i][3] * __builtin_popcountll(white_queen_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][3] * __builtin_popcountll(black_queen_attacks & ~white_attacks);
+    }
+    
+    eval += (evals[0] * mg_phase + evals[1] * eg_phase) / 24;
+
     return eval;
 
 }
 
-int Engine::pawn_structure_eval() {
+inline int Engine::pawn_structure_eval() {
     int score = 0;
     uint64_t pawns = position.bitboards.bitboards[WHITE_PAWN];
     uint64_t pawns_copy = pawns;
@@ -573,16 +617,9 @@ int Engine::pawn_structure_eval() {
         int square = __builtin_ctzll(pawns);
         int rank = square / 8;
         int file = square % 8;
-        if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file]) & WHITE_PASSED_RANK_MASKS[rank] &
-            position.bitboards.bitboards[BLACK_PAWN]) == 0) {
-            score += RANK_SCORES[rank];
-        }
-        if (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) > 1) {
-            score -= 20;
-        }
-        if (__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy) == 0) {
-            score -= 20;
-        }
+
+        score -= 8 * (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) - 1);
+        score -= 10 * !__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy);
         pawns &= pawns - 1;
     }
     pawns = position.bitboards.bitboards[BLACK_PAWN];
@@ -591,16 +628,8 @@ int Engine::pawn_structure_eval() {
         int square = __builtin_ctzll(pawns);
         int rank = square / 8;
         int file = square % 8;
-        if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file] | BLACK_PASSED_RANK_MASKS[rank]) & 
-            position.bitboards.bitboards[WHITE_PAWN]) == 0) {
-            score -= RANK_SCORES[7 - rank];
-        }
-        if (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) > 1) {
-            score += 20;
-        }
-        if (__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy) == 0) {
-            score += 20;
-        }
+        score -= 8 * (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) - 1);
+        score -= 10 * !__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy);
         pawns &= pawns - 1;
     }
     return score;
@@ -656,9 +685,26 @@ inline bool Engine::is_time_over() {
     return false;
 }
 
-int Engine::sort_moves_by_priority(const Move& move) {
-    int move_score_guess = 0;
-    int square = (move.get_turn() == WHITE) ? move.get_to_square() : move.get_to_square() ^ 56;
+int Engine::sort_moves_by_priority(const Move& move, const Move& stored_move) {
+    if (move == stored_move) {
+        return 3000000;
+    }
+    if (move.get_move_type() == PROMOTION && move.get_promotion_piece() == P_QUEEN) {
+        return 2000000;
+    }
+    if (move.get_captured_piece() != EMPTY_SQUARE) {
+        return 1000000 + mvv_lva(move);
+    }
+    if (move.get_move_type() == CASTLING) {
+        return 900000;
+    }
+    if (move.get_move_type() == QUIET) {
+        return history_heuristic_table[move.get_from_square()][move.get_to_square()];
+    }
+    return 0;
+}
+
+int Engine::mvv_lva(const Move& move) {
     uint8_t piece = move.get_piece();
     uint8_t captured = move.get_captured_piece();
     if ((piece >> 3) == BLACK) {
@@ -667,18 +713,9 @@ int Engine::sort_moves_by_priority(const Move& move) {
     if ((captured >> 3) == BLACK) {
         captured -= 8;
     }
-    move_score_guess += 30 * (start_value_tables[piece - 1][square] + 
-        (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0 *
-        (start_value_tables[piece - 1][square] - endgame_value_tables[piece - 1][square]));
-    if (captured != EMPTY_SQUARE) {
-        move_score_guess += (1000 * piece_values[captured] - piece_values[piece]) + 1000000;
-    }
-    if (move.get_move_type() == PROMOTION) {
-        move_score_guess += 70 * piece_values[move.get_promotion_piece() + 2];
-    } else if (move.get_move_type() == CASTLING) {
-        move_score_guess += 100;
-    }
-    return move_score_guess;
+    
+    return (1000 * piece_values[captured] - piece_values[piece]);
+     
 }
 
 int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
@@ -705,7 +742,7 @@ int Engine::quiescence_search(int alpha, int beta, int ply, int& seldepth) {
     Move_list possible_moves = move_generator.generate_captures_only();
     std::sort(possible_moves.list.begin(), possible_moves.list.begin() + possible_moves.num_moves, 
     [&](Move& move1, Move& move2) {
-        return sort_moves_by_priority(move1) > sort_moves_by_priority(move2);
+        return mvv_lva(move1) > mvv_lva(move2);
     });
     for (int i { 0 }; i < possible_moves.num_moves; i++) {
         if (!position.make_test_move<true>(possible_moves.list[i])) {

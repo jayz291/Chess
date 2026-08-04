@@ -122,7 +122,7 @@ void parse_go(Game& game, std::istringstream& stream) {
     } else if (wtime != -1 && btime != -1) {
         int time_left = (game.position.turn == WHITE) ? wtime : btime;
         int inc = (game.position.turn == WHITE) ? winc : binc;
-        allocated_time = (time_left / 20) + inc;
+        allocated_time = (time_left / 40) + inc;
     }
 
     int search_depth = (depth != -1) ? depth : 40;

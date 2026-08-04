@@ -115,6 +115,11 @@ class Button {
      */
     void update(sf::RenderWindow& window, sf::Vector2i mouse_pos);
 
+    void set_new_position(sf::Vector2f new_text_position, sf::Vector2f new_rec_position) {
+        rectangle.setPosition(new_rec_position);
+        text.setPosition(new_text_position);
+    }
+
     private:
     sf::Text text;
     sf::RectangleShape rectangle;

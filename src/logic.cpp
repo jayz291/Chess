@@ -7,8 +7,6 @@ uint64_t zobrist_castling[16];
 uint64_t zobrist_en_passant[9];
 uint64_t zobrist_black_turn;
 
-const int RANK_SCORES[8] = { 0, 10, 15, 20, 40, 80, 160, 0 };
-
 void init_zobrist_table() {
     std::mt19937_64 rng(12345);
     for (int piece { 1 }; piece <= 6; piece++) {
@@ -260,6 +258,7 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
         move.set_captured(board[captured_square]);
         position.remove_piece<true>(opposing_turn, move.get_captured_piece(), captured_square);
     } 
+    add_time_increment();
 
     position.turn = ((position.turn == WHITE) ? BLACK : WHITE);
     position.zobrist_hash ^= zobrist_black_turn;
@@ -269,6 +268,51 @@ void Game::make_game_move(int result, Move move, bool is_game_over) {
     }
     log.current_ply_num++;
     //std::cout << std::bitset<8>(game.castling_rights) << '\n';
+}
+
+void Game::assess_and_make_premoves() {
+    if (position.premoves.empty()) {
+        return;
+    }
+    /*for (auto& move : position.premoves) {
+        std::cout << "Piece: " << move.get_piece() << " From: " << move.get_from_square() << " To: "
+        << move.get_to_square() << " Promotion piece: " << move.get_promotion_piece() << '\n';
+    }*/
+    Move move_to_consider = position.premoves.front();
+    position.premoves.pop_front();
+    move_to_consider.clear_piece();
+    move_to_consider.set_piece(position.board[move_to_consider.get_from_square()]);
+    if (move_to_consider.get_piece() == EMPTY_SQUARE)  {
+        position.premoves.clear();
+        //std::cout << (int) position.board[move_to_consider.get_from_square()] << '\n';
+        //std::cout << (int) move_to_consider.get_piece() << '\n';
+        return;
+    } else if (get_piece_colour(move_to_consider.get_piece()) != position.turn) {
+        position.premoves.clear();
+        return;
+    }
+    int to_square_piece = position.board[move_to_consider.get_to_square()];
+    if (to_square_piece != EMPTY_SQUARE) {
+        if (get_piece_colour(to_square_piece) == get_piece_colour(move_to_consider.get_piece())) {
+            position.premoves.clear();
+            return;
+        } else {
+            move_to_consider.set_captured(to_square_piece);
+        }
+    }
+    int result = position.validate_move(move_to_consider);
+    if (result != INVALID) {
+        make_game_move(result, move_to_consider);
+        if (ui.promoting_pawn) {
+            move_to_consider.set_promotion_piece(ui.piece_selected);
+            handle_pawn_promotion(move_to_consider);
+        }
+        verify_board_sync(position);
+        verify_zobrist_sync(position);
+        is_game_over();
+    } else {
+        position.premoves.clear();
+    }
 }
 
 template<bool update_zobrist> void Position::update_castling_flags(Move& move) {
@@ -400,9 +444,29 @@ void Position::evaluate_king_checks() {
     }
 }
 
-void Game::end_game() {
+void Game::end_game(bool on_time, bool resignation) {
     result.status |= (1UL << 7);
     //game.state = Gamestate::Gameover;
+    if (resignation) {
+        result.status |= (1UL << 5);
+        if (mode == Gamemode::Twoplayer) {
+            result.winner = !position.turn;
+        } else if (mode == Gamemode::CPUblack) {
+            result.winner = BLACK;
+        } else {
+            result.winner = WHITE;
+        }
+        return;
+    }
+    if (on_time) {
+        result.status |= (1UL << 4);
+        if (white_time <= 0) {
+            result.winner = BLACK;
+        } else {
+            result.winner = WHITE;
+        }
+        return;
+    }
     if ((result.status & (1UL << 1)) | (result.status & 1UL) || position.plys_to_100 == 100) {
         return;
     }
@@ -432,7 +496,6 @@ template<bool update_zobrist> void Position::move_piece(uint8_t target_piece, in
         remove_piece<update_zobrist>(opposing_turn, captured, to_square);
     }
     place_piece<update_zobrist>(turn, target_piece, to_square);
-    assert(game.board[to_square] != EMPTY_SQUARE);
 }
 
 int Position::validate_move(Move& move) {
@@ -444,7 +507,8 @@ int Position::validate_move(Move& move) {
 
     if ((move.get_from_square() != move.get_to_square()) && 
         (board[move.get_to_square()] == EMPTY_SQUARE || 
-        get_piece_colour(board[move.get_to_square()]) != move.get_turn())) {
+        get_piece_colour(board[move.get_to_square()]) != move.get_turn()) &&
+        get_piece_colour(move.get_piece()) == turn) {
         
         if (piece == WHITE_PAWN || piece == BLACK_PAWN) {
             result = validate_pawn_move(move);

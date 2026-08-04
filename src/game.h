@@ -29,6 +29,7 @@ struct Position {
     int value_black_pieces; 
     uint64_t zobrist_hash; ///< an unsigned 64-bit number representing a position
     Move current_move;
+    std::deque<Move> premoves {};
 
     /**
      * @brief initialises all the necessary variables to start the game 
@@ -223,6 +224,11 @@ struct Log {
     int history_scroll_offset;
     int current_ply_num;
     int move_num;
+    sf::Vector2f panel_pos;
+    sf::Vector2f panel_size;
+    int line_height;
+    int max_lines_visible;
+    int total_pairs;
     std::vector<std::string> notation_history {};
     void initialise();
 };
@@ -248,8 +254,14 @@ class Game {
     public:
     Gamemode mode { Gamemode::Twoplayer };
     Gamestate state {};
+    Timesetting time_control { Timesetting::Untimed };
+    float white_time = 600;
+    float black_time = 600;
+    std::chrono::time_point<std::chrono::steady_clock> prev_time;
+    float time_increment;
     Move calculated_move;
     bool move_ready;
+    bool premove;
     sf::String entered_fen;
     std::string final_fen;
     Position position {};
@@ -335,8 +347,10 @@ class Game {
 
     /**
      * @brief ends the game and updates the game status encoding accordingly
+     * @param on_time boolean flag which is true if the game ended because a player ran out of time,
+     * and false otherwise
      */
-    void end_game();
+    void end_game(bool on_time = false, bool resignation = false);
 
     /**
      * @brief determines if there are enough pieces on the board for a checkmate
@@ -357,6 +371,22 @@ class Game {
      * @brief creates a pgn file of the game
      */
     void create_pgn();
+
+    /**
+     * @brief updates the game clock
+     */
+    void update_time();
+
+    /**
+     * @brief adds the time incremenet after each player has made their move
+     */
+    void add_time_increment();
+
+    /**
+     * @brief checks the first move of the queue of premoves (if any) and determines whether it is 
+     * legal or not
+     */
+    void assess_and_make_premoves();
 };
 
 // DEBUGGING FUNCTIONS

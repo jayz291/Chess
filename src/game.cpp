@@ -21,7 +21,14 @@ void Game::initialise() {
     position.initialise();
     log.initialise();
     result.initialise();
+    prev_time = std::chrono::steady_clock::now();
+    white_time = black_time = time_settings[(int)time_control][0];
+    time_increment = time_settings[(int)time_control][1];
+    finished = false;  // prevent move spillover from possibly incomplete computer search
     clear_transposition_table();
+    init_history_heuristic_table();
+    init_pesto_tables();
+    premove = false;
 }
 
 void Position::initialise() {
@@ -37,6 +44,7 @@ void Position::initialise() {
     castling_rights = 0b00000000;
     zobrist_hash = 0ULL;
     current_move = {};
+    premoves.clear();
 }
 
 void Log::initialise() {
@@ -46,6 +54,11 @@ void Log::initialise() {
     current_ply_num = 0;
     history_scroll_offset = 0;
     move_num = 1;
+    panel_pos = {900.f, 58.f};
+    panel_size = {180.f, 660.f};
+    line_height = 25;
+    max_lines_visible = panel_size.y / line_height;
+    total_pairs = 0;
 }
 
 void UI::initialise() {
@@ -453,6 +466,50 @@ void Game::create_pgn() {
     output_file.close();
 }
 
+void Game::update_time() {
+    auto current_time = std::chrono::steady_clock::now();
+    std::chrono::duration<float> elapsed = current_time - prev_time;
+    prev_time = current_time;
+    float delta_time = elapsed.count();
+    if (position.turn == WHITE) {
+        white_time -= delta_time; 
+        if (white_time <= 0) {
+            white_time = 0;
+            terminate_search = true;
+            thinking_in_progress = false;
+            end_game(true);
+            state = Gamestate::Gameover;
+            ui.is_dragging = false;
+            ui.selected_square = NO_SQUARE_SELECTED;
+            position.premoves.clear();
+        }
+    } else {
+        black_time -= delta_time;
+        if (black_time <= 0) {
+            black_time = 0;
+            terminate_search = true;
+            thinking_in_progress = false;
+            end_game(true);
+            state = Gamestate::Gameover;
+            ui.is_dragging = false;
+            ui.selected_square = NO_SQUARE_SELECTED;
+            position.premoves.clear();
+        }
+    }
+    //std::cout << "White time: " << white_time << " Black time: " << black_time << '\n';
+}
+
+void Game::add_time_increment() {
+    if (time_control == Timesetting::Untimed) {
+        return;
+    }
+    if (position.turn == WHITE) {
+        white_time += time_increment;
+    } else {
+        black_time += time_increment;
+    }
+}
+
 
 std::ostream& operator<<(std::ostream& os, const Move& move) {
     os << "Piece: " << move.get_piece() << ' ';
@@ -460,7 +517,7 @@ std::ostream& operator<<(std::ostream& os, const Move& move) {
     return os;
 }
 
-bool operator==(Move& move1, Move& move2) {
+bool operator==(const Move& move1, const Move& move2) {
     if (move1.get_from_square() == move2.get_from_square() &&
         move1.get_to_square() == move2.get_to_square() &&
         move1.get_piece() == move2.get_piece()) {
