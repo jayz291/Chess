@@ -27,6 +27,7 @@ void Game::initialise() {
     finished = false;  // prevent move spillover from possibly incomplete computer search
     clear_transposition_table();
     init_history_heuristic_table();
+    init_pesto_tables();
     premove = false;
 }
 

@@ -23,6 +23,15 @@ void init_history_heuristic_table() {
     }
 }
 
+void init_pesto_tables() {
+    for (int i = 0; i < 6; i++) {
+        for (int j = 0; j < 64; j++) {
+            mg_table[i][j] = start_value_tables[i][j] + mg_value[i];
+            eg_table[i][j] = endgame_value_tables[i][j] + eg_value[i];
+        }
+    }
+}
+
 void scale_down_history_table() {
     for (int i = 0; i < 64; i++) {
         for (int j = 0; j < 64; j++) {
@@ -455,46 +464,59 @@ inline int Engine::find_eval(int move_num, int depth, int beta, int alpha, int p
 
 int Engine::evaluate() {
     int eval { 0 };
-    position.value_white_pieces = position.value_black_pieces = 0;
-    for (int piece { 1 }; piece < 6; piece++) {
-        int current_material = __builtin_popcountll(position.bitboards.bitboards[piece]) * piece_values[piece];
-        position.value_white_pieces += current_material;
-        eval += current_material;
+    int game_phase = 0;
+    int mg[2] = {0, 0};
+    int eg[2] = {0, 0};
+    for (int piece = 1; piece <= 6; piece++) {
+        mg[WHITE] += positional_eval(position.bitboards.bitboards[piece], piece, false, true);
+        eg[WHITE] += positional_eval(position.bitboards.bitboards[piece], piece, false, false);
+        game_phase += game_phase_vals[piece] * __builtin_popcountll(position.bitboards.bitboards[piece]);
     }
-    for (int piece { 9 }; piece < 14; piece++) {
-        int current_material = __builtin_popcountll(position.bitboards.bitboards[piece]) * piece_values[piece - 8];
-        position.value_black_pieces += current_material;
-        eval -= current_material;
+    for (int piece = 9; piece <= 14; piece++) {
+        mg[BLACK] += positional_eval(position.bitboards.bitboards[piece], piece - 8, true, true);
+        eg[BLACK] += positional_eval(position.bitboards.bitboards[piece], piece - 8, true, false);
+        game_phase += game_phase_vals[piece - 8] * __builtin_popcountll(position.bitboards.bitboards[piece]);
     }
-    double material_phase = (8000 - position.value_white_pieces - position.value_black_pieces) / 8000.0;
-    for (int piece { 1 }; piece <= 6; piece++) {
-        eval += positional_eval(position.bitboards.bitboards[piece], piece, material_phase);
+
+    int mg_score = mg[WHITE] - mg[BLACK];
+    int eg_score = eg[WHITE] - eg[BLACK];
+
+    int mg_phase = game_phase;
+    if (mg_phase > 24) {
+        mg_phase = 24;
     }
-    for (int piece { 9 }; piece <= 14; piece++) {
-        eval -= positional_eval(position.bitboards.bitboards[piece], piece - 8, material_phase, true);
-    }
+    int eg_phase = 24 - mg_phase;
+    eval += (mg_score * mg_phase + eg_score * eg_phase) / 24;
+
     eval += pawn_structure_eval();
-    eval += mobility_eval();
+    eval += mobility_eval(game_phase);
     return eval;
 }
 
-__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, 
-    const double& material_phase, bool black) {
+__attribute__((always_inline)) int Engine::positional_eval(uint64_t bitboard, uint8_t piece, bool black, 
+bool start_value_table) {
     int eval { 0 };
     int idx = piece - 1;
     while (bitboard) {
         int square = (!black) ? __builtin_ctzll(bitboard) : __builtin_ctzll(bitboard) ^ 56;
-        eval += (start_value_tables[idx][square] + material_phase *
-        (endgame_value_tables[idx][square] - start_value_tables[idx][square]));
+        if (start_value_table) {
+            eval += mg_table[idx][square];
+        } else {
+            eval += eg_table[idx][square];
+        }
         bitboard &= bitboard - 1;
     }
     return eval;
 }
 
-int Engine::mobility_eval() {
+
+int Engine::mobility_eval(const int& game_phase) {
     int eval { 0 };
     Bitboards& bitboards = position.bitboards;
+    int eg_phase = 24 - game_phase;
+    int mg_phase = game_phase;
 
+    int evals[2] = {0, 0};
     uint64_t white_pawns = bitboards.bitboards[WHITE_PAWN];
     uint64_t black_pawns = bitboards.bitboards[BLACK_PAWN];
     uint64_t white_pawn_attacks = 0ULL;
@@ -569,33 +591,25 @@ int Engine::mobility_eval() {
     white_rook_attacks | white_queen_attacks | white_king_attacks;
     uint64_t black_attacks = black_pawn_attacks | black_knight_attacks | black_bishop_attacks |
     black_rook_attacks | black_queen_attacks | black_king_attacks;
-    eval += 3 * __builtin_popcountll(white_knight_attacks & ~black_attacks);
-    eval -= 3 * __builtin_popcountll(black_knight_attacks & ~white_attacks);
-    eval += 3 * __builtin_popcountll(white_bishop_attacks & ~black_attacks);
-    eval -= 3 * __builtin_popcountll(black_bishop_attacks & ~white_attacks);
-    eval += 2 * __builtin_popcountll(white_rook_attacks & ~black_attacks);
-    eval -= 2 * __builtin_popcountll(black_rook_attacks & ~white_attacks);
-    eval += 2 * __builtin_popcountll(white_queen_attacks & ~black_attacks);
-    eval -= 2 * __builtin_popcountll(black_queen_attacks & ~white_attacks);
 
-    // king safety evaluation
-    uint64_t white_king_squares = white_king_attacks & bitboards.bitboards[WHITE_KING];
-    uint64_t black_king_squares = black_king_attacks & bitboards.bitboards[BLACK_KING];
-    eval -= 5 * __builtin_popcountll(white_king_attacks & black_pawn_attacks);
-    eval += 5 * __builtin_popcountll(black_king_squares & white_pawn_attacks);
-    eval -= 10 * __builtin_popcountll(white_king_squares & 
-        (black_knight_attacks | black_bishop_attacks));
-    eval += 10 * __builtin_popcountll(black_king_squares & 
-        (white_knight_attacks | white_bishop_attacks));
-    eval -= 20 * __builtin_popcountll(white_king_squares & black_rook_attacks);
-    eval += 20 * __builtin_popcountll(black_king_squares & white_rook_attacks);
-    eval -= 40 * __builtin_popcountll(white_king_squares & black_queen_attacks);
-    eval += 40 * __builtin_popcountll(black_king_squares & white_queen_attacks);
+    for (int i = 0; i < 2; i++) {
+        evals[i] += mobility_bonuses[i][0] * __builtin_popcountll(white_knight_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][0] * __builtin_popcountll(black_knight_attacks & ~white_attacks);
+        evals[i] += mobility_bonuses[i][1] * __builtin_popcountll(white_bishop_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][1] * __builtin_popcountll(black_bishop_attacks & ~white_attacks);
+        evals[i] += mobility_bonuses[i][2] * __builtin_popcountll(white_rook_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][2] * __builtin_popcountll(black_rook_attacks & ~white_attacks);
+        evals[i] += mobility_bonuses[i][3] * __builtin_popcountll(white_queen_attacks & ~black_attacks);
+        evals[i] -= mobility_bonuses[i][3] * __builtin_popcountll(black_queen_attacks & ~white_attacks);
+    }
+    
+    eval += (evals[0] * mg_phase + evals[1] * eg_phase) / 24;
+
     return eval;
 
 }
 
-int Engine::pawn_structure_eval() {
+inline int Engine::pawn_structure_eval() {
     int score = 0;
     uint64_t pawns = position.bitboards.bitboards[WHITE_PAWN];
     uint64_t pawns_copy = pawns;
@@ -603,16 +617,9 @@ int Engine::pawn_structure_eval() {
         int square = __builtin_ctzll(pawns);
         int rank = square / 8;
         int file = square % 8;
-        if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file]) & WHITE_PASSED_RANK_MASKS[rank] &
-            position.bitboards.bitboards[BLACK_PAWN]) == 0) {
-            score += RANK_SCORES[rank];
-        }
-        if (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) > 1) {
-            score -= 20;
-        }
-        if (__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy) == 0) {
-            score -= 20;
-        }
+
+        score -= 8 * (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) - 1);
+        score -= 10 * !__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy);
         pawns &= pawns - 1;
     }
     pawns = position.bitboards.bitboards[BLACK_PAWN];
@@ -621,16 +628,8 @@ int Engine::pawn_structure_eval() {
         int square = __builtin_ctzll(pawns);
         int rank = square / 8;
         int file = square % 8;
-        if (((FILE_MASKS[file] | ADJACENT_FILE_MASKS[file] | BLACK_PASSED_RANK_MASKS[rank]) & 
-            position.bitboards.bitboards[WHITE_PAWN]) == 0) {
-            score -= RANK_SCORES[7 - rank];
-        }
-        if (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) > 1) {
-            score += 20;
-        }
-        if (__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy) == 0) {
-            score += 20;
-        }
+        score -= 8 * (__builtin_popcountll(FILE_MASKS[file] & pawns_copy) - 1);
+        score -= 10 * !__builtin_popcountll(ADJACENT_FILE_MASKS[file] & pawns_copy);
         pawns &= pawns - 1;
     }
     return score;
